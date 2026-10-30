@@ -1029,12 +1029,16 @@ class CarlaSettingsW(QDialog):
         # Set-up connections
 
         self.accepted.connect(self.slot_saveSettings)
-        btn_apply = self.ui.buttonBox.addButton(QDialogButtonBox.Apply)
-        if btn_apply is not None:
-            btn_apply.clicked.connect(self.slot_applySettings)
-        self.ui.buttonBox.button(QDialogButtonBox.Reset).clicked.connect(
-            self.slot_resetSettings
-        )
+        apply_btn_enum = getattr(QDialogButtonBox.StandardButton, "Apply", getattr(QDialogButtonBox, "Apply", None))
+        reset_btn_enum = getattr(QDialogButtonBox.StandardButton, "Reset", getattr(QDialogButtonBox, "Reset", None))
+        if apply_btn_enum is not None:
+            btn_apply = self.ui.buttonBox.addButton(apply_btn_enum)
+            if btn_apply is not None:
+                btn_apply.clicked.connect(self.slot_applySettings)
+        if reset_btn_enum is not None:
+            btn_reset = self.ui.buttonBox.button(reset_btn_enum)
+            if btn_reset is not None:
+                btn_reset.clicked.connect(self.slot_resetSettings)
 
         self.ui.b_main_proj_folder_open.clicked.connect(self.slot_getAndSetProjectPath)
 
