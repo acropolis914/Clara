@@ -4423,6 +4423,10 @@ class HostWindow(QMainWindow):
             # Non-destructive in-place options update
             self.setupCanvas()
             self.slot_miniCanvasCheckAll()
+            if hasattr(self.ui, "graphicsView") and self.ui.graphicsView is not None:
+                vp = self.ui.graphicsView.viewport()
+                if vp is not None:
+                    vp.update()
 
     # --------------------------------------------------------------------------------------------------------
     # About (menu actions)

@@ -10,7 +10,7 @@ from qt_compat import QPointF, QRectF, QGraphicsItem
 # ------------------------------------------------------------------------------------------------------------
 # Imports (Theme)
 
-from .theme import getDefaultThemeName
+from .theme import Theme, getDefaultThemeName, getThemeName
 
 # ------------------------------------------------------------------------------------------------------------
 

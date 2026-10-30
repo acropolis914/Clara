@@ -1590,16 +1590,25 @@ class CarlaSettingsW(QDialog):
     @pyqtSlot()
     def slot_applySettings(self):
         self.slot_saveSettings()
-        parent = self.parent()
-        if parent is not None:
-            if hasattr(parent, "loadSettings"):
-                parent.loadSettings(False)
-            if hasattr(parent, "setupCanvas"):
-                parent.setupCanvas()
-            if hasattr(parent, "slot_miniCanvasCheckAll"):
-                parent.slot_miniCanvasCheckAll()
-            if hasattr(parent, "ui") and hasattr(parent.ui, "graphicsView") and parent.ui.graphicsView is not None:
-                vp = parent.ui.graphicsView.viewport()
+        host_gui = None
+        try:
+            from carla_shared import gCarla
+            if hasattr(gCarla, "gui") and gCarla.gui is not None:
+                host_gui = gCarla.gui
+        except Exception:
+            pass
+        if host_gui is None:
+            host_gui = self.parent()
+
+        if host_gui is not None:
+            if hasattr(host_gui, "loadSettings"):
+                host_gui.loadSettings(False)
+            if hasattr(host_gui, "setupCanvas"):
+                host_gui.setupCanvas()
+            if hasattr(host_gui, "slot_miniCanvasCheckAll"):
+                host_gui.slot_miniCanvasCheckAll()
+            if hasattr(host_gui, "ui") and hasattr(host_gui.ui, "graphicsView") and host_gui.ui.graphicsView is not None:
+                vp = host_gui.ui.graphicsView.viewport()
                 if vp is not None:
                     vp.update()
 
