@@ -344,21 +344,19 @@ def setOptions(new_options):
                 if w and hasattr(w, "updateTheme"):
                     w.updateTheme()
 
-    # 2. Line style, stroke, and opacity updates
-    if (
-        options.line_style != old_line_style
-        or options.line_stroke != old_line_stroke
-        or options.line_opacity != old_line_opacity
-    ):
-        for conn in getattr(canvas, "connection_list", []):
-            if hasattr(conn, "widget") and conn.widget:
-                if options.line_style != old_line_style and hasattr(conn.widget, "setShape"):
-                    conn.widget.setShape(options.line_style)
-                if options.line_stroke != old_line_stroke and hasattr(conn.widget, "setStroke"):
-                    conn.widget.setStroke(options.line_stroke)
-                if options.line_opacity != old_line_opacity and hasattr(conn.widget, "setOpacityVal"):
-                    conn.widget.setOpacityVal(options.line_opacity)
-                conn.widget.updateLinePos()
+    # 2. Line style, stroke, and opacity updates (apply to all live connections)
+    for conn in getattr(canvas, "connection_list", []):
+        w = getattr(conn, "widget", None)
+        if w:
+            if hasattr(w, "setShape"):
+                w.setShape(options.line_style)
+            if hasattr(w, "setStroke"):
+                w.setStroke(options.line_stroke)
+            if hasattr(w, "setOpacityVal"):
+                w.setOpacityVal(options.line_opacity)
+            w.prepareGeometryChange()
+            w.updateLinePos()
+            w.update()
 
     # 3. Node geometry updates
     if (
