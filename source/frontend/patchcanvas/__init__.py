@@ -345,18 +345,28 @@ def setOptions(new_options):
                     w.updateTheme()
 
     # 2. Line style, stroke, and opacity updates (apply to all live connections)
+    line_widgets = set()
     for conn in getattr(canvas, "connection_list", []):
         w = getattr(conn, "widget", None)
-        if w:
-            if hasattr(w, "setShape"):
-                w.setShape(options.line_style)
-            if hasattr(w, "setStroke"):
-                w.setStroke(options.line_stroke)
-            if hasattr(w, "setOpacityVal"):
-                w.setOpacityVal(options.line_opacity)
+        if w is not None:
+            line_widgets.add(w)
+
+    if canvas.scene is not None:
+        for item in canvas.scene.items():
+            if hasattr(item, "setShape") and hasattr(item, "updateLinePos"):
+                line_widgets.add(item)
+
+    for w in line_widgets:
+        if hasattr(w, "setShape"):
+            w.setShape(options.line_style)
+        if hasattr(w, "setStroke"):
+            w.setStroke(options.line_stroke)
+        if hasattr(w, "setOpacityVal"):
+            w.setOpacityVal(options.line_opacity)
+        if hasattr(w, "prepareGeometryChange"):
             w.prepareGeometryChange()
-            w.updateLinePos()
-            w.update()
+        w.updateLinePos()
+        w.update()
 
     # 3. Node geometry updates
     if (
@@ -370,7 +380,11 @@ def setOptions(new_options):
                     w.updatePositions()
 
     if canvas.scene:
+        canvas.scene.invalidate(canvas.scene.sceneRect())
         canvas.scene.update()
+        for v in canvas.scene.views():
+            if v and v.viewport():
+                v.viewport().update()
 
 
 

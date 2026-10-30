@@ -1029,6 +1029,9 @@ class CarlaSettingsW(QDialog):
         # Set-up connections
 
         self.accepted.connect(self.slot_saveSettings)
+        btn_apply = self.ui.buttonBox.addButton(QDialogButtonBox.Apply)
+        if btn_apply is not None:
+            btn_apply.clicked.connect(self.slot_applySettings)
         self.ui.buttonBox.button(QDialogButtonBox.Reset).clicked.connect(
             self.slot_resetSettings
         )
@@ -1376,6 +1379,10 @@ class CarlaSettingsW(QDialog):
             self.ui.cb_canvas_fancy_eyecandy.setChecked(keep_fancy)
 
         # -------------------------------------------------------------------------------------------------------------
+        # Ensure lazy tab form builders are initialized so all settings save properly
+        for _tab_idx in (self.TAB_INDEX_CANVAS, self.TAB_INDEX_OSC, self.TAB_INDEX_WINE, self.TAB_INDEX_EXPERIMENTAL):
+            self._ensure_tab_built(_tab_idx)
+
         # General & Canvas
 
         if getattr(self, "general_form_builder", None) is not None:
@@ -1571,6 +1578,26 @@ class CarlaSettingsW(QDialog):
 
         if getattr(self, "experimental_form_builder", None) is not None:
             self.experimental_form_builder.save_values(settings)
+
+        settings.sync()
+
+    # -----------------------------------------------------------------------------------------------------------------
+
+    @pyqtSlot()
+    def slot_applySettings(self):
+        self.slot_saveSettings()
+        parent = self.parent()
+        if parent is not None:
+            if hasattr(parent, "loadSettings"):
+                parent.loadSettings(False)
+            if hasattr(parent, "setupCanvas"):
+                parent.setupCanvas()
+            if hasattr(parent, "slot_miniCanvasCheckAll"):
+                parent.slot_miniCanvasCheckAll()
+            if hasattr(parent, "ui") and hasattr(parent.ui, "graphicsView") and parent.ui.graphicsView is not None:
+                vp = parent.ui.graphicsView.viewport()
+                if vp is not None:
+                    vp.update()
 
     # -----------------------------------------------------------------------------------------------------------------
 

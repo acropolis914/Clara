@@ -73,7 +73,10 @@ class CanvasLine(QGraphicsPathItem):
         if self.m_shape != shape:
             self.m_shape = shape
             self.m_algorithm = get_line_algorithm(shape)
+            self._cached_pen = None
+            self.prepareGeometryChange()
             self.updateLinePos()
+            self.update()
 
     def getShape(self):
         return self.m_shape
@@ -81,7 +84,10 @@ class CanvasLine(QGraphicsPathItem):
     def setStroke(self, stroke):
         if self.m_stroke != stroke:
             self.m_stroke = stroke
+            self._cached_pen = None
+            self.prepareGeometryChange()
             self.updateLineGradient()
+            self.update()
 
     def getStroke(self):
         return self.m_stroke
@@ -89,7 +95,10 @@ class CanvasLine(QGraphicsPathItem):
     def setOpacityVal(self, opacity):
         if self.m_opacity != opacity:
             self.m_opacity = opacity
+            self._cached_pen = None
+            self.prepareGeometryChange()
             self.updateLineGradient()
+            self.update()
 
     def getOpacityVal(self):
         return self.m_opacity
@@ -169,6 +178,7 @@ class CanvasLine(QGraphicsPathItem):
             start, end, DIRECTION_OUTPUT,
             port1=self.item1, port2=self.item2, connection=self, canvas=canvas,
         )
+        self.prepareGeometryChange()
         self.setPath(self.m_algorithm.build_path(self._ctx))
         self.updateLineGradient()
         self.updateLineSelected()

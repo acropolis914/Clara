@@ -27,6 +27,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Preserved original canvas layout and positions when grouping selected nodes into Freeform containers.
 - **fix(patchbay)**: automatic lifecycle for all drawn canvas items across settings updates and refreshes
   - Made `setOptions()` live and non-destructive: theme, line style, stroke thickness, cable opacity, and node geometry update existing items in-place without clearing the canvas.
+  - Added live scene and viewport invalidation to `CanvasLine` (`setShape`, `setStroke`, `setOpacityVal`, `updateLinePos`) with `prepareGeometryChange()` so existing lines immediately re-route visually when settings change.
+  - Added `Apply` button to settings dialog and forced lazy schema form builders to initialize before save to persist all configuration tabs.
   - Removed destructive `patchcanvas.clear()` from `slot_configureCarla()`, preventing grouping boxes and layouts from disappearing when changing canvas settings.
   - Preserved `CanvasContainer` objects and custom node colors across canvas refreshes/clears using standby descriptors and color caching.
   - Re-link container standby descriptors in `setGroupAsPlugin()` when plugin IDs become available after group creation, preventing active rack plugins from reporting as unplugged.
