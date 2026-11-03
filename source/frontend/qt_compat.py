@@ -702,6 +702,7 @@ elif qt_config == 6:
         "Save",
         "Discard",
         "Reset",
+        "Apply",
         "Yes",
         "No",
     ):

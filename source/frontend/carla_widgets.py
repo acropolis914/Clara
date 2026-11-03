@@ -1772,6 +1772,7 @@ class ProjectLoadSummaryDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def _copy_to_clipboard(self):
+        from qt_compat import QTimer
         clip = QApplication.clipboard()
         if clip:
             clip.setText(self.full_log_content)

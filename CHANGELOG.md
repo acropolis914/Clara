@@ -20,6 +20,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixes
+
+#### 2026-11-04 — Session safety, updater hardening and cleanup
+
+- **fix(session)**: a failed save is no longer reported as success
+  - `saveProjectNow()` now checks the finalize step and shows the "Failed to save project" dialog instead of clearing the dirty flag and pruning autosaves for a file that was never written.
+  - `ProjectStorageManager.finalize_from_backend_save()` returns `False` on any failure instead of always returning `True`; autosave finalization honours it too.
+- **fix(session)**: a failed project load keeps the current session intact
+  - `loadProjectNow()` returns `False` and stops before restoring canvas positions or clearing `fHasUnsavedChanges`, so closing still prompts and the previous work is not treated as saved.
+  - Opening a corrupt file no longer leaves the unreadable filename attached to an empty rack.
+- **fix(storage)**: project files are written atomically
+  - XML canvas positions and XML save-as copies go through a sibling `.tmp` file + `os.replace()`, matching the JSON path; a crash mid-save can no longer truncate a `.carxp`.
+- **fix(storage)**: loading a JSON project works from a read-only folder
+  - Backend conversion files are created in the system temp dir via `tempfile.mkstemp()` instead of next to the project, and no longer litter the project folder.
+- **fix(autosave)**: manual save only removes this session's autosave, not the whole `.autosaves/<project>/` folder, so a second running instance keeps its recovery copy.
+- **fix(updater)**: the version string from `releases.json` is validated before being placed in the shell command, and `clara_self_updater.sh` rejects non-numeric versions (command-injection hardening).
+- **fix(updater)**: update-check `QThread`s are deleted when finished and awaited on close, avoiding "QThread: Destroyed while thread is still running".
+- **fix(widgets)**: "Copy Log to Clipboard" in the project-load error dialog no longer raises `NameError: QTimer`.
+- **perf(canvas)**: signal-flow level polling is cached for 50 ms and skipped entirely while the canvas is hidden or the window minimized, cutting idle CPU for the 60 Hz animator.
+- **chore(qt)**: `QDialogButtonBox.Apply` is now part of the `qt_compat` shim, replacing the per-call `getattr` workaround in the settings dialog.
+- **chore(cleanup)**: removed dead `tab_titles`/`tab_glyphs`/`nerd_family` block in the settings dialog, unused `old_line_*` locals in `patchcanvas.setOptions`, and an unused `error_entries` list in the project loader.
+- **test(project_storage)**: added `source/tests/test_project_storage.py` covering XML/JSON round-trips, atomic saves, temp-file location and failure reporting.
+
 ### Features
 - **feat(patchbay)**: spammable container header nerd font icons and targeted inline rename collision
   - Positioned container control buttons (`󰅖` ungroup, `󰘖`/`󰪦` collapse/expand, `󰝘`/`󰝙`/`󰝚`/`󰝜` layout switchers) at fixed coordinates on the left of the header for position stability.

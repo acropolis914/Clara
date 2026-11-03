@@ -4,6 +4,7 @@
 # Non-blocking background updater querying structured releases.json
 
 import json
+import re
 import urllib.request
 from qt_compat import (
     QThread, pyqtSignal, QWidget, QHBoxLayout, QVBoxLayout,
@@ -14,6 +15,175 @@ from carla_shared import CLARA_VERSION_STRING as VERSION, CARLA_VERSION_STRING
 
 GITHUB_RELEASES_URL = "https://raw.githubusercontent.com/acropolis914/Clara/main/releases.json"
 GITHUB_API_LATEST = "https://api.github.com/repos/acropolis914/Clara/releases/latest"
+
+# ------------------------------------------------------------------------------------------------------------
+# Shared helpers (banner styling and updater launching)
+
+_VERSION_RE = re.compile(r"^\d+(?:\.\d+){1,3}$")
+
+_TERMINALS = (
+    "x-terminal-emulator", "kitty", "alacritty", "gnome-terminal", "konsole",
+    "xfce4-terminal", "foot", "wezterm", "tilix", "terminator", "xterm",
+)
+
+_UPDATER_SCRIPT_PATHS = (
+    "/usr/share/clara/scripts/clara_self_updater.sh",
+    "/usr/lib/carla/scripts/clara_self_updater.sh",
+    "/usr/local/share/clara/scripts/clara_self_updater.sh",
+    "/usr/share/carla/scripts/clara_self_updater.sh",
+)
+
+
+def _safe_version(version):
+    """Version strings come from the network and end up in a shell command, so whitelist them."""
+    ver = str(version or "").strip().lstrip("v")
+    return ver if _VERSION_RE.match(ver) else ""
+
+
+def launch_self_updater(parent, version, current_version):
+    """Opens a terminal running clara_self_updater.sh. Returns True when a terminal was launched."""
+    import os, shutil, subprocess
+
+    ver = _safe_version(version)
+    if not ver:
+        QMessageBox.warning(
+            parent,
+            "Invalid Update",
+            "The update server returned an invalid version number, so the updater was not started.",
+        )
+        return False
+
+    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "clara_self_updater.sh"))
+    if not os.path.exists(script_path):
+        for sp in _UPDATER_SCRIPT_PATHS:
+            if os.path.exists(sp):
+                script_path = sp
+                break
+
+    cmd_str = f"bash '{script_path}' '{ver}' '{_safe_version(current_version)}'"
+
+    found_term = None
+    for cand in (os.environ.get("TERMINAL"),) + _TERMINALS:
+        if cand and shutil.which(cand):
+            found_term = cand
+            break
+
+    if not found_term:
+        QMessageBox.warning(
+            parent,
+            "Terminal Not Found",
+            f"Could not automatically locate a terminal emulator.\nPlease run the following command manually in your terminal:\n\n{cmd_str}"
+        )
+        return False
+
+    try:
+        if found_term in ("gnome-terminal", "mate-terminal", "xfce4-terminal", "tilix"):
+            subprocess.Popen([found_term, "--", "bash", "-c", cmd_str])
+        elif found_term in ("konsole", "terminator"):
+            subprocess.Popen([found_term, "-e", f"bash -c \"{cmd_str}\""])
+        else:
+            subprocess.Popen([found_term, "-e", "bash", "-c", cmd_str])
+        return True
+    except Exception as e:
+        QMessageBox.warning(
+            parent,
+            "Error Launching Terminal",
+            f"Failed to launch {found_term}:\n{e}\n\nPlease run:\n{cmd_str}"
+        )
+        return False
+
+
+def _apply_banner_style(widget, badge, frame_name, border_color, badge_fg,
+                        accent_color, accent_hover, accent_selector,
+                        padding="3px 10px", extra_rules=""):
+    """One place for both notification banners' stylesheet, system palette or Catppuccin."""
+    try:
+        from styles.theme_manager import theme_manager, find_closest_system_color
+        from qt_compat import QApplication, QPalette
+    except ImportError:
+        return
+
+    if theme_manager.is_using_system():
+        app = QApplication.instance()
+        pal = app.palette() if app else QPalette()
+        bg_col = find_closest_system_color("#181825", pal).name()
+        border_col = find_closest_system_color(border_color, pal).name()
+        text_col = pal.color(QPalette.WindowText).name()
+        btn_bg = pal.color(QPalette.Button).name()
+        btn_fg = pal.color(QPalette.ButtonText).name()
+        accent_bg = pal.color(QPalette.Highlight).name()
+        accent_fg = pal.color(QPalette.HighlightedText).name()
+        mid_border = pal.color(QPalette.Mid).name()
+
+        widget.setStyleSheet(f"""
+            QFrame#{frame_name} {{
+                background-color: {bg_col};
+                border-bottom: 2px solid {border_col};
+                padding: 4px 10px;
+            }}
+            QLabel {{
+                color: {text_col};
+                font-size: 12px;
+            }}
+            QPushButton {{
+                background-color: {btn_bg};
+                color: {btn_fg};
+                border: 1px solid {mid_border};
+                border-radius: 4px;
+                padding: {padding};
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background-color: {pal.color(QPalette.Midlight).name()};
+            }}
+            QPushButton{accent_selector} {{
+                background-color: {accent_bg};
+                color: {accent_fg};
+                font-weight: bold;
+                border: none;
+            }}
+        """)
+        badge.setStyleSheet(
+            f"background-color: {border_col}; color: {pal.color(QPalette.Base).name()}; "
+            "font-weight: bold; border-radius: 3px; padding: 2px 4px;"
+        )
+    else:
+        widget.setStyleSheet(f"""
+            QFrame#{frame_name} {{
+                background-color: #181825;
+                border-bottom: 2px solid {border_color};
+                padding: 4px 10px;
+            }}
+            QLabel {{
+                color: #CDD6F4;
+                font-size: 12px;
+            }}
+            QPushButton {{
+                background-color: #313244;
+                color: #CDD6F4;
+                border: 1px solid #45475A;
+                border-radius: 4px;
+                padding: {padding};
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background-color: #45475A;
+            }}
+            QPushButton{accent_selector} {{
+                background-color: {accent_color};
+                color: #11111B;
+                font-weight: bold;
+                border: none;
+            }}
+            QPushButton{accent_selector}:hover {{
+                background-color: {accent_hover};
+            }}
+            {extra_rules}
+        """)
+        badge.setStyleSheet(
+            f"background-color: {border_color}; color: {badge_fg}; "
+            "font-weight: bold; border-radius: 3px; padding: 2px 4px;"
+        )
 
 def parse_semver(ver_str):
     """Normalize version string into comparable tuple of ints."""
@@ -187,69 +357,9 @@ class UpdateChangelogDialog(QDialog):
         layout.addLayout(btn_row)
 
     def run_terminal_installer(self):
-        import os, shutil, subprocess
         from carla_shared import CLARA_VERSION_STRING
-        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "clara_self_updater.sh"))
-        if not os.path.exists(script_path):
-            system_paths = [
-                "/usr/share/clara/scripts/clara_self_updater.sh",
-                "/usr/lib/carla/scripts/clara_self_updater.sh",
-                "/usr/local/share/clara/scripts/clara_self_updater.sh",
-                "/usr/share/carla/scripts/clara_self_updater.sh"
-            ]
-            for sp in system_paths:
-                if os.path.exists(sp):
-                    script_path = sp
-                    break
-
-        ver = self.release_info.get("version", "")
-        curr_ver = CLARA_VERSION_STRING.lstrip("v")
-        cmd_str = f"bash '{script_path}' '{ver}' '{curr_ver}'"
-
-        terminal = os.environ.get("TERMINAL")
-        term_candidates = [
-            terminal,
-            "x-terminal-emulator",
-            "kitty",
-            "alacritty",
-            "gnome-terminal",
-            "konsole",
-            "xfce4-terminal",
-            "foot",
-            "wezterm",
-            "tilix",
-            "terminator",
-            "xterm"
-        ]
-
-        found_term = None
-        for cand in term_candidates:
-            if cand and shutil.which(cand):
-                found_term = cand
-                break
-
-        if not found_term:
-            QMessageBox.warning(
-                self,
-                "Terminal Not Found",
-                f"Could not automatically locate a terminal emulator.\nPlease run the following command manually in your terminal:\n\n{cmd_str}"
-            )
-            return
-
-        try:
-            if found_term in ("gnome-terminal", "mate-terminal", "xfce4-terminal", "tilix"):
-                subprocess.Popen([found_term, "--", "bash", "-c", cmd_str])
-            elif found_term in ("konsole", "terminator"):
-                subprocess.Popen([found_term, "-e", f"bash -c \"{cmd_str}\""])
-            else:
-                subprocess.Popen([found_term, "-e", "bash", "-c", cmd_str])
+        if launch_self_updater(self, self.release_info.get("version", ""), CLARA_VERSION_STRING.lstrip("v")):
             self.accept()
-        except Exception as e:
-            QMessageBox.warning(
-                self,
-                "Error Launching Terminal",
-                f"Failed to launch {found_term}:\n{e}\n\nPlease run:\n{cmd_str}"
-            )
 
     def open_download_page(self):
         url = self.release_info.get("url") or f"https://github.com/acropolis914/Clara/releases/tag/v{self.release_info.get('version', '')}"
@@ -309,68 +419,8 @@ class UpdateNotificationBanner(QFrame):
         layout.addWidget(skip_btn)
 
     def run_terminal_installer(self):
-        import os, shutil, subprocess
         from carla_shared import CLARA_VERSION_STRING
-        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "clara_self_updater.sh"))
-        if not os.path.exists(script_path):
-            system_paths = [
-                "/usr/share/clara/scripts/clara_self_updater.sh",
-                "/usr/lib/carla/scripts/clara_self_updater.sh",
-                "/usr/local/share/clara/scripts/clara_self_updater.sh",
-                "/usr/share/carla/scripts/clara_self_updater.sh"
-            ]
-            for sp in system_paths:
-                if os.path.exists(sp):
-                    script_path = sp
-                    break
-
-        ver = self.version
-        curr_ver = CLARA_VERSION_STRING.lstrip("v")
-        cmd_str = f"bash '{script_path}' '{ver}' '{curr_ver}'"
-
-        terminal = os.environ.get("TERMINAL")
-        term_candidates = [
-            terminal,
-            "x-terminal-emulator",
-            "kitty",
-            "alacritty",
-            "gnome-terminal",
-            "konsole",
-            "xfce4-terminal",
-            "foot",
-            "wezterm",
-            "tilix",
-            "terminator",
-            "xterm"
-        ]
-
-        found_term = None
-        for cand in term_candidates:
-            if cand and shutil.which(cand):
-                found_term = cand
-                break
-
-        if not found_term:
-            QMessageBox.warning(
-                self,
-                "Terminal Not Found",
-                f"Could not automatically locate a terminal emulator.\nPlease run the following updater command manually in your terminal:\n\n{cmd_str}"
-            )
-            return
-
-        try:
-            if found_term in ("gnome-terminal", "mate-terminal", "xfce4-terminal", "tilix"):
-                subprocess.Popen([found_term, "--", "bash", "-c", cmd_str])
-            elif found_term in ("konsole", "terminator"):
-                subprocess.Popen([found_term, "-e", f"bash -c \"{cmd_str}\""])
-            else:
-                subprocess.Popen([found_term, "-e", "bash", "-c", cmd_str])
-        except Exception as e:
-            QMessageBox.warning(
-                self,
-                "Error Launching Terminal",
-                f"Failed to launch {found_term}:\n{e}\n\nPlease run:\n{cmd_str}"
-            )
+        launch_self_updater(self, self.version, CLARA_VERSION_STRING.lstrip("v"))
 
     def open_releases_page(self):
         url = self.release_info.get("url") or f"https://github.com/acropolis914/Clara/releases/tag/v{self.version}"
@@ -384,12 +434,6 @@ class UpdateNotificationBanner(QFrame):
         self.setVisible(False)
 
     def update_theme_styling(self):
-        try:
-            from styles.theme_manager import theme_manager, find_closest_system_color
-            from qt_compat import QApplication, QPalette
-        except ImportError:
-            return
-
         badge_colors = {
             "critical": ("#F38BA8", "#1E1E2E"),
             "suggested": ("#89B4FA", "#1E1E2E"),
@@ -397,94 +441,25 @@ class UpdateNotificationBanner(QFrame):
         }
         badge_bg, badge_fg = badge_colors.get(self.urgency, badge_colors["minor"])
 
-        if theme_manager.is_using_system():
-            app = QApplication.instance()
-            pal = app.palette() if app else QPalette()
-            bg_col = find_closest_system_color("#181825", pal).name()
-            border_col = find_closest_system_color(badge_bg, pal).name()
-            text_col = pal.color(QPalette.WindowText).name()
-            btn_bg = pal.color(QPalette.Button).name()
-            btn_fg = pal.color(QPalette.ButtonText).name()
-            accent_bg = pal.color(QPalette.Highlight).name()
-            accent_fg = pal.color(QPalette.HighlightedText).name()
-            mid_border = pal.color(QPalette.Mid).name()
-
-            self.setStyleSheet(f"""
-                QFrame#UpdateNotificationBanner {{
-                    background-color: {bg_col};
-                    border-bottom: 2px solid {border_col};
-                    padding: 4px 10px;
-                }}
-                QLabel {{
-                    color: {text_col};
-                    font-size: 12px;
-                }}
-                QPushButton {{
-                    background-color: {btn_bg};
-                    color: {btn_fg};
-                    border: 1px solid {mid_border};
-                    border-radius: 4px;
-                    padding: 3px 10px;
-                    font-size: 11px;
-                }}
-                QPushButton:hover {{
-                    background-color: {pal.color(QPalette.Midlight).name()};
-                }}
-                QPushButton#InstallBtn {{
-                    background-color: {accent_bg};
-                    color: {accent_fg};
-                    font-weight: bold;
-                    border: none;
-                }}
-            """)
-            if hasattr(self, "badge"):
-                self.badge.setStyleSheet(f"background-color: {border_col}; color: {pal.color(QPalette.Base).name()}; font-weight: bold; border-radius: 3px; padding: 2px 4px;")
-        else:
-            self.setStyleSheet(f"""
-                QFrame#UpdateNotificationBanner {{
-                    background-color: #181825;
-                    border-bottom: 2px solid {badge_bg};
-                    padding: 4px 10px;
-                }}
-                QLabel {{
-                    color: #CDD6F4;
-                    font-size: 12px;
-                }}
-                QPushButton {{
+        _apply_banner_style(
+            self, self.badge, "UpdateNotificationBanner",
+            border_color=badge_bg, badge_fg=badge_fg,
+            accent_color="#A6E3A1", accent_hover="#94E2D5", accent_selector="#InstallBtn",
+            extra_rules="""
+                QPushButton#ReleasesBtn {
                     background-color: #313244;
                     color: #CDD6F4;
-                    border: 1px solid #45475A;
-                    border-radius: 4px;
-                    padding: 3px 10px;
-                    font-size: 11px;
-                }}
-                QPushButton:hover {{
+                }
+                QPushButton#ReleasesBtn:hover {
                     background-color: #45475A;
-                }}
-                QPushButton#InstallBtn {{
-                    background-color: #A6E3A1;
-                    color: #11111B;
-                    font-weight: bold;
-                    border: none;
-                }}
-                QPushButton#InstallBtn:hover {{
-                    background-color: #94E2D5;
-                }}
-                QPushButton#ReleasesBtn {{
-                    background-color: #313244;
-                    color: #CDD6F4;
-                }}
-                QPushButton#ReleasesBtn:hover {{
-                    background-color: #45475A;
-                }}
-                QPushButton#ChangelogBtn {{
+                }
+                QPushButton#ChangelogBtn {
                     background-color: #89B4FA;
                     color: #11111B;
                     font-weight: bold;
-                }}
-            """)
-            if hasattr(self, "badge"):
-                self.badge.setStyleSheet(f"background-color: {badge_bg}; color: {badge_fg}; font-weight: bold; border-radius: 3px; padding: 2px 4px;")
+                }
+            """,
+        )
 
     def confirm_skip(self):
         reply = QMessageBox.question(
@@ -559,88 +534,12 @@ class SupportNotificationBanner(QFrame):
         layout.addWidget(btn_close)
 
     def update_theme_styling(self):
-        try:
-            from styles.theme_manager import theme_manager, find_closest_system_color
-            from qt_compat import QApplication, QPalette
-        except ImportError:
-            return
-
-        if theme_manager.is_using_system():
-            app = QApplication.instance()
-            pal = app.palette() if app else QPalette()
-            bg_col = find_closest_system_color("#181825", pal).name()
-            border_col = find_closest_system_color("#F5C2E7", pal).name()
-            text_col = pal.color(QPalette.WindowText).name()
-            btn_bg = pal.color(QPalette.Button).name()
-            btn_fg = pal.color(QPalette.ButtonText).name()
-            accent_bg = pal.color(QPalette.Highlight).name()
-            accent_fg = pal.color(QPalette.HighlightedText).name()
-            mid_border = pal.color(QPalette.Mid).name()
-
-            self.setStyleSheet(f"""
-                QFrame#SupportNotificationBanner {{
-                    background-color: {bg_col};
-                    border-bottom: 2px solid {border_col};
-                    padding: 4px 10px;
-                }}
-                QLabel {{
-                    color: {text_col};
-                    font-size: 12px;
-                }}
-                QPushButton {{
-                    background-color: {btn_bg};
-                    color: {btn_fg};
-                    border: 1px solid {mid_border};
-                    border-radius: 4px;
-                    padding: 3px 8px;
-                    font-size: 11px;
-                }}
-                QPushButton:hover {{
-                    background-color: {pal.color(QPalette.Midlight).name()};
-                }}
-                QPushButton#SponsorBtn {{
-                    background-color: {accent_bg};
-                    color: {accent_fg};
-                    font-weight: bold;
-                    border: none;
-                }}
-            """)
-            if hasattr(self, "badge"):
-                self.badge.setStyleSheet(f"background-color: {border_col}; color: {pal.color(QPalette.Base).name()}; font-weight: bold; border-radius: 3px; padding: 2px 4px;")
-        else:
-            self.setStyleSheet("""
-                QFrame#SupportNotificationBanner {
-                    background-color: #181825;
-                    border-bottom: 2px solid #F5C2E7;
-                    padding: 4px 10px;
-                }
-                QLabel {
-                    color: #CDD6F4;
-                    font-size: 12px;
-                }
-                QPushButton {
-                    background-color: #313244;
-                    color: #CDD6F4;
-                    border: 1px solid #45475A;
-                    border-radius: 4px;
-                    padding: 3px 8px;
-                    font-size: 11px;
-                }
-                QPushButton:hover {
-                    background-color: #45475A;
-                }
-                QPushButton#SponsorBtn {
-                    background-color: #F5C2E7;
-                    color: #11111B;
-                    font-weight: bold;
-                    border: none;
-                }
-                QPushButton#SponsorBtn:hover {
-                    background-color: #F5E0DC;
-                }
-            """)
-            if hasattr(self, "badge"):
-                self.badge.setStyleSheet("background-color: #F5C2E7; color: #11111B; font-weight: bold; border-radius: 3px; padding: 2px 4px;")
+        _apply_banner_style(
+            self, self.badge, "SupportNotificationBanner",
+            border_color="#F5C2E7", badge_fg="#11111B",
+            accent_color="#F5C2E7", accent_hover="#F5E0DC", accent_selector="#SponsorBtn",
+            padding="3px 8px",
+        )
 
     def close_session(self):
         self.setVisible(False)

@@ -301,9 +301,6 @@ features.handle_group_pos = False
 # PatchCanvas API
 def setOptions(new_options):
     old_theme = getattr(options, "theme_name", "")
-    old_line_style = getattr(options, "line_style", "bezier")
-    old_line_stroke = getattr(options, "line_stroke", "solid")
-    old_line_opacity = getattr(options, "line_opacity", 100)
     old_rounded_nodes = getattr(options, "rounded_nodes", True)
     old_node_radius = getattr(options, "node_radius", 8)
     old_node_min_width = getattr(options, "node_min_width", 160)

@@ -4,10 +4,32 @@
 
 import os
 import json
+import tempfile
 import xml.etree.ElementTree as ET
 
 class ProjectFormatError(Exception):
     pass
+
+def _temp_project_path():
+    """Temp XML path in the system temp dir, so loading works from read-only project folders."""
+    fd, path = tempfile.mkstemp(prefix="clara_", suffix=".carxp")
+    os.close(fd)
+    return path
+
+def _atomic_write_xml(tree, filepath):
+    """Writes the tree via a sibling temp file, so a crash mid-write cannot truncate the project."""
+    tmp_path = filepath + ".tmp"
+    try:
+        tree.write(tmp_path, encoding="UTF-8", xml_declaration=True)
+        os.replace(tmp_path, filepath)
+        return True
+    except Exception:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+        raise
 
 class CanvasPositionList(list):
     """Subclass of list that allows attaching arbitrary canvas metadata attributes."""
@@ -233,7 +255,7 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                 if pos_data.get("hide_unconnected_ports"):
                     p_elem.set("hide_unconnected_ports", "1")
 
-            tree.write(filepath, encoding="UTF-8", xml_declaration=True)
+            _atomic_write_xml(tree, filepath)
             return True
         except Exception as e:
             print("CarlaXmlProjectHandler::save_positions error:", e)
@@ -253,7 +275,7 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                 if pref is None:
                     pref = ET.SubElement(eng_settings, "PreferPluginBridges")
                 pref.text = "true"
-                tmp_xml = filepath + "._tmp_force_bridge.carxp"
+                tmp_xml = _temp_project_path()
                 tree.write(tmp_xml, encoding="UTF-8", xml_declaration=True)
                 return tmp_xml
         except Exception as e:
@@ -263,7 +285,9 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
     def save_full_project_from_xml_path(self, target_filepath, source_xml_path):
         if target_filepath != source_xml_path:
             import shutil
-            shutil.copy2(source_xml_path, target_filepath)
+            tmp_path = target_filepath + ".tmp"
+            shutil.copy2(source_xml_path, tmp_path)
+            os.replace(tmp_path, target_filepath)
         return True
 
 
@@ -472,7 +496,7 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
         root = dict_to_xml_elem("CARLA-PROJECT", project_dict)
         tree = ET.ElementTree(root)
 
-        tmp_xml_path = filepath + "._tmp_carla_load.carxp"
+        tmp_xml_path = _temp_project_path()
         tree.write(tmp_xml_path, encoding="UTF-8", xml_declaration=True)
         return tmp_xml_path
 
@@ -739,16 +763,25 @@ class ProjectStorageManager:
         return target_filepath, False
 
     def finalize_from_backend_save(self, target_filepath, backend_saved_filepath, positions=None, extra_metadata=None):
-        """Finalizes backend save into target format and writes canvas positions."""
+        """Finalizes backend save into target format and writes canvas positions.
+
+        Returns False when any step failed, so callers never treat a failed save as done.
+        """
         handler = self.handler_for(target_filepath)
-        handler.save_full_project_from_xml_path(target_filepath, backend_saved_filepath)
-        if positions is not None:
-            handler.save_positions(target_filepath, positions, extra_metadata=extra_metadata)
+        ok = True
+        try:
+            if handler.save_full_project_from_xml_path(target_filepath, backend_saved_filepath) is False:
+                ok = False
+            elif positions is not None and handler.save_positions(target_filepath, positions, extra_metadata=extra_metadata) is False:
+                ok = False
+        except Exception as e:
+            print("ProjectStorageManager::finalize_from_backend_save error:", e)
+            ok = False
         if backend_saved_filepath != target_filepath and os.path.exists(backend_saved_filepath):
             try:
                 os.remove(backend_saved_filepath)
             except Exception:
                 pass
-        return True
+        return ok
 
 storage_manager = ProjectStorageManager()

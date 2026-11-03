@@ -736,33 +736,7 @@ class CarlaSettingsW(QDialog):
         sidebar_font.setBold(True)
         self.ui.lw_page.setFont(sidebar_font)
 
-        # Tab titles with refined typography
-        tab_titles = [
-            self.tr("General"),
-            self.tr("Patchbay"),
-            self.tr("Engine"),
-            self.tr("OSC"),
-            self.tr("File Paths"),
-            self.tr("Plugin Paths"),
-            self.tr("Wine"),
-            self.tr("Experimental"),
-        ]
-        tab_glyphs = [
-            "\uf013",  # nf-fa-cog          General
-            "\uf0e8",  # nf-fa-sitemap      Patchbay
-            "\uf085",  # nf-fa-cogs         Engine
-            "\uf0ac",  # nf-fa-globe        OSC
-            "\uf07b",  # nf-fa-folder       File Paths
-            "\uf12e",  # nf-fa-puzzle-piece Plugin Paths
-            "\uf000",  # nf-fa-glass        Wine
-            "\uf0eb",  # nf-fa-lightbulb    Experimental
-        ]
-        try:
-            from carla_shared import getBestNerdFont
-            nerd_family = getBestNerdFont()
-        except Exception:
-            nerd_family = ""
-
+        # Tab titles with refined typography (applied by _update_sidebar_icons)
         self._update_sidebar_icons()
 
         # Remove hideous page header glyphs (upper-right corner of every tab)
@@ -1029,16 +1003,12 @@ class CarlaSettingsW(QDialog):
         # Set-up connections
 
         self.accepted.connect(self.slot_saveSettings)
-        apply_btn_enum = getattr(QDialogButtonBox.StandardButton, "Apply", getattr(QDialogButtonBox, "Apply", None))
-        reset_btn_enum = getattr(QDialogButtonBox.StandardButton, "Reset", getattr(QDialogButtonBox, "Reset", None))
-        if apply_btn_enum is not None:
-            btn_apply = self.ui.buttonBox.addButton(apply_btn_enum)
-            if btn_apply is not None:
-                btn_apply.clicked.connect(self.slot_applySettings)
-        if reset_btn_enum is not None:
-            btn_reset = self.ui.buttonBox.button(reset_btn_enum)
-            if btn_reset is not None:
-                btn_reset.clicked.connect(self.slot_resetSettings)
+        self.ui.buttonBox.addButton(QDialogButtonBox.Apply).clicked.connect(
+            self.slot_applySettings
+        )
+        self.ui.buttonBox.button(QDialogButtonBox.Reset).clicked.connect(
+            self.slot_resetSettings
+        )
 
         self.ui.b_main_proj_folder_open.clicked.connect(self.slot_getAndSetProjectPath)
 

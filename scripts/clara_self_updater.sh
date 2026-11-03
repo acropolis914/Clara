@@ -42,6 +42,12 @@ fi
 
 [ -z "$TARGET_VERSION" ] && TARGET_VERSION="latest"
 
+# The version can come from the network feed; refuse anything but a dotted number (or "latest").
+if [ "$TARGET_VERSION" != "latest" ] && ! printf '%s' "$TARGET_VERSION" | grep -Eq '^[0-9]+(\.[0-9]+)*$'; then
+    echo "Invalid version: $TARGET_VERSION" >&2
+    exit 1
+fi
+
 if [ -z "$CURRENT_VERSION" ]; then
     # Try to detect installed version
     if command -v clara >/dev/null 2>&1; then

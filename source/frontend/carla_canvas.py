@@ -605,6 +605,25 @@ class CanvasToolBarOverlay(QFrame):
         self.btnSignalFlow.setChecked(bool(enabled))
 
     def _provideSignalLevels(self):
+        import time
+
+        now = time.monotonic()
+        cached = getattr(self, "_signal_levels_cache", None)
+        if cached is not None and now - cached[0] < 0.05:
+            return cached[1]
+
+        # Nobody sees the canvas while the window is minimized or another tab is shown:
+        # skip the engine peak polling and the PulseAudio pump entirely.
+        view = getattr(self, "graphicsView", None)
+        if view is None or not view.isVisible() or view.window().isMinimized():
+            self._signal_levels_cache = (now, {})
+            return {}
+
+        levels = self._collectSignalLevels()
+        self._signal_levels_cache = (now, levels)
+        return levels
+
+    def _collectSignalLevels(self):
         # Returns a {group_id: level} map. Carla only exposes peak values for real
         # plugins. External / hardware / PipeWire groups (a client such as Spotify, a
         # virtual BUS sink, a monitor or HW I/O) have no engine peak, so we either read

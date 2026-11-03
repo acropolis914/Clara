@@ -182,6 +182,7 @@ class HostWindow(QMainWindow):
         self.fUpdateBanner = None
         self.fUpdateThread = UpdateCheckThread(self)
         self.fUpdateThread.update_available.connect(self._on_update_available)
+        self.fUpdateThread.finished.connect(self.fUpdateThread.deleteLater)
         self.fUpdateThread.start()
 
         # Clara Support banner (triggers immediately with hidden arg --show-support-banner, otherwise after 10 mins: 600,000 ms)
@@ -1397,9 +1398,10 @@ class HostWindow(QMainWindow):
 
     def loadProjectNow(self, source_override=None):
         if not self.fProjectFilename:
-            return qCritical("ERROR: loading project without filename set")
+            qCritical("ERROR: loading project without filename set")
+            return False
         if self.host.nsmOK and not os.path.exists(self.fProjectFilename):
-            return
+            return True
 
         # Ensure canonical project filename to prevent nested .autosaves/
         if hasattr(self, "fSessionManager") and self.fSessionManager is not None:
@@ -1521,11 +1523,6 @@ class HostWindow(QMainWindow):
                 issues.append(err_msg)
 
         recent_entries = logger.history[log_history_start:]
-        error_entries = [
-            f"[{e.timestamp.strftime('%H:%M:%S')}] [{e.tag}] {e.message}"
-            for e in recent_entries
-            if e.level >= 30 or "error" in e.message.lower() or "failed" in e.message.lower() or "cannot" in e.message.lower()
-        ]
 
         # Check for any plugin load failures in recent log entries
         for e in recent_entries:
@@ -1533,19 +1530,19 @@ class HostWindow(QMainWindow):
             if ("error" in msg.lower() or "failed" in msg.lower() or "cannot open" in msg.lower()) and msg not in issues:
                 issues.append(msg)
 
-        self.projectLoadingFinished(False)
+        self.projectLoadingFinished(False, restore_positions=load_ok)
 
-        if not load_ok and issues:
-            raw_log_str = "\n".join(
-                f"[{e.timestamp.strftime('%H:%M:%S')}] [{LEVEL_NAMES.get(e.level, 'INFO')}] [{e.tag}] {e.message}"
-                for e in recent_entries
-            ) or (last_backend_err or "No detailed log entries.")
-            summary_dlg = ProjectLoadSummaryDialog(self, load_source, issues=issues, raw_log=raw_log_str)
-            summary_dlg.exec_()
-
-        if not load_ok and not self.fPluginList:
+        if not load_ok:
             self.fIsProjectLoading = False
-            return
+            self.fLastLoadedSource = None
+            if issues:
+                raw_log_str = "\n".join(
+                    f"[{e.timestamp.strftime('%H:%M:%S')}] [{LEVEL_NAMES.get(e.level, 'INFO')}] [{e.tag}] {e.message}"
+                    for e in recent_entries
+                ) or (last_backend_err or "No detailed log entries.")
+                summary_dlg = ProjectLoadSummaryDialog(self, load_source, issues=issues, raw_log=raw_log_str)
+                summary_dlg.exec_()
+            return False
 
         self.fIsProjectLoading = False
         self.fHasUnsavedChanges = False
@@ -1557,6 +1554,8 @@ class HostWindow(QMainWindow):
             widget = pitem.getWidget()
             if widget is not None and hasattr(widget, "refreshState"):
                 widget.refreshState()
+
+        return True
 
     def loadProjectLater(self, filename, source_override=None):
         self.fProjectFilename = QFileInfo(filename).absoluteFilePath()
@@ -1597,12 +1596,21 @@ class HostWindow(QMainWindow):
         if self.fWithCanvas:
             extra_meta["patchbay_containers"] = patchcanvas.saveContainers()
 
-        try:
-            storage_manager.finalize_from_backend_save(
-                self.fProjectFilename, backend_save_target, positions, extra_metadata=extra_meta
+        saved = storage_manager.finalize_from_backend_save(
+            self.fProjectFilename, backend_save_target, positions, extra_metadata=extra_meta
+        ) is not False
+
+        if not saved:
+            CustomMessageBox(
+                self,
+                QMessageBox.Critical,
+                self.tr("Error"),
+                self.tr("Failed to save project"),
+                self.host.get_last_error() or self.tr("The project file could not be written to disk."),
+                QMessageBox.Ok,
+                QMessageBox.Ok,
             )
-        except Exception as e:
-            logger.error("SESSION", f"Failed to finalize project save: {e}")
+            return
 
         # Clean manual save succeeded: prune outstanding autosaves for this project
         if hasattr(self, "fSessionManager") and self.fSessionManager is not None:
@@ -1628,7 +1636,7 @@ class HostWindow(QMainWindow):
             except Exception:
                 self.fLoadingDialog = None
 
-    def projectLoadingFinished(self, refreshCanvas):
+    def projectLoadingFinished(self, refreshCanvas, restore_positions=True):
         if getattr(self, "fLoadingDialog", None) is not None:
             try:
                 if hasattr(self.fLoadingDialog, "dismiss"):
@@ -1647,6 +1655,10 @@ class HostWindow(QMainWindow):
 
         self.ui.rack.setEnabled(True)
         self.ui.graphicsView.setEnabled(True)
+
+        # A failed load keeps the previous session on screen: do not touch its canvas.
+        if not restore_positions:
+            return
 
         if (
             self.fCustomStopAction == self.CUSTOM_ACTION_APP_CLOSE
@@ -1956,7 +1968,11 @@ class HostWindow(QMainWindow):
             self.pluginRemoveAll()
             self.fProjectFilename = filename
             self.setProperWindowTitle()
-            self.loadProjectNow(source_override=load_source)
+            if not self.loadProjectNow(source_override=load_source):
+                # Rack is already empty and the new file did not load: start clean rather than
+                # keeping a filename that cannot be read (a later save would overwrite it).
+                self.fProjectFilename = ""
+                self.setProperWindowTitle()
         else:
             filenameOld = self.fProjectFilename
             self.fProjectFilename = filename
@@ -2000,7 +2016,10 @@ class HostWindow(QMainWindow):
     def slot_loadProjectNow(self):
         source_override = getattr(self, "fProjectSourceOverride", None)
         self.fProjectSourceOverride = None
-        self.loadProjectNow(source_override=source_override)
+        if not self.loadProjectNow(source_override=source_override):
+            # Keep the app honest about an empty session instead of saving over the unreadable file.
+            self.fProjectFilename = ""
+            self.setProperWindowTitle()
         if self.fProjectFilename and os.path.exists(self.fProjectFilename):
             self.ui.act_file_save.setEnabled(True)
 
@@ -6068,6 +6087,12 @@ class HostWindow(QMainWindow):
         self.killTimers()
         self.saveSettings()
 
+        # Give an in-flight update check a moment to finish, so Qt never destroys a running QThread.
+        # shortcut: urllib has no cancel, a very slow DNS lookup can still outlive this wait.
+        for _thread in (getattr(self, "fUpdateThread", None), getattr(self, "_manualUpdateThread", None)):
+            if _thread is not None and _thread.isRunning():
+                _thread.wait(2500)
+
         if self.host.is_engine_running() and not (
             self.host.isControl or self.host.isPlugin
         ):
@@ -6088,6 +6113,7 @@ class HostWindow(QMainWindow):
         self._manualUpdateThread.update_available.connect(self._on_update_available)
         self._manualUpdateThread.no_update_found.connect(self._on_manual_check_uptodate)
         self._manualUpdateThread.check_failed.connect(self._on_manual_check_failed)
+        self._manualUpdateThread.finished.connect(self._manualUpdateThread.deleteLater)
         self._manualUpdateThread.start()
 
     def _on_manual_check_uptodate(self, current_ver):

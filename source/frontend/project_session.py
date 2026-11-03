@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
-import shutil
 import time
 from datetime import datetime
 from qt_compat import QTimer
@@ -157,7 +156,8 @@ class ProjectSessionManager:
             positions = patchcanvas.saveGroupPositions() if getattr(self.host_window, "fWithCanvas", False) else []
 
             if is_temp:
-                storage_manager.finalize_from_backend_save(autosave_file, backend_target, positions)
+                if storage_manager.finalize_from_backend_save(autosave_file, backend_target, positions) is False:
+                    return None
                 if os.path.exists(backend_target):
                     try:
                         os.remove(backend_target)
@@ -199,12 +199,17 @@ class ProjectSessionManager:
             self.create_autosave(is_scheduled=False)
 
     def prune_all_autosaves_on_manual_save(self, project_filepath):
-        """Called on clean manual Save to delete all old autosaves"""
+        """Delete the autosaves this session wrote, never another running instance's files."""
         autosave_dir = self.get_autosave_dir(project_filepath)
         if not autosave_dir or not os.path.exists(autosave_dir):
             return
         try:
-            shutil.rmtree(autosave_dir, ignore_errors=True)
+            if self._last_autosave_file and os.path.exists(self._last_autosave_file):
+                os.remove(self._last_autosave_file)
+            try:
+                os.rmdir(autosave_dir)  # only succeeds when no other instance left files there
+            except OSError:
+                pass
             self._last_autosave_file = None
             self.last_autosave_time = None
         except Exception as e:
