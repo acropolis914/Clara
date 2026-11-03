@@ -97,6 +97,13 @@ def test_failed_save_is_reported(storage, tmp):
     assert storage.finalize_from_backend_save(target, os.path.join(tmp, "missing.carxp")) is False
 
 
+def test_save_dialog_offers_xml_only(storage):
+    save_filter = storage.save_filter("project")
+    assert ".carxp" in save_filter and ".carjp" not in save_filter
+    assert ".carjp" in storage.open_filter(), "legacy JSON projects must stay openable"
+    assert storage.default_extension("project") == ".carxp"
+
+
 def main():
     storage = ProjectStorageManager()
     with tempfile.TemporaryDirectory() as tmp:
@@ -104,6 +111,7 @@ def main():
         test_json_save_preserves_plugin_data(storage, tmp)
         test_json_load_temp_is_not_in_project_dir(storage, tmp)
         test_failed_save_is_reported(storage, tmp)
+    test_save_dialog_offers_xml_only(storage)
     print("project_storage: all checks passed")
 
 

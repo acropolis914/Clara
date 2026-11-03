@@ -527,13 +527,16 @@ class ProjectFormat:
     The rest of the program only ever carries a *tag* (the format id: "xml", "json", "state")
     plus a filename. Extensions are resolved here and nowhere else.
     """
-    def __init__(self, id, ext, display, kind="project", alt_exts=(), handler=None, filter_exts=None):
+    def __init__(self, id, ext, display, kind="project", alt_exts=(), handler=None, filter_exts=None, saveable=True):
         self.id = id
         self.ext = ext
         self.display = display
         self.kind = kind
         self.alt_exts = tuple(alt_exts)
         self.handler = handler
+        # the C++ engine only reads and writes CARLA-PROJECT XML, so every other format costs a
+        # full convert on save; formats with saveable=False stay readable but are not offered
+        self.saveable = saveable
         # legacy aliases are accepted when loading, but stay out of file-dialog filters so that
         # every unrelated *.json on disk does not show up in the open/save picker
         self.filter_exts = tuple(alt_exts) if filter_exts is None else tuple(filter_exts)
@@ -561,18 +564,13 @@ class ProjectFormat:
 class ProjectStorageManager:
     """Dispatches and coordinates project file persistence across formats"""
 
-    # kept for backward compatibility with older callers
-    EXTENSION_MAP = {
-        "xml": ".carxp",
-        "json": ".carjp",
-    }
-
     def __init__(self):
         self._formats = [
             ProjectFormat("xml", ".carxp", "Carla XML Project", "project",
                           handler=CarlaXmlProjectHandler()),
             ProjectFormat("json", ".carjp", "Carla JSON Project", "project",
-                          alt_exts=(".json",), filter_exts=(), handler=CarlaJsonProjectHandler()),
+                          alt_exts=(".json",), filter_exts=(), handler=CarlaJsonProjectHandler(),
+                          saveable=False),
             ProjectFormat("state", ".carxs", "Carla State File", "state"),
         ]
         self._defaults = {"project": "xml", "state": "state"}
@@ -692,7 +690,8 @@ class ProjectStorageManager:
 
     def save_filter(self, kind="project"):
         return ";;".join(
-            "%s (%s)" % (fmt.display, " ".join(fmt.patterns)) for fmt in self.formats(kind)
+            "%s (%s)" % (fmt.display, " ".join(fmt.patterns))
+            for fmt in self.formats(kind) if fmt.saveable
         )
 
     # ------------------------------------------------------------------------------------------------
