@@ -674,6 +674,19 @@ class CanvasToolBarOverlay(QFrame):
         plugin_flow = {}
         external_groups = []  # (group_id, pw_node_name)
 
+        # Split clients live in visual sub-groups with negative ids; cables attach to
+        # those, so a level keyed by the client id must also be copied to each sub-group.
+        visual_map = getattr(patchcanvas.canvas, "pipewire_group_ids", {}) or {}
+
+        def _put(mapping, gid, value):
+            if value <= 0.0:
+                return
+            if value > mapping.get(gid, 0.0):
+                mapping[gid] = value
+            for visual_id in visual_map.get(gid, ()):
+                if value > mapping.get(visual_id, 0.0):
+                    mapping[visual_id] = value
+
         if engine is not None:
             for group in groups:
                 gid = getattr(group, "group_id", None)
@@ -697,11 +710,8 @@ class CanvasToolBarOverlay(QFrame):
                     )
                 except Exception:
                     continue
-                level = max(in_level, out_level)
-                if level > 0.0:
-                    plugin_levels[gid] = level
-                if out_level > 0.0:
-                    plugin_flow[gid] = out_level
+                _put(plugin_levels, gid, max(in_level, out_level))
+                _put(plugin_flow, gid, out_level)
         else:
             for group in groups:
                 gid = getattr(group, "group_id", None)
@@ -735,9 +745,8 @@ class CanvasToolBarOverlay(QFrame):
             for gid, name in external_groups:
                 if gid in connected_ids and name:
                     lvl = sampler.level_for(name)
-                    if lvl > 0.0:
-                        levels[gid] = max(levels.get(gid, 0.0), lvl)
-                        flow[gid] = max(flow.get(gid, 0.0), lvl)
+                    _put(levels, gid, lvl)
+                    _put(flow, gid, lvl)
 
         # Playback streams (Spotify, browsers, Electron apps) have no PulseAudio
         # source, so capture the node itself with pw-record.
@@ -763,9 +772,8 @@ class CanvasToolBarOverlay(QFrame):
             for gid, name in external_groups:
                 if gid in connected_ids and name:
                     lvl = pw_sampler.level_for(name)
-                    if lvl > 0.0:
-                        levels[gid] = max(levels.get(gid, 0.0), lvl)
-                        flow[gid] = max(flow.get(gid, 0.0), lvl)
+                    _put(levels, gid, lvl)
+                    _put(flow, gid, lvl)
 
         # Remaining external / hardware groups borrow activity for the node glow only;
         # cable flow is never faked from the far end.
@@ -780,10 +788,10 @@ class CanvasToolBarOverlay(QFrame):
                     best = max(src, dst)
                     if best <= 0.0:
                         continue
-                    if out_id in non_plugin_ids and out_id not in levels:
-                        levels[out_id] = best * 0.85
-                    if in_id in non_plugin_ids and in_id not in levels:
-                        levels[in_id] = best * 0.85
+                    if out_id in non_plugin_ids:
+                        _put(levels, out_id, best * 0.85)
+                    if in_id in non_plugin_ids:
+                        _put(levels, in_id, best * 0.85)
 
         return levels, flow
 
