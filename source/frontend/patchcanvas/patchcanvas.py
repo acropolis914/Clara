@@ -2983,24 +2983,46 @@ class CanvasGhostCable(QGraphicsObject):
         self.dst = (dst_name, dst_port)
         self._p1 = QPointF(0, 0)
         self._p2 = QPointF(0, 0)
+        self._path = None
         self.setZValue(-4)
 
     def boundingRect(self):
+        if self._path is not None:
+            return self._path.boundingRect().adjusted(-3, -3, 3, 3)
         from qt_compat import QRectF as _QRectF
-        return _QRectF(self._p1, self._p2).normalized().adjusted(-2, -2, 2, 2)
+        return _QRectF(self._p1, self._p2).normalized().adjusted(-3, -3, 3, 3)
+
+    def _buildPath(self):
+        from qt_compat import QPainterPath
+        from .linealgos import get_line_algorithm, LineContext, DIRECTION_OUTPUT
+        try:
+            algorithm = get_line_algorithm(getattr(options, "line_style", "bezier"))
+            self._path = algorithm.build_path(LineContext(self._p1, self._p2, DIRECTION_OUTPUT))
+        except Exception:
+            self._path = QPainterPath(self._p1)
+            self._path.lineTo(self._p2)
 
     def setEndpoints(self, p1, p2):
         self.prepareGeometryChange()
         self._p1 = p1
         self._p2 = p2
+        self._buildPath()
         self.update()
 
     def paint(self, painter, option, widget):
         from qt_compat import QColor, QPen, QPainter, Qt
         painter.setRenderHint(QPainter.Antialiasing, True)
-        painter.setPen(QPen(QColor(137, 180, 250, 90), 1.2, Qt.DashLine))
+        pen_style = Qt.SolidLine
+        if getattr(options, "line_stroke", "solid") == "dotted":
+            pen_style = Qt.DotLine
+        elif getattr(options, "line_stroke", "solid") == "dashed":
+            pen_style = Qt.DashLine
+        painter.setPen(QPen(QColor(137, 180, 250, 90), 1.2, pen_style))
         painter.setBrush(Qt.NoBrush)
-        painter.drawLine(self._p1, self._p2)
+        if self._path is not None:
+            painter.drawPath(self._path)
+        else:
+            painter.drawLine(self._p1, self._p2)
 
 
 def _ghostByName(name):
