@@ -3221,7 +3221,9 @@ protected:
             }
 
             jackbridge_free(clientName);
-            CARLA_SAFE_ASSERT_RETURN(groupId != 0,);
+            // transient clients (capture/observer streams) have no Carla group yet
+            if (groupId == 0)
+                return;
 
             char* value = nullptr;
             char* type  = nullptr;
@@ -3514,7 +3516,9 @@ protected:
             const CarlaMutexLocker cml1(fUsedGroups.mutex);
 
             groupId = fUsedGroups.getGroupId(groupName);
-            CARLA_SAFE_ASSERT_RETURN(groupId != 0,);
+            // transient clients (capture/observer streams) have no Carla group yet
+            if (groupId == 0)
+                return;
 
             const CarlaMutexLocker cml2(fUsedPorts.mutex);
 
