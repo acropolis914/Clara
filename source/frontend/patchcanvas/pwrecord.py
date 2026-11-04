@@ -142,6 +142,7 @@ class PwRecordSampler(object):
                     "--rate", str(RATE),
                     "--channels", "1",
                     "--format", "f32",
+                    "--container", "raw",
                     "-",
                 ],
                 stdout=subprocess.PIPE,
