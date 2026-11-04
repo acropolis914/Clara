@@ -165,11 +165,19 @@ class PwRecordSampler(object):
             return
         if not self.is_available():
             return
+
+        target = self._resolve_target(name)
+        # Never hand a name to pw-record: for a sink it silently falls back to the
+        # default source (microphone), which produced fake flow. Only node ids are safe.
+        if not str(target).isdigit():
+            self._failed[name] = time.monotonic()
+            return
+
         try:
             proc = subprocess.Popen(
                 [
                     "pw-record",
-                    "--target", str(self._resolve_target(name)),
+                    "--target", str(target),
                     "--rate", str(RATE),
                     "--channels", "1",
                     "--format", "f32",
