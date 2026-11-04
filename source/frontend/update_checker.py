@@ -258,6 +258,7 @@ class UpdateCheckThread(QThread):
                         if has_built_assets:
                             rel_info = data.get("releases", {}).get(latest_ver, {})
                             rel_info["version"] = latest_ver
+                            rel_info["_all_releases"] = data.get("releases", {})
                             self.update_available.emit(rel_info)
                         else:
                             # Update was tagged but packaging workflow is still compiling/uploading
@@ -296,31 +297,43 @@ class UpdateChangelogDialog(QDialog):
         text_edit.setReadOnly(True)
 
         html_content = ""
-        try:
-            import urllib.request
-            curr = current_version or CLARA_VERSION_STRING.lstrip("v")
-            req = urllib.request.Request(
-                "https://raw.githubusercontent.com/acropolis914/Clara/main/releases.json",
-                headers={"User-Agent": f"Clara/{curr}"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                if resp.status == 200:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    releases = data.get("releases", {})
-                    for ver_key in releases.keys():
-                        try:
-                            if parse_semver(ver_key) > parse_semver(curr) and parse_semver(ver_key) <= parse_semver(target_ver):
-                                rel_data = releases[ver_key]
-                                changes = rel_data.get("changes", [])
-                                if changes:
-                                    html_content += f"<h3>v{ver_key}</h3><ul>"
-                                    for change in changes:
-                                        html_content += f"<li>{change}</li>"
-                                    html_content += "</ul>"
-                        except Exception:
-                            continue
-        except Exception:
-            pass
+        curr = current_version or CLARA_VERSION_STRING.lstrip("v")
+        releases = release_info.get("_all_releases")
+        if not releases:
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    "https://raw.githubusercontent.com/acropolis914/Clara/main/releases.json",
+                    headers={"User-Agent": f"Clara/{curr}"}
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    if resp.status == 200:
+                        releases = json.loads(resp.read().decode("utf-8")).get("releases", {})
+            except Exception:
+                releases = None
+
+        entries = []
+        for ver_key, rel_data in (releases or {}).items():
+            try:
+                version = parse_semver(ver_key)
+                if version > parse_semver(curr) and version <= parse_semver(target_ver):
+                    entries.append((version, ver_key, rel_data))
+            except Exception:
+                continue
+        entries.sort(key=lambda item: item[0])
+
+        for _version, ver_key, rel_data in entries:
+            date = rel_data.get("date", "")
+            summary_text = rel_data.get("summary", "")
+            html_content += f"<h3>v{ver_key}" + (f" \u2014 {date}" if date else "") + "</h3>"
+            if summary_text:
+                html_content += f"<p><b>{summary_text}</b></p>"
+            changes = rel_data.get("changes", [])
+            if changes:
+                html_content += "<ul>"
+                for change in changes:
+                    html_content += f"<li>{change}</li>"
+                html_content += "</ul>"
 
         if not html_content:
             html_content = "<h3>What's Changed</h3><ul>"
