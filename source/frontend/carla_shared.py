@@ -1073,10 +1073,12 @@ def getInitialProjectFile(skipExistCheck = False):
     # NOTE: PyQt mishandles unicode characters, we directly use sys.argv instead of qApp->arguments()
     # see https://riverbankcomputing.com/pipermail/pyqt/2015-January/035395.html
     args = sys.argv[1:]
-    readPrefixNext = False
+    skipNext = False
+    # options that take a value in the next argv entry (must not be mistaken for the project file)
+    value_options = ("--cnprefix", "--log-level", "--log-whitelist", "--log-blacklist", "--log", "--debug")
     for arg in args:
-        if readPrefixNext:
-            readPrefixNext = False
+        if skipNext:
+            skipNext = False
             continue
         if arg.startswith("--cnprefix="):
             continue
@@ -1086,8 +1088,10 @@ def getInitialProjectFile(skipExistCheck = False):
             continue
         if arg.startswith("--with-libprefix="):
             continue
-        if arg == "--cnprefix":
-            readPrefixNext = True
+        if arg.startswith("--log-level=") or arg.startswith("--log="):
+            continue
+        if arg in value_options:
+            skipNext = True
             continue
         if arg.startswith("-"):
             continue

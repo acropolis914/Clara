@@ -3229,6 +3229,8 @@ class HostWindow(QMainWindow):
     @pyqtSlot()
     def slot_canvasRefresh(self):
         patchcanvas.clear()
+        # a full refresh re-enumerates every client, so no id stays filtered from the old pass
+        self.fFilteredPatchbayClients.clear()
 
         if (
             self.host.processMode == ENGINE_PROCESS_MODE_CONTINUOUS_RACK
@@ -3595,6 +3597,10 @@ class HostWindow(QMainWindow):
         if self._isHiddenPatchbayClientName(clientName):
             self.fFilteredPatchbayClients.add(clientId)
             return
+        # The engine reuses client ids without always sending a removal first (for
+        # example a pw-record capture client disappears and its id is given to a
+        # plugin). Never let a stale filtered id hide a real client's ports.
+        self.fFilteredPatchbayClients.discard(clientId)
         pcSplit = patchcanvas.SPLIT_UNDEF
         pcIcon = patchcanvas.ICON_APPLICATION
 
