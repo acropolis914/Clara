@@ -16,6 +16,7 @@
 #include "CarlaBackendUtils.hpp"
 #include "CarlaBinaryUtils.hpp"
 #include "CarlaEngineUtils.hpp"
+#include "CarlaJsonDocument.hpp"
 #include "CarlaMathUtils.hpp"
 #include "CarlaPipeUtils.hpp"
 #include "CarlaProcessUtils.hpp"
@@ -1412,6 +1413,12 @@ bool CarlaEngine::loadFile(const char* const filename)
     return false;
 }
 
+static bool isJsonProjectFilename(const char* const filename)
+{
+    const water::String name(filename);
+    return name.endsWithIgnoreCase(".carjp") || name.endsWithIgnoreCase(".json");
+}
+
 bool CarlaEngine::loadProject(const char* const filename, const bool setAsCurrentProject)
 {
     CARLA_SAFE_ASSERT_RETURN_ERR(pData->isIdling == 0, "An operation is still being processed, please wait for it to finish");
@@ -1444,8 +1451,32 @@ bool CarlaEngine::loadProject(const char* const filename, const bool setAsCurren
 #endif
     }
 
-    XmlDocument xml(file);
-    return loadProjectInternal(xml, !setAsCurrentProject);
+    if (! isJsonProjectFilename(filename))
+    {
+        XmlDocument xml(file);
+        return loadProjectInternal(xml, !setAsCurrentProject);
+    }
+
+    // JSON projects are parsed straight into the same element tree the loader already understands,
+    // so no XML file ever touches disk
+    const water::String jsonText(file.loadFileAsString());
+
+    if (jsonText.isEmpty())
+    {
+        setLastError("Failed to read project file");
+        return false;
+    }
+
+    const water::String xmlText(CarlaJsonDocument::jsonToXml(jsonText));
+
+    if (xmlText.isEmpty())
+    {
+        setLastError("Failed to parse JSON project file");
+        return false;
+    }
+
+    XmlDocument jsonDoc(xmlText);
+    return loadProjectInternal(jsonDoc, !setAsCurrentProject);
 }
 
 bool CarlaEngine::saveProject(const char* const filename, const bool setAsCurrentProject)
@@ -1480,9 +1511,25 @@ bool CarlaEngine::saveProject(const char* const filename, const bool setAsCurren
     saveProjectInternal(out);
 
     File file(filename);
+    const water::String xmlText(out.toUTF8());
 
-    if (file.replaceWithData(out.getData(), out.getDataSize()))
+    if (isJsonProjectFilename(filename))
+    {
+        const water::String jsonText(CarlaJsonDocument::xmlToJson(xmlText));
+
+        if (jsonText.isEmpty())
+        {
+            setLastError("Failed to convert project to JSON");
+            return false;
+        }
+
+        if (file.replaceWithData(jsonText.toRawUTF8(), (size_t)jsonText.length()))
+            return true;
+    }
+    else if (file.replaceWithData(xmlText.toRawUTF8(), (size_t)xmlText.length()))
+    {
         return true;
+    }
 
     setLastError("Failed to write file");
     return false;

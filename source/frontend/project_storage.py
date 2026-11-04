@@ -4,6 +4,7 @@
 
 import os
 import json
+import shutil
 import tempfile
 import xml.etree.ElementTree as ET
 
@@ -34,36 +35,6 @@ def _atomic_write_xml(tree, filepath):
 class CanvasPositionList(list):
     """Subclass of list that allows attaching arbitrary canvas metadata attributes."""
     pass
-
-def xml_elem_to_dict(elem):
-    """Losslessly converts an XML ElementTree element into a Python dict/data structure."""
-    node = {}
-    if elem.attrib:
-        node["@attributes"] = dict(elem.attrib)
-
-    text = elem.text.strip() if elem.text and elem.text.strip() else None
-    children = list(elem)
-    if children:
-        child_dict = {}
-        for child in children:
-            cd = xml_elem_to_dict(child)
-            tag = child.tag
-            if tag in child_dict:
-                if not isinstance(child_dict[tag], list):
-                    child_dict[tag] = [child_dict[tag]]
-                child_dict[tag].append(cd)
-            else:
-                child_dict[tag] = cd
-        if text:
-            child_dict["#text"] = text
-        node.update(child_dict)
-    elif text:
-        if elem.attrib:
-            node["#text"] = text
-            return node
-        return text
-
-    return node
 
 def dict_to_xml_elem(tag, data):
     """Reconstructs an XML ElementTree element from the dictionary structure."""
@@ -103,12 +74,8 @@ class BaseProjectHandler:
     def save_positions(self, filepath, positions):
         raise NotImplementedError
 
-    def load_full_project_as_xml_path(self, filepath):
-        """Returns a path to an XML project file (either the file itself or a converted tmp file)"""
-        raise NotImplementedError
-
-    def save_full_project_from_xml_path(self, target_filepath, source_xml_path):
-        """Saves a full project to target_filepath from source_xml_path"""
+    def prepare_for_load(self, filepath, force_bridged=False):
+        """Returns a path the engine can load (the file itself, or a patched temp copy)"""
         raise NotImplementedError
 
 
@@ -261,7 +228,7 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
             print("CarlaXmlProjectHandler::save_positions error:", e)
             return False
 
-    def load_full_project_as_xml_path(self, filepath, force_bridged=False):
+    def prepare_for_load(self, filepath, force_bridged=False):
         if not force_bridged:
             return filepath
         try:
@@ -279,16 +246,8 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                 tree.write(tmp_xml, encoding="UTF-8", xml_declaration=True)
                 return tmp_xml
         except Exception as e:
-            print("CarlaXmlProjectHandler::load_full_project_as_xml_path force_bridged error:", e)
+            print("CarlaXmlProjectHandler::prepare_for_load force_bridged error:", e)
         return filepath
-
-    def save_full_project_from_xml_path(self, target_filepath, source_xml_path):
-        if target_filepath != source_xml_path:
-            import shutil
-            tmp_path = target_filepath + ".tmp"
-            shutil.copy2(source_xml_path, tmp_path)
-            os.replace(tmp_path, target_filepath)
-        return True
 
 
 class CarlaJsonProjectHandler(BaseProjectHandler):
@@ -481,43 +440,32 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
             print("CarlaJsonProjectHandler::save_positions error:", e)
             return False
 
-    def load_full_project_as_xml_path(self, filepath, force_bridged=False):
-        """Converts full JSON project (.carjp) into an XML ElementTree file for Carla backend loading."""
+    def prepare_for_load(self, filepath, force_bridged=False):
+        """The engine parses .carjp directly; only the force-bridged pre-check needs a temp copy."""
+        if not force_bridged:
+            return filepath
+
         doc = self._read_json(filepath)
-        if "CARLA-PROJECT" not in doc:
-            raise ProjectFormatError("Missing CARLA-PROJECT root key in JSON project")
+        project = doc.get("CARLA-PROJECT")
 
-        project_dict = dict(doc["CARLA-PROJECT"])
-        if force_bridged:
-            eng_settings = dict(project_dict.get("EngineSettings", {}))
-            eng_settings["PreferPluginBridges"] = "true"
-            project_dict["EngineSettings"] = eng_settings
+        if not isinstance(project, dict):
+            return filepath
 
-        root = dict_to_xml_elem("CARLA-PROJECT", project_dict)
-        tree = ET.ElementTree(root)
+        engine_settings = project.get("EngineSettings")
 
-        tmp_xml_path = _temp_project_path()
-        tree.write(tmp_xml_path, encoding="UTF-8", xml_declaration=True)
-        return tmp_xml_path
+        if not isinstance(engine_settings, dict):
+            engine_settings = {}
+            project["EngineSettings"] = engine_settings
 
-    def save_full_project_from_xml_path(self, target_filepath, source_xml_path):
-        """Converts saved XML project from Carla backend into validated .carjp JSON format."""
-        tree = ET.parse(source_xml_path)
-        root = tree.getroot()
-        if root.tag != "CARLA-PROJECT":
-            raise ProjectFormatError("Source is not a valid CARLA-PROJECT XML")
+        engine_settings["PreferPluginBridges"] = "true"
 
-        doc = {
-            "format": "carla-project-json",
-            "version": "1.0",
-            "CARLA-PROJECT": xml_elem_to_dict(root)
-        }
+        fd, tmp_json = tempfile.mkstemp(prefix="clara_", suffix=".carjp")
+        os.close(fd)
 
-        tmp_target = target_filepath + ".tmp"
-        with open(tmp_target, "w", encoding="utf-8") as f:
+        with open(tmp_json, "w", encoding="utf-8") as f:
             json.dump(doc, f, indent="\t")
-        os.replace(tmp_target, target_filepath)
-        return True
+
+        return tmp_json
 
 
 class ProjectFormat:
@@ -566,14 +514,13 @@ class ProjectStorageManager:
 
     def __init__(self):
         self._formats = [
+            ProjectFormat("json", ".carjp", "Carla JSON Project", "project",
+                          alt_exts=(".json",), filter_exts=(), handler=CarlaJsonProjectHandler()),
             ProjectFormat("xml", ".carxp", "Carla XML Project", "project",
                           handler=CarlaXmlProjectHandler()),
-            ProjectFormat("json", ".carjp", "Carla JSON Project", "project",
-                          alt_exts=(".json",), filter_exts=(), handler=CarlaJsonProjectHandler(),
-                          saveable=False),
             ProjectFormat("state", ".carxs", "Carla State File", "state"),
         ]
-        self._defaults = {"project": "xml", "state": "state"}
+        self._defaults = {"project": "json", "state": "state"}
 
     # ------------------------------------------------------------------------------------------------
     # registry
@@ -751,36 +698,36 @@ class ProjectStorageManager:
 
     def prepare_for_backend_load(self, filepath, force_bridged=False):
         """Prepares a file path readable by the C++ engine (converts non-XML projects to a temp XML)."""
-        return self.handler_for(filepath).load_full_project_as_xml_path(filepath, force_bridged=force_bridged)
+        return self.handler_for(filepath).prepare_for_load(filepath, force_bridged=force_bridged)
 
     def prepare_for_backend_save(self, target_filepath):
-        """Returns (backend_save_target, is_temporary) for saving from C++ backend."""
-        fmt = self.get_format(target_filepath)
-        if fmt is not None and fmt.id == "json":
-            tmp_xml = target_filepath + "._tmp_carla_save.carxp"
-            return tmp_xml, True
+        """Returns (backend_save_target, is_temporary) for saving from C++ backend.
+
+        The engine writes JSON itself, so the save always goes straight to the target.
+        """
         return target_filepath, False
 
     def finalize_from_backend_save(self, target_filepath, backend_saved_filepath, positions=None, extra_metadata=None):
-        """Finalizes backend save into target format and writes canvas positions.
+        """Adds the frontend-only canvas positions to the project the engine just saved.
 
         Returns False when any step failed, so callers never treat a failed save as done.
         """
-        handler = self.handler_for(target_filepath)
-        ok = True
-        try:
-            if handler.save_full_project_from_xml_path(target_filepath, backend_saved_filepath) is False:
-                ok = False
-            elif positions is not None and handler.save_positions(target_filepath, positions, extra_metadata=extra_metadata) is False:
-                ok = False
-        except Exception as e:
-            print("ProjectStorageManager::finalize_from_backend_save error:", e)
-            ok = False
-        if backend_saved_filepath != target_filepath and os.path.exists(backend_saved_filepath):
+        if backend_saved_filepath != target_filepath:
             try:
-                os.remove(backend_saved_filepath)
-            except Exception:
-                pass
-        return ok
+                shutil.copy2(backend_saved_filepath, target_filepath)
+            except Exception as e:
+                print("ProjectStorageManager::finalize_from_backend_save copy error:", e)
+                return False
+
+        if positions is not None:
+            handler = self.handler_for(target_filepath)
+            try:
+                if handler.save_positions(target_filepath, positions, extra_metadata=extra_metadata) is False:
+                    return False
+            except Exception as e:
+                print("ProjectStorageManager::finalize_from_backend_save error:", e)
+                return False
+
+        return True
 
 storage_manager = ProjectStorageManager()

@@ -6,6 +6,7 @@
 Run with: python3 source/tests/test_project_storage.py
 """
 
+import json
 import os
 import sys
 import tempfile
@@ -34,15 +35,34 @@ CARXP = """<?xml version='1.0' encoding='UTF-8'?>
 </CARLA-PROJECT>
 """
 
+CARJP = {
+    "format": "carla-project-json",
+    "version": "1.0",
+    "CARLA-PROJECT": {
+        "@attributes": {"VERSION": "2.0"},
+        "EngineSettings": {"PreferPluginBridges": "false"},
+        "Plugin": {
+            "Info": {"Name": "Test Plugin", "URI": "urn:test"},
+            "Parameters": {"Parameter": [{"@attributes": {"id": "0"}, "#text": "1.5"}]},
+        },
+    },
+}
 
-def _write(path, text=CARXP):
+
+def _write_text(path, text):
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
     return path
 
 
+def _write_json(path, doc):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(doc, f, indent="\t")
+    return path
+
+
 def test_xml_positions_roundtrip(storage, tmp):
-    path = _write(os.path.join(tmp, "a.carxp"))
+    path = _write_text(os.path.join(tmp, "a.carxp"), CARXP)
     positions = [{"name": "Node", "pos1x": 5, "pos1y": 6, "pos2x": 0, "pos2y": 0,
                   "split": False, "color": "#00ff00", "hide_unconnected_ports": True}]
     assert storage.save_canvas_positions(path, positions, {"split_view_enabled": True,
@@ -55,63 +75,67 @@ def test_xml_positions_roundtrip(storage, tmp):
     assert getattr(loaded, "infinite_canvas") is True
 
 
-def test_json_save_preserves_plugin_data(storage, tmp):
-    source = _write(os.path.join(tmp, "b.carxp"))
-    target = os.path.join(tmp, "b.carjp")
+def test_json_positions_keep_engine_data(storage, tmp):
+    path = _write_json(os.path.join(tmp, "b.carjp"), CARJP)
 
-    backend_target, is_temp = storage.prepare_for_backend_save(target)
-    assert is_temp and backend_target.endswith(".carxp")
-    _write(backend_target)  # stand-in for what the C++ backend would write
-
-    assert storage.finalize_from_backend_save(target, backend_target) is True
-    assert not os.path.exists(backend_target), "temp XML was not cleaned up"
-
-    root = storage.get_project_root(target)
+    root = storage.get_project_root(path)
     assert root is not None
     assert root.find("Plugin/Info/Name").text == "Test Plugin"
-    assert root.find("Plugin/Parameters/Parameter").text == "1.5"
 
     positions = [{"name": "P", "pos1x": 1, "pos1y": 2, "pos2x": 0, "pos2y": 0, "split": False}]
-    assert storage.save_canvas_positions(target, positions) is True
-    assert storage.load_canvas_positions(target)[0]["name"] == "P"
+    assert storage.save_canvas_positions(path, positions) is True
+    assert not os.path.exists(path + ".tmp"), "atomic save left a temp file behind"
+    assert storage.load_canvas_positions(path)[0]["name"] == "P"
+
+    # engine-owned data must survive the frontend position write
+    with open(path, encoding="utf-8") as f:
+        doc = json.load(f)
+    assert doc["CARLA-PROJECT"]["Plugin"]["Info"]["Name"] == "Test Plugin"
 
 
-def test_json_load_temp_is_not_in_project_dir(storage, tmp):
-    source = _write(os.path.join(tmp, "c.carxp"))
-    target = os.path.join(tmp, "c.carjp")
-    backend_target, _ = storage.prepare_for_backend_save(target)
-    _write(backend_target)
-    assert storage.finalize_from_backend_save(target, backend_target) is True
+def test_json_load_needs_no_conversion(storage, tmp):
+    path = _write_json(os.path.join(tmp, "c.carjp"), CARJP)
+    assert storage.prepare_for_backend_load(path) == path, "the engine reads .carjp directly"
 
-    load_path = storage.prepare_for_backend_load(target)
+
+def test_force_bridged_json_copy(storage, tmp):
+    path = _write_json(os.path.join(tmp, "d.carjp"), CARJP)
+    patched = storage.prepare_for_backend_load(path, force_bridged=True)
     try:
-        assert os.path.exists(load_path)
-        assert os.path.dirname(os.path.abspath(load_path)) != os.path.abspath(tmp), \
-            "temp file must live in the system temp dir (read-only project folders)"
+        assert patched != path and os.path.exists(patched)
+        assert os.path.dirname(os.path.abspath(patched)) != os.path.abspath(tmp)
+        with open(patched, encoding="utf-8") as f:
+            doc = json.load(f)
+        assert doc["CARLA-PROJECT"]["EngineSettings"]["PreferPluginBridges"] == "true"
+        with open(path, encoding="utf-8") as f:
+            assert json.load(f)["CARLA-PROJECT"]["EngineSettings"]["PreferPluginBridges"] == "false"
     finally:
-        os.remove(load_path)
+        os.remove(patched)
+
+
+def test_new_saves_default_to_json(storage):
+    save_filter = storage.save_filter("project")
+    assert save_filter.startswith("Carla JSON Project"), save_filter
+    assert ".carxp" in save_filter, "XML must stay saveable for backwards compatibility"
+    assert storage.default_extension("project") == ".carjp"
+    assert storage.get_format_tag("song.carxp") == "xml"
+    assert storage.get_format_tag("song.carjp") == "json"
 
 
 def test_failed_save_is_reported(storage, tmp):
-    target = os.path.join(tmp, "d.carjp")
-    assert storage.finalize_from_backend_save(target, os.path.join(tmp, "missing.carxp")) is False
-
-
-def test_save_dialog_offers_xml_only(storage):
-    save_filter = storage.save_filter("project")
-    assert ".carxp" in save_filter and ".carjp" not in save_filter
-    assert ".carjp" in storage.open_filter(), "legacy JSON projects must stay openable"
-    assert storage.default_extension("project") == ".carxp"
+    target = os.path.join(tmp, "e.carjp")
+    assert storage.finalize_from_backend_save(target, os.path.join(tmp, "missing.carjp")) is False
 
 
 def main():
     storage = ProjectStorageManager()
     with tempfile.TemporaryDirectory() as tmp:
         test_xml_positions_roundtrip(storage, tmp)
-        test_json_save_preserves_plugin_data(storage, tmp)
-        test_json_load_temp_is_not_in_project_dir(storage, tmp)
+        test_json_positions_keep_engine_data(storage, tmp)
+        test_json_load_needs_no_conversion(storage, tmp)
+        test_force_bridged_json_copy(storage, tmp)
         test_failed_save_is_reported(storage, tmp)
-    test_save_dialog_offers_xml_only(storage)
+    test_new_saves_default_to_json(storage)
     print("project_storage: all checks passed")
 
 

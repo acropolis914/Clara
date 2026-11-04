@@ -40,8 +40,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(widgets)**: "Copy Log to Clipboard" in the project-load error dialog no longer raises `NameError: QTimer`.
 - **perf(canvas)**: signal-flow level polling is cached for 50 ms and skipped entirely while the canvas is hidden or the window minimized, cutting idle CPU for the 60 Hz animator.
 - **chore(qt)**: `QDialogButtonBox.Apply` is now part of the `qt_compat` shim, replacing the per-call `getattr` workaround in the settings dialog.
-- **chore(project)**: new projects are saved as `.carxp` only
-  - The engine's native serializer is XML, so `.carjp` saves need a full XML→JSON convert. The JSON format is no longer offered in the Save dialog (`.carjp` files still open and save as JSON if you already use them); typing a `.json` name by hand still works.
+- **feat(project)**: the engine writes and reads JSON projects directly
+  - Added `source/includes/CarlaJsonDocument.hpp`: converts between the engine's project tree and `.carjp` JSON, covering attributes, repeated tags, empty elements, UTF-8 and `\u` escapes.
+  - `CarlaEngine::saveProject()`/`loadProject()` choose by extension, so `.carjp` is serialized by the engine itself — no temp XML, no Python conversion, and no XML on disk for JSON projects.
+  - New saves default to `.carjp`; `.carxp` stays readable and writable for backwards compatibility.
+  - `project_storage.py` lost the XML↔JSON conversion (`xml_elem_to_dict`, `save_full_project_from_xml_path`); only the force-bridged pre-check writes a patched temp copy.
 - **chore(cleanup)**: removed dead `tab_titles`/`tab_glyphs`/`nerd_family` block in the settings dialog, unused `old_line_*` locals in `patchcanvas.setOptions`, and an unused `error_entries` list in the project loader.
 - **test(project_storage)**: added `source/tests/test_project_storage.py` covering XML/JSON round-trips, atomic saves, temp-file location and failure reporting.
 

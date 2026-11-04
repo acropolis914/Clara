@@ -145,26 +145,18 @@ class ProjectSessionManager:
             base_name = os.path.splitext(os.path.basename(canonical_path))[0]
             autosave_file = os.path.join(autosave_dir, f"{base_name}_auto_{timestamp}{ext}")
 
-            # 1. Ask Carla backend engine to save state (temporary XML for non-XML formats)
+            # 1. Ask Carla backend engine to save state (it writes the project format directly)
             backend_target, is_temp = storage_manager.prepare_for_backend_save(autosave_file)
 
             if not self.host_window.host.save_project(backend_target):
                 return None
 
-            # 2. Finalize full project with current canvas positions
+            # 2. Add the frontend-only canvas positions
             from patchcanvas import patchcanvas
             positions = patchcanvas.saveGroupPositions() if getattr(self.host_window, "fWithCanvas", False) else []
 
-            if is_temp:
-                if storage_manager.finalize_from_backend_save(autosave_file, backend_target, positions) is False:
-                    return None
-                if os.path.exists(backend_target):
-                    try:
-                        os.remove(backend_target)
-                    except Exception:
-                        pass
-            else:
-                storage_manager.save_canvas_positions(autosave_file, positions)
+            if storage_manager.finalize_from_backend_save(autosave_file, backend_target, positions) is False:
+                return None
 
             self._last_autosave_file = autosave_file
             self.last_autosave_time = datetime.now()
