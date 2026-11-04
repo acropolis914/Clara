@@ -18,7 +18,7 @@ import struct
 import subprocess
 import time
 
-RATE = 50            # samples per second; one peak per 20 ms is plenty
+RATE = 1000          # 1 kHz: low rates (50/100 Hz) resample to near-silent peaks
 CHUNK = 1024         # max bytes read per node per tick
 RESPAWN_DELAY = 5.0  # do not hammer a node that refuses to be captured
 
