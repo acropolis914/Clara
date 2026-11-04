@@ -182,7 +182,7 @@ class HostWindow(QMainWindow):
         self.fUpdateBanner = None
         self.fUpdateThread = UpdateCheckThread(self)
         self.fUpdateThread.update_available.connect(self._on_update_available)
-        self.fUpdateThread.finished.connect(self.fUpdateThread.deleteLater)
+        self.fUpdateThread.finished.connect(self._onUpdateCheckThreadFinished)
         self.fUpdateThread.start()
 
         # Clara Support banner (triggers immediately with hidden arg --show-support-banner, otherwise after 10 mins: 600,000 ms)
@@ -2134,7 +2134,8 @@ class HostWindow(QMainWindow):
     @pyqtSlot()
     def slot_engineStopTryAgain(self):
         if self.host.is_engine_running() and not self.host.set_engine_about_to_close():
-            QTimer.singleShot(0, self.slot_engineStopTryAgain)
+            # 50 ms between retries: singleShot(0) spun a full CPU core while waiting
+            QTimer.singleShot(50, self.slot_engineStopTryAgain)
             return False
 
         self.engineStopFinal()
@@ -5425,6 +5426,8 @@ class HostWindow(QMainWindow):
     def slot_handleSIGTERM(self):
         print("Got SIGTERM -> Closing now")
         self.fCustomStopAction = self.CUSTOM_ACTION_APP_CLOSE
+        # A stuck plugin bridge must never hold a logout/shutdown hostage.
+        QTimer.singleShot(4000, lambda: os._exit(0))
         self.close()
 
     @pyqtSlot()
@@ -6084,9 +6087,15 @@ class HostWindow(QMainWindow):
 
         # Give an in-flight update check a moment to finish, so Qt never destroys a running QThread.
         # shortcut: urllib has no cancel, a very slow DNS lookup can still outlive this wait.
-        for _thread in (getattr(self, "fUpdateThread", None), getattr(self, "_manualUpdateThread", None)):
-            if _thread is not None and _thread.isRunning():
-                _thread.wait(2500)
+        for _name in ("fUpdateThread", "_manualUpdateThread"):
+            _thread = getattr(self, _name, None)
+            if _thread is None:
+                continue
+            try:
+                if _thread.isRunning():
+                    _thread.wait(2500)
+            except RuntimeError:
+                setattr(self, _name, None)
 
         if self.host.is_engine_running() and not (
             self.host.isControl or self.host.isPlugin
@@ -6108,8 +6117,20 @@ class HostWindow(QMainWindow):
         self._manualUpdateThread.update_available.connect(self._on_update_available)
         self._manualUpdateThread.no_update_found.connect(self._on_manual_check_uptodate)
         self._manualUpdateThread.check_failed.connect(self._on_manual_check_failed)
-        self._manualUpdateThread.finished.connect(self._manualUpdateThread.deleteLater)
+        self._manualUpdateThread.finished.connect(self._onUpdateCheckThreadFinished)
         self._manualUpdateThread.start()
+
+    @pyqtSlot()
+    def _onUpdateCheckThreadFinished(self):
+        # deleteLater() would leave self.fUpdateThread pointing at a dead C++ object,
+        # which made closeEvent raise RuntimeError and the app unkillable via SIGTERM.
+        thread = self.sender()
+        if thread is self.fUpdateThread:
+            self.fUpdateThread = None
+        if thread is getattr(self, "_manualUpdateThread", None):
+            self._manualUpdateThread = None
+        if thread is not None:
+            thread.deleteLater()
 
     def _on_manual_check_uptodate(self, current_ver):
         QMessageBox.information(

@@ -59,6 +59,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **chore(ci)**: added `.github/workflows/tests.yml` running the Python project-storage test and the C++ JSON document round-trip on push and pull request.
 - **chore(cleanup)**: 27 bare `except:` became `except Exception:`; removed unused locals (`stylesDir`, `group_id`, `w`, `bypass_active`, `node_set`, `byp_w`, `btn_border`, `has_bypass_support`, `theme`, `pos1/pos2`, `ok`); `ExternalUI` no longer returns from a `finally` (it was swallowing pipe errors); dropped the dead temp-file branch in `saveProjectNow`.
 
+### Fixes
+
+#### 2026-11-04 — Shutdown, signal-flow and playback-node meters
+
+- **fix(app)**: SIGTERM now always quits
+  - `closeEvent` no longer touches a deleted `UpdateCheckThread` (`RuntimeError` aborted the close and left the app unkillable); the thread reference is cleared when it finishes.
+  - Engine-stop retries run every 50 ms instead of a `singleShot(0)` busy loop that burned a full CPU core while waiting.
+  - SIGTERM arms a 4 s watchdog (`os._exit`) so a stuck plugin bridge cannot hold a logout hostage.
+- **feat(patchbay)**: signal flow for playback nodes (Spotify, browsers, Electron apps)
+  - New `pwrecord` sampler captures a node directly with `pw-record --target`, since playback streams have no PulseAudio source. Used only for nodes the PulseAudio peak-detect sampler cannot resolve.
+- **fix(patchbay)**: the earlier "containers missing" state was an interrupted project load, not data loss; a clean load restores all containers (verified: 7 containers, 14 boxes).
+
 ### Features
 - **feat(patchbay)**: spammable container header nerd font icons and targeted inline rename collision
   - Positioned container control buttons (`󰅖` ungroup, `󰘖`/`󰪦` collapse/expand, `󰝘`/`󰝙`/`󰝚`/`󰝜` layout switchers) at fixed coordinates on the left of the header for position stability.

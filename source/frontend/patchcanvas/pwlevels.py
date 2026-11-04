@@ -230,6 +230,12 @@ class PulsePeakSampler(object):
             if self._sources_ready:
                 self._reconcile()
 
+    def has_target(self, name):
+        """True when this node has a PulseAudio source/monitor we can sample."""
+        if not name or not self._sources_ready:
+            return False
+        return self._resolve_target(name) is not None
+
     def level_for(self, name):
         if not name:
             return 0.0

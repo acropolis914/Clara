@@ -565,13 +565,13 @@ class CanvasToolBarOverlay(QFrame):
                     self._external_sampler()
 
     def _stopExternalSampler(self):
-        try:
-            from patchcanvas import pwlevels
-
-            pwlevels.get_sampler().set_nodes(set())
-            pwlevels.get_sampler().stop()
-        except Exception:
-            pass
+        for module_name in ("pwlevels", "pwrecord"):
+            try:
+                module = __import__("patchcanvas." + module_name, fromlist=[module_name])
+                module.get_sampler().set_nodes(set())
+                module.get_sampler().stop()
+            except Exception:
+                pass
 
     def _external_sampler(self):
         if not self._signalflow_external:
@@ -583,6 +583,19 @@ class CanvasToolBarOverlay(QFrame):
             if not sampler.is_available():
                 return None
             if not sampler.is_running() and not sampler.start():
+                return None
+            return sampler
+        except Exception:
+            return None
+
+    def _pwrecord_sampler(self):
+        if not self._signalflow_external:
+            return None
+        try:
+            from patchcanvas import pwrecord
+
+            sampler = pwrecord.get_sampler()
+            if not sampler.is_available():
                 return None
             return sampler
         except Exception:
@@ -698,14 +711,15 @@ class CanvasToolBarOverlay(QFrame):
         levels = dict(plugin_levels)
         flow = dict(plugin_flow)
 
+        connections = list(patchcanvas.canvas.connection_list)
+        connected_ids = set()
+        for conn in connections:
+            connected_ids.add(getattr(conn, "group_out_id", None))
+            connected_ids.add(getattr(conn, "group_in_id", None))
+
         # Real per-node levels for external groups via a hidden peak-detect tap
         sampler = self._external_sampler()
         if sampler is not None and external_groups:
-            connections = list(patchcanvas.canvas.connection_list)
-            connected_ids = set()
-            for conn in connections:
-                connected_ids.add(getattr(conn, "group_out_id", None))
-                connected_ids.add(getattr(conn, "group_in_id", None))
             desired = [
                 name for gid, name in external_groups if gid in connected_ids and name
             ]
@@ -718,11 +732,30 @@ class CanvasToolBarOverlay(QFrame):
                         levels[gid] = max(levels.get(gid, 0.0), lvl)
                         flow[gid] = max(flow.get(gid, 0.0), lvl)
 
+        # Playback streams (Spotify, browsers, Electron apps) have no PulseAudio
+        # source, so capture the node itself with pw-record.
+        pw_sampler = self._pwrecord_sampler()
+        if pw_sampler is not None and external_groups:
+            uncovered = []
+            for gid, name in external_groups:
+                if gid not in connected_ids or not name:
+                    continue
+                if sampler is not None and sampler.has_target(name):
+                    continue
+                uncovered.append(name)
+            pw_sampler.set_nodes(uncovered)
+            pw_sampler.process()
+            for gid, name in external_groups:
+                if gid in connected_ids and name:
+                    lvl = pw_sampler.level_for(name)
+                    if lvl > 0.0:
+                        levels[gid] = max(levels.get(gid, 0.0), lvl)
+                        flow[gid] = max(flow.get(gid, 0.0), lvl)
+
         # Remaining external / hardware groups borrow activity for the node glow only;
         # cable flow is never faked from the far end.
         non_plugin_ids = {gid for gid, _name in external_groups}
         if non_plugin_ids:
-            connections = list(patchcanvas.canvas.connection_list)
             for _ in range(2):
                 for conn in connections:
                     out_id = getattr(conn, "group_out_id", None)
