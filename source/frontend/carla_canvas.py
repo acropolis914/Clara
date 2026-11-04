@@ -662,6 +662,8 @@ class CanvasToolBarOverlay(QFrame):
         return levels
 
     def _collectSignalLevels(self):
+        import time
+
         # Returns (activity, flow): activity is the node glow (max of input and output),
         # flow is the source-side output only and drives the cable pulses. Carla exposes
         # peak values for real plugins; external / hardware / PipeWire groups have no
@@ -792,6 +794,19 @@ class CanvasToolBarOverlay(QFrame):
                         _put(levels, out_id, best * 0.85)
                     if in_id in non_plugin_ids:
                         _put(levels, in_id, best * 0.85)
+
+        now = time.monotonic()
+        if now - getattr(self, "_flow_debug_at", 0.0) > 5.0:
+            self._flow_debug_at = now
+            names = {g.group_id: g.group_name for g in groups}
+            conns = [(c.group_out_id, c.group_in_id) for c in patchcanvas.canvas.connection_list][:30]
+            log_carla(
+                "SIGNALFLOW flow=%s conns=%s" % (
+                    {names.get(k, k): round(v, 3) for k, v in flow.items()},
+                    [(names.get(o, o), names.get(i, i)) for o, i in conns],
+                ),
+                level="debug",
+            )
 
         return levels, flow
 
