@@ -3633,6 +3633,19 @@ class HostWindow(QMainWindow):
         "pw-record",
     )
 
+    def _centerCanvasOnGroup(self, group):
+        """While a project loads, pan the canvas to the node that was just created."""
+        try:
+            if not self.fWithCanvas or not group or not group.widgets:
+                return
+            box = group.widgets[0]
+            view = getattr(self.ui, "graphicsView", None)
+            if view is None or box is None or box.scene() is None:
+                return
+            view.centerOn(box)
+        except Exception:
+            pass
+
     def _isHiddenPatchbayClientName(self, clientName):
         if not clientName:
             return False
@@ -3668,7 +3681,9 @@ class HostWindow(QMainWindow):
         elif clientIcon == PATCHBAY_ICON_FILE:
             pcIcon = patchcanvas.ICON_FILE
 
-        patchcanvas.addGroup(clientId, clientName, pcSplit, pcIcon)
+        group_dict = patchcanvas.addGroup(clientId, clientName, pcSplit, pcIcon)
+        if getattr(self, "fIsProjectLoading", False):
+            self._centerCanvasOnGroup(group_dict)
 
         self.updateMiniCanvasLater()
 

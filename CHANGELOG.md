@@ -114,6 +114,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(patchbay)**: `loadContainers()` updates existing containers by id instead of clearing and rebuilding them. It runs before load, after load and on the deferred sweep, so containers were recreated 3× (21 creations for 7 containers) and flickered.
 
 ### Features
+
+#### 2026-11-04 — Load camera follows new nodes
+
+- **feat(ui)**: while a project loads, the canvas centers on each node as its client callback arrives, so the view follows the patchbay being built instead of staying wherever it was.
+
+
 - **feat(patchbay)**: spammable container header nerd font icons and targeted inline rename collision
   - Positioned container control buttons (`󰅖` ungroup, `󰘖`/`󰪦` collapse/expand, `󰝘`/`󰝙`/`󰝚`/`󰝜` layout switchers) at fixed coordinates on the left of the header for position stability.
   - Restricted double-click inline rename collision strictly to the title text boundary with minimum 5-character width, leaving the remaining header draggable.
