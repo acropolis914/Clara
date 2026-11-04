@@ -75,6 +75,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(patchbay)**: `pw-record` capture clients are hidden from the patchbay and never sampled themselves; sampling is capped at 8 nodes and disabled while a project loads. A self-sampling loop had stalled loading and churned the canvas.
 - **fix(patchbay)**: the earlier "containers missing" state was an interrupted project load, not data loss; a clean load restores all containers (verified: 7 containers, 14 boxes).
 
+### Fixes
+
+#### 2026-11-04 — Honest load progress, quieter load
+
+- **feat(ui)**: the project-load dialog now shows real progress instead of crawling to 93% and stalling
+  - Plugin count is read from the project file, so the bar tracks `Loading plugin N/total` from 8% to 90%.
+  - Canvas restore reports its own phases (93 positions, 96 containers, 97 layout, 99 finishing); 100% now appears only when the dialog closes.
+  - The automatic crawl only runs while the real total is unknown.
+- **perf(canvas)**: signal-flow animation is paused while a project loads, removing the 90–120% main-thread spike during load.
+
 ### Features
 - **feat(patchbay)**: spammable container header nerd font icons and targeted inline rename collision
   - Positioned container control buttons (`󰅖` ungroup, `󰘖`/`󰪦` collapse/expand, `󰝘`/`󰝙`/`󰝚`/`󰝜` layout switchers) at fixed coordinates on the left of the header for position stability.

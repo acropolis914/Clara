@@ -627,6 +627,13 @@ class CanvasToolBarOverlay(QFrame):
 
         from patchcanvas import signalflow
 
+        # While a project is being built the canvas is churning anyway: no pulses, no repaint cost.
+        gui = getattr(gCarla, "gui", None)
+        if gui is not None and getattr(gui, "fIsProjectLoading", False):
+            signalflow.state.flow = {}
+            self._signal_levels_cache = (now, {})
+            return {}
+
         # Nobody sees the canvas while the window is minimized or another tab is shown:
         # skip the engine peak polling and the PulseAudio pump entirely.
         view = getattr(self, "graphicsView", None)

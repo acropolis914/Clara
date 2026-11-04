@@ -231,6 +231,7 @@ class HostWindow(QMainWindow):
         self.fRecentProjects = []
         self.fRecentProjectActions = []
         self.fIsProjectLoading = False
+        self.fLoadingPluginTotal = 0
         self.fCurrentlyRemovingAllPlugins = False
         self.fHasLoadedLv2Plugins = False
 
@@ -1422,11 +1423,13 @@ class HostWindow(QMainWindow):
 
         # Check if project contains plugins prone to in-process UI/GL thread collisions
         force_bridged = False
+        self.fLoadingPluginTotal = 0
         try:
             # Format-agnostic: the save manager resolves the file (XML or JSON) and hands back a
             # common ElementTree root, so nothing here needs to know any extension.
             root = storage_manager.get_project_root(load_source)
             if root is not None:
+                self.fLoadingPluginTotal = len(root.findall("Plugin"))
                 eng_settings = root.find("EngineSettings")
                 prefer_bridges = eng_settings.findtext("PreferPluginBridges") if eng_settings is not None else None
                 if not prefer_bridges or prefer_bridges.lower() in ("false", "0"):
@@ -1530,6 +1533,7 @@ class HostWindow(QMainWindow):
             if ("error" in msg.lower() or "failed" in msg.lower() or "cannot open" in msg.lower()) and msg not in issues:
                 issues.append(msg)
 
+        self._setLoadingProgress(90, "Restoring patchbay layout...")
         self.projectLoadingFinished(False, restore_positions=load_ok)
 
         if not load_ok:
@@ -1631,7 +1635,7 @@ class HostWindow(QMainWindow):
             except Exception:
                 self.fLoadingDialog = None
 
-    def projectLoadingFinished(self, refreshCanvas, restore_positions=True):
+    def _dismissLoadingDialog(self):
         if getattr(self, "fLoadingDialog", None) is not None:
             try:
                 if hasattr(self.fLoadingDialog, "dismiss"):
@@ -1643,6 +1647,12 @@ class HostWindow(QMainWindow):
                 pass
             self.fLoadingDialog = None
 
+    def _setLoadingProgress(self, percent, detail=None):
+        dialog = getattr(self, "fLoadingDialog", None)
+        if dialog is not None and hasattr(dialog, "setProgress"):
+            dialog.setProgress(percent, detail)
+
+    def projectLoadingFinished(self, refreshCanvas, restore_positions=True):
         if self.ui.listWidget is not None:
             self.ui.listWidget.setUpdatesEnabled(True)
             self.ui.listWidget.blockSignals(False)
@@ -1651,34 +1661,28 @@ class HostWindow(QMainWindow):
         self.ui.rack.setEnabled(True)
         self.ui.graphicsView.setEnabled(True)
 
-        # A failed load keeps the previous session on screen: do not touch its canvas.
-        if not restore_positions:
-            return
+        # Restore the canvas before dismissing the dialog, so 100% means "done" and not
+        # "now reconnecting every node".
+        if restore_positions and self.fCustomStopAction != self.CUSTOM_ACTION_APP_CLOSE and self.fWithCanvas:
+            positions_loaded = False
+            source_for_positions = getattr(self, "fLastLoadedSource", None) or self.fProjectFilename
+            if self.fProjectFilename and os.path.exists(self.fProjectFilename):
+                self.addRecentProject(self.fProjectFilename)
 
-        if (
-            self.fCustomStopAction == self.CUSTOM_ACTION_APP_CLOSE
-            or not self.fWithCanvas
-        ):
-            return
+            if source_for_positions and os.path.exists(source_for_positions):
+                self._setLoadingProgress(93, "Restoring node positions...")
+                positions_loaded = self.loadCanvasGroupPositionsFromProject(source_for_positions)
 
-        # Restore positions from the file that was actually loaded (autosave recovery included),
-        # while recent-projects and saving still use the last-saved project path.
-        positions_loaded = False
-        source_for_positions = getattr(self, "fLastLoadedSource", None) or self.fProjectFilename
-        if self.fProjectFilename and os.path.exists(self.fProjectFilename):
-            self.addRecentProject(self.fProjectFilename)
+            if (
+                not positions_loaded
+                and refreshCanvas
+                and not self.loadExternalCanvasGroupPositionsIfNeeded(source_for_positions)
+            ):
+                QTimer.singleShot(1, self.slot_canvasRefresh)
 
-        if source_for_positions and os.path.exists(source_for_positions):
-            positions_loaded = self.loadCanvasGroupPositionsFromProject(source_for_positions)
+            self.fLastLoadedSource = None
 
-        if (
-            not positions_loaded
-            and refreshCanvas
-            and not self.loadExternalCanvasGroupPositionsIfNeeded(source_for_positions)
-        ):
-            QTimer.singleShot(1, self.slot_canvasRefresh)
-
-        self.fLastLoadedSource = None
+        self._dismissLoadingDialog()
 
     def loadCanvasGroupPositionsFromProject(self, filename):
         if not filename or not os.path.exists(filename):
@@ -1690,12 +1694,14 @@ class HostWindow(QMainWindow):
                 return False
 
             patchcanvas.restoreGroupPositions(data_list)
+            self._setLoadingProgress(94, "Restoring node positions...")
 
             # Restore layout containers (VBox, HBox, Grid)
             containers_data = getattr(data_list, "patchbay_containers", None)
             logger.info("CANVAS", f"loadCanvasGroupPositionsFromProject: containers_data count={len(containers_data) if containers_data else 0}")
             if containers_data:
                 patchcanvas.loadContainers(containers_data)
+                self._setLoadingProgress(96, "Restoring containers...")
                 # Also schedule a deferred sweep in case PipeWire / external clients are still arriving
                 QTimer.singleShot(150, lambda: patchcanvas.loadContainers(containers_data))
 
@@ -1708,6 +1714,7 @@ class HostWindow(QMainWindow):
             split_enabled = getattr(data_list, "split_view_enabled", None)
             split_sizes = getattr(data_list, "split_view_sizes", None)
             if split_enabled is not None:
+                self._setLoadingProgress(97, "Restoring layout...")
                 self.slot_toggleSideBySideView(bool(split_enabled))
                 if split_sizes and hasattr(self, "splitter"):
                     self.splitter.setSizes(split_sizes)
@@ -1716,6 +1723,7 @@ class HostWindow(QMainWindow):
             if hasattr(self, "canvasFilter") and hasattr(self.canvasFilter, "contextToolBar"):
                 self.canvasFilter.contextToolBar.updateSelection()
 
+            self._setLoadingProgress(99, "Finishing up...")
             return True
         except Exception as e:
             logger.warning("CANVAS", f"Failed to load canvas positions from project: {e}")
@@ -2918,7 +2926,15 @@ class HostWindow(QMainWindow):
             }
             type_str = type_names.get(pluginType, "")
             suffix = f" [{type_str}]" if type_str else ""
-            self.fLoadingDialog.setDetail(f"Loading plugin: {pluginName}{suffix}...")
+            total = getattr(self, "fLoadingPluginTotal", 0)
+            done = pluginId + 1
+            if total > 0:
+                percent = 8.0 + 82.0 * min(1.0, done / float(total))
+                detail = f"Loading plugin {done}/{total}: {pluginName}{suffix}..."
+            else:
+                percent = min(90.0, 8.0 + done * 2.0)
+                detail = f"Loading plugin: {pluginName}{suffix}..."
+            self.fLoadingDialog.setProgress(percent, detail)
 
         while len(self.fPluginList) <= pluginId:
             self.fPluginList.append(None)

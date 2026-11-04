@@ -1799,6 +1799,7 @@ class ProjectLoadingDialog(QDialog):
         self._start_time = 0
         self._current_progress = 12.0
         self._target_progress = 20.0
+        self._explicit_progress = False
         self._offer_mode = offer_mode
         self._recover_mode = recover_mode
         self._offer_detail = offer_detail
@@ -1962,6 +1963,8 @@ class ProjectLoadingDialog(QDialog):
                       .replace(self.tr("Recover Session:"), self.tr("Loading:"))
         )
         self.lbl_detail.setText(detail or self.tr("Preparing project file & engine..."))
+        self._explicit_progress = False
+        self._target_progress = 22.0
         self.setFixedSize(450, 120)
         self._anim_timer.start()
         self.repaint()
@@ -1973,8 +1976,8 @@ class ProjectLoadingDialog(QDialog):
         if self._current_progress < self._target_progress:
             step = max(0.5, (self._target_progress - self._current_progress) * 0.28)
             self._current_progress = min(self._target_progress, self._current_progress + step)
-        elif self._current_progress < 93.0:
-            # Subtle background crawl so the bar stays alive even when event loop is starved
+        elif not self._explicit_progress and self._current_progress < 93.0:
+            # Background crawl only while the real progress is unknown
             self._current_progress += 0.12
 
         val_int = int(self._current_progress)
@@ -1986,20 +1989,28 @@ class ProjectLoadingDialog(QDialog):
         self._start_time = time.time()
         self._current_progress = 12.0
         self._target_progress = 22.0
+        self._explicit_progress = False
         super().show()
         QApplication.processEvents()
 
     def setDetail(self, text):
         if text:
-            clean_text = str(text)
-            self.lbl_detail.setText(clean_text)
-            self._target_progress = min(93.0, self._target_progress + 14.0)
-            self._current_progress = max(self._current_progress, self._target_progress - 8.0)
-            val_int = int(self._current_progress)
-            self.progressBar.setValue(val_int)
-            self.lbl_percent.setText(f"{val_int}%")
+            self.lbl_detail.setText(str(text))
             self.repaint()
             QApplication.processEvents()
+
+    def setProgress(self, value, detail=None):
+        """Set real progress (0-99). Once set, the bar stops crawling on its own."""
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return
+        self._explicit_progress = True
+        self._target_progress = max(0.0, min(99.0, value))
+        if detail:
+            self.lbl_detail.setText(str(detail))
+        self.repaint()
+        QApplication.processEvents()
 
     def dismiss(self, min_dwell_ms=0):
         try:
