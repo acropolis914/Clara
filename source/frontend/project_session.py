@@ -144,19 +144,26 @@ class ProjectSessionManager:
             ext = os.path.splitext(canonical_path)[1] or storage_manager.default_extension()
             base_name = os.path.splitext(os.path.basename(canonical_path))[0]
             autosave_file = os.path.join(autosave_dir, f"{base_name}_auto_{timestamp}{ext}")
+            # Write a sibling file with the same extension, then rename it into place:
+            # a crash mid-write cannot leave a truncated autosave behind.
+            tmp_file = (autosave_file[:-len(ext)] + ".part" + ext) if ext else (autosave_file + ".part")
 
             # 1. Ask Carla backend engine to save state (it writes the project format directly)
-            backend_target, is_temp = storage_manager.prepare_for_backend_save(autosave_file)
+            backend_target, is_temp = storage_manager.prepare_for_backend_save(tmp_file)
 
             if not self.host_window.host.save_project(backend_target):
+                self._remove_if_exists(tmp_file)
                 return None
 
             # 2. Add the frontend-only canvas positions
             from patchcanvas import patchcanvas
             positions = patchcanvas.saveGroupPositions() if getattr(self.host_window, "fWithCanvas", False) else []
 
-            if storage_manager.finalize_from_backend_save(autosave_file, backend_target, positions) is False:
+            if storage_manager.finalize_from_backend_save(tmp_file, backend_target, positions) is False:
+                self._remove_if_exists(tmp_file)
                 return None
+
+            os.replace(tmp_file, autosave_file)
 
             self._last_autosave_file = autosave_file
             self.last_autosave_time = datetime.now()
@@ -168,6 +175,14 @@ class ProjectSessionManager:
         except Exception as e:
             log_carla(f"ProjectSessionManager::create_autosave failed: {e}", level="warn")
             return None
+
+    @staticmethod
+    def _remove_if_exists(path):
+        try:
+            if path and os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            pass
 
     def queue_node_position_sync(self):
         """Called whenever a patchbay node moves to keep the latest autosave updated"""
