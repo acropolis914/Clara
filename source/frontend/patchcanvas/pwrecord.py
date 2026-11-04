@@ -56,7 +56,8 @@ class PwRecordSampler(object):
         self._failed.clear()
 
     def set_nodes(self, names):
-        wanted = {n for n in names if n}
+        # never sample our own capture clients, or they spawn each other forever
+        wanted = {n for n in names if n and not n.lower().startswith("pw-record")}
         for name in list(self._procs):
             if name not in wanted:
                 self._kill(name)

@@ -3575,6 +3575,7 @@ class HostWindow(QMainWindow):
         "peak detect",
         "pavucontrol",
         "pwvucontrol",
+        "pw-record",
     )
 
     def _isHiddenPatchbayClientName(self, clientName):

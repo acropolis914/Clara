@@ -736,15 +736,23 @@ class CanvasToolBarOverlay(QFrame):
         # source, so capture the node itself with pw-record.
         pw_sampler = self._pwrecord_sampler()
         if pw_sampler is not None and external_groups:
-            uncovered = []
-            for gid, name in external_groups:
-                if gid not in connected_ids or not name:
-                    continue
-                if sampler is not None and sampler.has_target(name):
-                    continue
-                uncovered.append(name)
-            pw_sampler.set_nodes(uncovered)
-            pw_sampler.process()
+            if getattr(gui, "fIsProjectLoading", False):
+                # Never spawn capture clients while a project is being built
+                pw_sampler.set_nodes([])
+            else:
+                uncovered = []
+                for gid, name in external_groups:
+                    if gid not in connected_ids or not name:
+                        continue
+                    if name.lower().startswith("pw-record"):
+                        continue
+                    if sampler is not None and sampler.has_target(name):
+                        continue
+                    uncovered.append(name)
+                    if len(uncovered) >= 8:
+                        break
+                pw_sampler.set_nodes(uncovered)
+                pw_sampler.process()
             for gid, name in external_groups:
                 if gid in connected_ids and name:
                     lvl = pw_sampler.level_for(name)

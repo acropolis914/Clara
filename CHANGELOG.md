@@ -69,6 +69,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - SIGTERM arms a 4 s watchdog (`os._exit`) so a stuck plugin bridge cannot hold a logout hostage.
 - **feat(patchbay)**: signal flow for playback nodes (Spotify, browsers, Electron apps)
   - New `pwrecord` sampler captures a node directly with `pw-record --target`, since playback streams have no PulseAudio source. Used only for nodes the PulseAudio peak-detect sampler cannot resolve.
+- **fix(patchbay)**: `pw-record` capture clients are hidden from the patchbay and never sampled themselves; sampling is capped at 8 nodes and disabled while a project loads. A self-sampling loop had stalled loading and churned the canvas.
 - **fix(patchbay)**: the earlier "containers missing" state was an interrupted project load, not data loss; a clean load restores all containers (verified: 7 containers, 14 boxes).
 
 ### Features
