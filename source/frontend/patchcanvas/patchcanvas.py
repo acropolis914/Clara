@@ -2812,11 +2812,11 @@ def loadContainers(containers_data):
     from qt_compat import QColor
     from .canvascontainer import CanvasContainer
 
-    # Clear existing containers
-    for c in list(getattr(canvas, "container_list", [])):
-        if canvas.scene and c.scene() == canvas.scene:
-            canvas.scene.removeItem(c)
-    canvas.container_list = []
+    # Update containers in place: this runs before load, after load and on the
+    # deferred sweep, and clearing/recreating made them flicker every time.
+    existing = {}
+    for c in getattr(canvas, "container_list", []):
+        existing[getattr(c, "m_id", None)] = c
 
     all_boxes = []
     for g in canvas.group_list:
@@ -2825,23 +2825,34 @@ def loadContainers(containers_data):
         if g.split and g.widgets[1]:
             all_boxes.append(g.widgets[1])
 
+    seen_ids = set()
+
     for c_info in containers_data:
         c_id = c_info.get("id", "container")
+        seen_ids.add(c_id)
         title = c_info.get("title", "Group")
         ltype = c_info.get("type", "vbox")
         pos = c_info.get("pos", [0, 0])
         members = c_info.get("members", [])
 
-        container = CanvasContainer(c_id, title=title, layout_mode=ltype)
+        container = existing.get(c_id)
+        created = container is None
+
+        if created:
+            container = CanvasContainer(c_id, title=title, layout_mode=ltype)
+            canvas.scene.addItem(container)
+            canvas.container_list.append(container)
+        else:
+            container.m_title = title
+            container.m_layout_mode = ltype
+            container.update()
+
         container.setPos(pos[0], pos[1])
         if "color" in c_info:
             container.m_color = QColor(c_info["color"])
-
-        canvas.scene.addItem(container)
-        canvas.container_list.append(container)
+            container.update()
 
         for desc in members:
-            # Try to match existing box
             matched = None
             for box in all_boxes:
                 if container.matchesDescriptor(box, desc):
@@ -2850,10 +2861,19 @@ def loadContainers(containers_data):
 
             if matched:
                 container.addItem(matched)
-            else:
-                # Store in standby
-                if desc not in container.m_standby_descriptors:
-                    container.m_standby_descriptors.append(desc)
+            elif desc not in container.m_standby_descriptors:
+                container.m_standby_descriptors.append(desc)
 
-        print(f"[CONTAINERS] Created '{container.m_title}' pos={container.pos().x()},{container.pos().y()} items={len(container.m_items)} standby={len(container.m_standby_descriptors)}")
         container.updateLayout()
+
+        if created:
+            print(f"[CONTAINERS] Created '{container.m_title}' pos={container.pos().x()},{container.pos().y()} items={len(container.m_items)} standby={len(container.m_standby_descriptors)}")
+
+    # Drop containers that are no longer in the project
+    for c_id, container in existing.items():
+        if c_id is None or c_id in seen_ids:
+            continue
+        if container.scene() == canvas.scene:
+            canvas.scene.removeItem(container)
+        if container in canvas.container_list:
+            canvas.container_list.remove(container)
