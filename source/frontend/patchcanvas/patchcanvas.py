@@ -508,6 +508,11 @@ def addGroup(
 
     canvas.group_list.append(group_dict)
 
+    pending_ports = canvas.pending_ports.pop(group_id, None)
+    if pending_ports:
+        for port_id, port_name, port_mode, port_type, is_alternate in pending_ports:
+            addPort(group_id, port_id, port_name, port_mode, port_type, is_alternate)
+
     if hasattr(canvas, "container_list"):
         for c in canvas.container_list:
             for desc in list(c.m_standby_descriptors):
@@ -532,6 +537,8 @@ def addGroup(
 def removeGroup(group_id):
     if canvas.debug:
         print("PatchCanvas::removeGroup(%i)" % group_id)
+
+    canvas.pending_ports.pop(group_id, None)
 
     for visual_group_id in tuple(canvas.pipewire_group_ids.pop(group_id, ())):
         canvas.pipewire_group_map = {
@@ -1200,9 +1207,14 @@ def addPort(group_id, port_id, port_name, port_mode, port_type, is_alternate=Fal
             break
 
     if source_group is None:
-        qCritical(
-            "PatchCanvas::addPort(%i, %i, %s) - Unable to find source group"
-            % (group_id, port_id, port_name.encode())
+        # Ports can arrive before their client group (or while the canvas is being
+        # rebuilt). Keep them and replay them when the group shows up.
+        pending = canvas.pending_ports.setdefault(group_id, [])
+        if not any(entry[0] == port_id for entry in pending):
+            pending.append((port_id, port_name, port_mode, port_type, is_alternate))
+        log_carla(
+            f"patchcanvas.addPort: queued port {port_id} for not-yet-known group {group_id}",
+            level="debug",
         )
         return
 

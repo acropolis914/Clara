@@ -133,6 +133,8 @@ class Canvas(object):
 
         self.group_list = []
         self.port_list = []
+        # ports that arrived before their client group existed (engine callback order is not guaranteed)
+        self.pending_ports = {}
         self.connection_list = []
         self.animation_list = []
         self.container_list = []
