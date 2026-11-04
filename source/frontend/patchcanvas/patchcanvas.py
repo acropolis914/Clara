@@ -923,9 +923,26 @@ def saveGroupPositions():
 
         hide_ports = getattr(group.widgets[0], "m_hide_unconnected_ports", False)
 
+        # Port names per side, so a project skeleton can be drawn before plugins load.
+        left_ports = []
+        right_ports = []
+        for port in canvas.port_list:
+            if port.group_id != group.group_id or port.widget is None:
+                continue
+            try:
+                parent = port.widget.parentItem()
+            except RuntimeError:
+                continue
+            if group.split and parent is group.widgets[1]:
+                right_ports.append(port.port_name)
+            else:
+                left_ports.append(port.port_name)
+
         ret.append(
             {
                 "name": group.group_name,
+                "left": left_ports,
+                "right": right_ports,
                 "pos1x": pos1.x(),
                 "pos1y": pos1.y(),
                 "pos2x": pos2.x(),

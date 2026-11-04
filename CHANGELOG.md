@@ -115,6 +115,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Features
 
+#### 2026-11-05 — Port names recorded in canvas positions
+
+- **feat(project)**: `saveGroupPositions()` now stores each group's port names per side (`left` for the output box, `right` for the split input box) in `CanvasPositions`, in both `.carjp` and `.carxp`. This is the data a load-time skeleton needs to draw ports before the plugins exist.
+
+
+
 #### 2026-11-04 — Load camera follows new nodes
 
 - **feat(ui)**: while a project loads, the canvas centers on each node as its client callback arrives, so the view follows the patchbay being built instead of staying wherever it was.

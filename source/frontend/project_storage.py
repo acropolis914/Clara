@@ -134,7 +134,7 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                 for p_elem in canvas_elem.findall("Position"):
                     name = p_elem.get("name", "")
                     if name:
-                        data_list.append({
+                        entry = {
                             "name": name,
                             "pos1x": float(p_elem.get("pos1x", 0)),
                             "pos1y": float(p_elem.get("pos1y", 0)),
@@ -143,7 +143,15 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                             "split": p_elem.get("split") in ("1", "true", "True"),
                             "color": p_elem.get("color", ""),
                             "hide_unconnected_ports": p_elem.get("hide_unconnected_ports") in ("1", "true", "True"),
-                        })
+                        }
+                        ports_elem = p_elem.find("Ports")
+                        if ports_elem is not None:
+                            try:
+                                entry["left"] = json.loads(ports_elem.get("left", "[]"))
+                                entry["right"] = json.loads(ports_elem.get("right", "[]"))
+                            except Exception:
+                                pass
+                        data_list.append(entry)
 
             if not data_list:
                 for pb_tag in ("Patchbay", "ExternalPatchbay"):
@@ -221,6 +229,12 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                     p_elem.set("color", str(pos_data["color"]))
                 if pos_data.get("hide_unconnected_ports"):
                     p_elem.set("hide_unconnected_ports", "1")
+                left_ports = pos_data.get("left") or []
+                right_ports = pos_data.get("right") or []
+                if left_ports or right_ports:
+                    ports_elem = ET.SubElement(p_elem, "Ports")
+                    ports_elem.set("left", json.dumps(list(left_ports)))
+                    ports_elem.set("right", json.dumps(list(right_ports)))
 
             _atomic_write_xml(tree, filepath)
             return True
@@ -318,7 +332,7 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                     for pe in pos_entries:
                         attrs_pe = pe.get("@attributes", pe)
                         if "name" in attrs_pe:
-                            positions.append({
+                            entry = {
                                 "name": str(attrs_pe["name"]),
                                 "pos1x": float(attrs_pe.get("pos1x", 0)),
                                 "pos1y": float(attrs_pe.get("pos1y", 0)),
@@ -327,7 +341,12 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                                 "split": str(attrs_pe.get("split", "0")) in ("1", "true", "True"),
                                 "color": str(attrs_pe.get("color", "")),
                                 "hide_unconnected_ports": str(attrs_pe.get("hide_unconnected_ports", "0")) in ("1", "true", "True"),
-                            })
+                            }
+                            ports = pe.get("Ports")
+                            if isinstance(ports, dict):
+                                entry["left"] = ports.get("left", [])
+                                entry["right"] = ports.get("right", [])
+                            positions.append(entry)
 
             if not positions:
                 is_infinite = bool(doc.get("infinite_canvas", False))
@@ -338,7 +357,7 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                 raw_positions = doc.get("canvas_positions", doc.get("positions", []))
                 for p in raw_positions:
                     if isinstance(p, dict) and "name" in p:
-                        positions.append({
+                        entry = {
                             "name": str(p["name"]),
                             "pos1x": float(p.get("pos1x", 0)),
                             "pos1y": float(p.get("pos1y", 0)),
@@ -347,7 +366,12 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                             "split": bool(p.get("split", False)),
                             "color": str(p.get("color", "")),
                             "hide_unconnected_ports": bool(p.get("hide_unconnected_ports", False)),
-                        })
+                        }
+                        if p.get("left"):
+                            entry["left"] = list(p["left"])
+                        if p.get("right"):
+                            entry["right"] = list(p["right"])
+                        positions.append(entry)
 
             setattr(positions, "infinite_canvas", is_infinite)
             if split_view_enabled is not None:
@@ -398,7 +422,12 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                         attrs["color"] = str(p["color"])
                     if p.get("hide_unconnected_ports"):
                         attrs["hide_unconnected_ports"] = "1"
-                    canvas_pos_elem["Position"].append({"@attributes": attrs})
+                    entry = {"@attributes": attrs}
+                    left_ports = p.get("left") or []
+                    right_ports = p.get("right") or []
+                    if left_ports or right_ports:
+                        entry["Ports"] = {"left": list(left_ports), "right": list(right_ports)}
+                    canvas_pos_elem["Position"].append(entry)
                 doc["CARLA-PROJECT"]["CanvasPositions"] = canvas_pos_elem
             else:
                 doc["format"] = "carla-project-json"
@@ -428,6 +457,10 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                         entry["color"] = str(p["color"])
                     if p.get("hide_unconnected_ports"):
                         entry["hide_unconnected_ports"] = True
+                    if p.get("left"):
+                        entry["left"] = list(p["left"])
+                    if p.get("right"):
+                        entry["right"] = list(p["right"])
                     clean_positions.append(entry)
                 doc["canvas_positions"] = clean_positions
 
