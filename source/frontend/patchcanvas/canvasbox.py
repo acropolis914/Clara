@@ -2099,7 +2099,6 @@ class CanvasBox(QGraphicsObject):
 
         # Check if plugin actually supports active/bypass
         has_rack_pair = self.m_plugin_id >= 0
-        has_bypass_support = False
         is_active = True
         btn_size = 12
 
@@ -2109,18 +2108,13 @@ class CanvasBox(QGraphicsObject):
                 pitem = gCarla.gui.getPluginItem(self.m_plugin_id) if hasattr(gCarla.gui, "getPluginItem") else None
                 pwidget = pitem.getWidget() if (pitem and hasattr(pitem, "getWidget")) else None
                 if pwidget is not None and hasattr(pwidget, "fIsActive"):
-                    has_bypass_support = True
                     is_active = bool(pwidget.fIsActive)
                 elif hasattr(gCarla.gui, "host") and hasattr(gCarla.gui.host, "get_internal_parameter_value"):
                     from carla_backend import PARAMETER_ACTIVE
                     val = gCarla.gui.host.get_internal_parameter_value(self.m_plugin_id, PARAMETER_ACTIVE)
-                    has_bypass_support = (val >= 0.0)
                     is_active = bool(val >= 0.5)
             except Exception:
-                has_bypass_support = True
                 is_active = True
-
-        byp_w = (btn_size + 4) if has_bypass_support else 0
 
         if badge_info:
             b_text = badge_info[0]
@@ -2278,32 +2272,25 @@ class CanvasBox(QGraphicsObject):
 
                 if st == "disabled":
                     btn_bg = QColor(255, 255, 255, 4)
-                    btn_border = QColor(255, 255, 255, 12)
                     icon_pen = QColor(140, 145, 160, 60)
                 elif is_pressed:
                     btn_bg = QColor(255, 255, 255, 55)
-                    btn_border = QColor(255, 255, 255, 140)
                     icon_pen = QColor(255, 255, 255, 255)
                 elif is_hovered:
                     btn_bg = QColor(255, 255, 255, 28)
-                    btn_border = QColor(255, 255, 255, 80)
                     icon_pen = QColor(250, 250, 255, 250)
                 elif st == "active":
                     if btn_id == "power":
                         btn_bg = QColor(137, 180, 250, 35)
-                        btn_border = QColor(137, 180, 250, 160)
                         icon_pen = QColor(137, 180, 250, 255)
                     elif btn_id == "bypass":
                         btn_bg = QColor(250, 179, 135, 35)
-                        btn_border = QColor(250, 179, 135, 160)
                         icon_pen = QColor(250, 179, 135, 255)
                     else:
                         btn_bg = QColor(255, 255, 255, 18)
-                        btn_border = QColor(255, 255, 255, 50)
                         icon_pen = QColor(230, 235, 245, 240)
                 else: # inactive
                     btn_bg = QColor(255, 255, 255, 10)
-                    btn_border = QColor(255, 255, 255, 24)
                     icon_pen = QColor(180, 185, 200, 170)
 
                 painter.setPen(Qt.NoPen)

@@ -49,6 +49,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **chore(cleanup)**: removed dead `tab_titles`/`tab_glyphs`/`nerd_family` block in the settings dialog, unused `old_line_*` locals in `patchcanvas.setOptions`, and an unused `error_entries` list in the project loader.
 - **test(project_storage)**: added `source/tests/test_project_storage.py` covering XML/JSON round-trips, atomic saves, temp-file location and failure reporting.
 
+### Fixes
+
+#### 2026-11-04 — Signal-flow accuracy and cleanup
+
+- **fix(patchbay)**: cable pulses now follow the source signal only
+  - `signalflow.state` gained a `flow` map (source-side output level) separate from `levels` (node activity). A loud destination no longer makes an idle cable pulse, and external groups only flow from their own peak-detect tap, never borrowed from the far end.
+  - Flow is peak-hold smoothed (0.4 attack / 0.82 decay) so brief dips do not make the pulse flicker.
+- **chore(ci)**: added `.github/workflows/tests.yml` running the Python project-storage test and the C++ JSON document round-trip on push and pull request.
+- **chore(cleanup)**: 27 bare `except:` became `except Exception:`; removed unused locals (`stylesDir`, `group_id`, `w`, `bypass_active`, `node_set`, `byp_w`, `btn_border`, `has_bypass_support`, `theme`, `pos1/pos2`, `ok`); `ExternalUI` no longer returns from a `finally` (it was swallowing pipe errors); dropped the dead temp-file branch in `saveProjectNow`.
+
 ### Features
 - **feat(patchbay)**: spammable container header nerd font icons and targeted inline rename collision
   - Positioned container control buttons (`󰅖` ungroup, `󰘖`/`󰪦` collapse/expand, `󰝘`/`󰝙`/`󰝚`/`󰝜` layout switchers) at fixed coordinates on the left of the header for position stability.

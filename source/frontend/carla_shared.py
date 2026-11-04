@@ -16,7 +16,7 @@ from signal import SIGINT, SIGTERM, signal
 try:
     from signal import SIGUSR1
     haveSIGUSR1 = True
-except:
+except Exception:
     haveSIGUSR1 = False
 
 # ------------------------------------------------------------------------------------------------------------
@@ -676,7 +676,7 @@ if CARLA_OS_WIN:
         CloseKey(_key)
         del _key
         readEnvVars = False
-    except:
+    except Exception:
         pass
 
     CloseKey(_reg)
@@ -879,7 +879,7 @@ def isNumber(value):
     try:
         float(value)
         return True
-    except:
+    except Exception:
         return False
 
 # ------------------------------------------------------------------------------------------------------------

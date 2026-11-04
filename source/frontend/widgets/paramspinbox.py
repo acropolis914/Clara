@@ -534,7 +534,7 @@ class ParamSpinBox(QAbstractSpinBox):
         if pasteText:
             try:
                 pasteValue = float(pasteText)
-            except:
+            except Exception:
                 pass
 
         menu      = QMenu(self)

@@ -446,7 +446,7 @@ class PixmapKeyboard(QWidget):
             try:
                 qKey  = str(event.key())
                 index = self.fkPcKeys.index(qKey)
-            except:
+            except Exception:
                 pass
             else:
                 self.sendNoteOn(index+(self.fPcKeybOffset*12))
@@ -458,7 +458,7 @@ class PixmapKeyboard(QWidget):
             try:
                 qKey  = str(event.key())
                 index = self.fkPcKeys.index(qKey)
-            except:
+            except Exception:
                 pass
             else:
                 self.sendNoteOff(index+(self.fPcKeybOffset*12))

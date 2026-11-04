@@ -545,7 +545,7 @@ def parse_rdf_file(filename):
     try:
         primer.parse(filename, format='xml')
         rdfList = [(x, y, z) for x, y, z in primer]
-    except:
+    except Exception:
         rdfList = []
 
     # For BNodes
@@ -732,7 +732,7 @@ def get_c_ladspa_rdfs(pyPluginList):
                 desc.Title = plugin['Title'].encode("utf-8")
             else:
                 desc.Title = c_nullptr
-        except:
+        except Exception:
             desc.Title = c_unicodeErrorStr
 
         try:
@@ -740,7 +740,7 @@ def get_c_ladspa_rdfs(pyPluginList):
                 desc.Creator = plugin['Creator'].encode("utf-8")
             else:
                 desc.Creator = c_nullptr
-        except:
+        except Exception:
             desc.Creator = c_unicodeErrorStr
 
         desc.PortCount = plugin['PortCount']
@@ -761,7 +761,7 @@ def get_c_ladspa_rdfs(pyPluginList):
                     port.Label = pyPort['Label'].encode("utf-8")
                 else:
                     port.Label = c_nullptr
-            except:
+            except Exception:
                 port.Label = c_unicodeErrorStr
 
             port.Default = pyPort['Default']
@@ -782,7 +782,7 @@ def get_c_ladspa_rdfs(pyPluginList):
                         scalePoint.Label = pyScalePoint['Label'].encode("utf-8")
                     else:
                         scalePoint.Label = c_nullptr
-                except:
+                except Exception:
                     scalePoint.Label = c_unicodeErrorStr
 
                 scalePoint.Value = pyScalePoint['Value']

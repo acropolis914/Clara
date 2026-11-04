@@ -337,9 +337,10 @@ class CanvasLine(QGraphicsPathItem):
 
     def _signalLevel(self):
         from . import signalflow
-        out_id, in_id = self._endpointGroupIds()
-        levels = signalflow.state.levels
-        return max(levels.get(out_id, 0.0), levels.get(in_id, 0.0))
+        out_id, _in_id = self._endpointGroupIds()
+        # A cable carries signal from its source only: a loud destination must not
+        # make an idle cable pulse.
+        return signalflow.state.flow.get(out_id, 0.0)
 
     def _draw_signal_pulse(self, painter, path):
         from . import signalflow

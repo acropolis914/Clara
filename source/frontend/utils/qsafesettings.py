@@ -22,7 +22,7 @@ class QSafeSettings(QSettings):
 
         try:
             return QSettings.value(self, key, defaultValue, valueType)
-        except:
+        except Exception:
             return defaultValue
 
 # ---------------------------------------------------------------------------------------------------------------------

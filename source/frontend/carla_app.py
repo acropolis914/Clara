@@ -82,16 +82,10 @@ class CarlaApplication():
         # Try resource dir as library path first
         if os.path.exists(os.path.join(pathResources, "styles", "carlastyle.json")):
             QApplication.addLibraryPath(pathResources)
-            stylesDir = pathResources
 
         # Use binary dir as library path
         elif os.path.exists(pathBinaries):
             QApplication.addLibraryPath(pathBinaries)
-            stylesDir = pathBinaries
-
-        # If style is not available we can still fake it
-        else:
-            stylesDir = ""
 
         # Set up translations
         currentLocale = QLocale()
@@ -128,7 +122,7 @@ class CarlaApplication():
             # AA_X11InitThreads is not available on old PyQt versions
             try:
                 attr = Qt.AA_X11InitThreads
-            except:
+            except Exception:
                 attr = 10
             QApplication.setAttribute(attr)
 

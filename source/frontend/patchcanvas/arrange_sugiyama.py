@@ -29,7 +29,6 @@ class SugiyamaLayoutAlgorithm(LayoutAlgorithm):
             return
 
         edges, incoming, group_name = _pc._nodeGraph(nodes)
-        node_set = set(nodes)
 
         # 1. break cycles (DFS back-edges are dropped from the layering DAG)
         state = {n: 0 for n in nodes}

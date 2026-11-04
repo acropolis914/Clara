@@ -463,8 +463,6 @@ class CanvasPort(QGraphicsItem):
         text_pen   = self._theme_text_pen_sel   if selected else self._theme_text_pen
         conn_pen   = self._theme_conn_pen
 
-        theme = canvas.theme
-
         poly_pen = QPen(poly_pen)
         poly_pen.setWidthF(poly_pen.widthF() + 0.00001)
 

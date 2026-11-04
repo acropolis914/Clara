@@ -567,7 +567,7 @@ class HostWindowOSC(HostWindow):
             err = e
         except OSError as e:
             err = e
-        except:
+        except Exception:
             err = Exception()
 
         if err is not None:
@@ -616,7 +616,7 @@ class HostWindowOSC(HostWindow):
             if self.host.lo_target_tcp is not None:
                 try:
                     lo_send(self.host.lo_target_tcp, "/unregister", self.host.lo_server_tcp.getFullURL())
-                except:
+                except Exception:
                     pass
                 self.host.lo_target_tcp = None
 
@@ -629,7 +629,7 @@ class HostWindowOSC(HostWindow):
             if self.host.lo_target_udp is not None:
                 try:
                     lo_send(self.host.lo_target_udp, "/unregister", self.host.lo_server_udp.getFullURL())
-                except:
+                except Exception:
                     pass
                 self.host.lo_target_udp = None
 
@@ -716,13 +716,13 @@ class HostWindowOSC(HostWindow):
 
         try:
             lo_send(self.host.lo_target_tcp, "/register", self.host.lo_server_tcp.getFullURL())
-        except:
+        except Exception:
             self.disconnectOsc()
             return
 
         try:
             lo_send(self.host.lo_target_udp, "/register", self.host.lo_server_udp.getFullURL())
-        except:
+        except Exception:
             self.disconnectOsc()
             return
 

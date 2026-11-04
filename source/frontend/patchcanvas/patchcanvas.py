@@ -112,7 +112,7 @@ class CanvasObject(QObject):
     def PortContextMenuConnect(self):
         try:
             sources, targets = self.sender().data()
-        except:
+        except Exception:
             return
 
         for port_type in (
@@ -153,7 +153,7 @@ class CanvasObject(QObject):
     def PortContextMenuDisconnect(self):
         try:
             connectionId = int(self.sender().data())
-        except:
+        except Exception:
             return
 
         CanvasCallback(ACTION_PORTS_DISCONNECT, connectionId, 0, "")
@@ -224,7 +224,7 @@ def getStoredCanvasPosition(key, fallback_pos):
         return canvas.settings.value(
             "CanvasPositions/" + key, fallback_pos, type=QPointF
         )
-    except:
+    except Exception:
         return fallback_pos
 
 
@@ -233,7 +233,7 @@ def getStoredCanvasSplit(group_name, fallback_split_mode):
         return canvas.settings.value(
             "CanvasPositions/%s_SPLIT" % group_name, fallback_split_mode, type=int
         )
-    except:
+    except Exception:
         return fallback_split_mode
 
 
@@ -732,8 +732,6 @@ def splitGroup(group_id):
         )
 
     if group is not None:
-        pos1 = group.widgets[0].pos()
-        pos2 = group.widgets[1].pos()
         group2_pos = QPointF(
             group_pos.x() + group.widgets[1].boundingRect().width() * 3 / 2,
             group_pos.y(),

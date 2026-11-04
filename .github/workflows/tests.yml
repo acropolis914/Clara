@@ -1,0 +1,21 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  round-trip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Project storage round-trip (Python)
+        run: python3 source/tests/test_project_storage.py
+
+      - name: JSON project document round-trip (C++)
+        run: bash scripts/test_json_document.sh

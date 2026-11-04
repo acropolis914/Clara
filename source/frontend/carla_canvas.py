@@ -612,28 +612,46 @@ class CanvasToolBarOverlay(QFrame):
         if cached is not None and now - cached[0] < 0.05:
             return cached[1]
 
+        from patchcanvas import signalflow
+
         # Nobody sees the canvas while the window is minimized or another tab is shown:
         # skip the engine peak polling and the PulseAudio pump entirely.
         view = getattr(self, "graphicsView", None)
         if view is None or not view.isVisible() or view.window().isMinimized():
+            signalflow.state.flow = {}
             self._signal_levels_cache = (now, {})
             return {}
 
-        levels = self._collectSignalLevels()
+        levels, flow = self._collectSignalLevels()
+
+        # Peak-hold smoothing for cables, so a brief dip does not make the pulse flicker.
+        previous = getattr(self, "_signal_flow_smoothed", {})
+        smoothed = {}
+        for gid, value in flow.items():
+            old = previous.get(gid, 0.0)
+            smoothed[gid] = old + (value - old) * 0.4
+        for gid, old in previous.items():
+            if gid not in smoothed:
+                value = old * 0.82
+                if value >= 0.01:
+                    smoothed[gid] = value
+        self._signal_flow_smoothed = smoothed
+        signalflow.state.flow = smoothed
+
         self._signal_levels_cache = (now, levels)
         return levels
 
     def _collectSignalLevels(self):
-        # Returns a {group_id: level} map. Carla only exposes peak values for real
-        # plugins. External / hardware / PipeWire groups (a client such as Spotify, a
-        # virtual BUS sink, a monitor or HW I/O) have no engine peak, so we either read
-        # a real level from a hidden peak-detect tap, or borrow a decaying level from
-        # the plugin groups they are directly wired to.
+        # Returns (activity, flow): activity is the node glow (max of input and output),
+        # flow is the source-side output only and drives the cable pulses. Carla exposes
+        # peak values for real plugins; external / hardware / PipeWire groups have no
+        # engine peak, so their flow comes from a hidden peak-detect tap when available.
         gui = getattr(gCarla, "gui", None)
         engine = getattr(gui, "host", None) if gui is not None else None
 
         groups = list(patchcanvas.canvas.group_list)
         plugin_levels = {}
+        plugin_flow = {}
         external_groups = []  # (group_id, pw_node_name)
 
         if engine is not None:
@@ -649,16 +667,21 @@ class CanvasToolBarOverlay(QFrame):
                     external_groups.append((gid, name))
                     continue
                 try:
-                    level = max(
+                    in_level = max(
                         engine.get_input_peak_value(pid, True),
                         engine.get_input_peak_value(pid, False),
+                    )
+                    out_level = max(
                         engine.get_output_peak_value(pid, True),
                         engine.get_output_peak_value(pid, False),
                     )
                 except Exception:
                     continue
+                level = max(in_level, out_level)
                 if level > 0.0:
                     plugin_levels[gid] = level
+                if out_level > 0.0:
+                    plugin_flow[gid] = out_level
         else:
             for group in groups:
                 gid = getattr(group, "group_id", None)
@@ -673,6 +696,7 @@ class CanvasToolBarOverlay(QFrame):
                     external_groups.append((gid, name))
 
         levels = dict(plugin_levels)
+        flow = dict(plugin_flow)
 
         # Real per-node levels for external groups via a hidden peak-detect tap
         sampler = self._external_sampler()
@@ -692,8 +716,10 @@ class CanvasToolBarOverlay(QFrame):
                     lvl = sampler.level_for(name)
                     if lvl > 0.0:
                         levels[gid] = max(levels.get(gid, 0.0), lvl)
+                        flow[gid] = max(flow.get(gid, 0.0), lvl)
 
-        # Light up any remaining external / hardware groups from the plugins they connect to
+        # Remaining external / hardware groups borrow activity for the node glow only;
+        # cable flow is never faked from the far end.
         non_plugin_ids = {gid for gid, _name in external_groups}
         if non_plugin_ids:
             connections = list(patchcanvas.canvas.connection_list)
@@ -711,20 +737,18 @@ class CanvasToolBarOverlay(QFrame):
                     if in_id in non_plugin_ids and in_id not in levels:
                         levels[in_id] = best * 0.85
 
-        return levels
+        return levels, flow
 
     def _repaintActiveSignalItems(self):
         from patchcanvas import signalflow
 
         levels = signalflow.state.levels
-        if not levels:
+        flow = signalflow.state.flow
+        if not levels and not flow:
             return
         canvas = patchcanvas.canvas
         for conn in list(canvas.connection_list):
-            if (
-                getattr(conn, "group_out_id", None) in levels
-                or getattr(conn, "group_in_id", None) in levels
-            ):
+            if getattr(conn, "group_out_id", None) in flow:
                 widget = getattr(conn, "widget", None)
                 if widget is not None:
                     widget.update()
@@ -993,7 +1017,6 @@ class CanvasContextToolBarOverlay(QFrame):
             self.addSeparator()
 
             plugin_id = getattr(node, "m_plugin_id", -1)
-            group_id = getattr(node, "m_group_id", -1)
             has_plugin = 0 <= plugin_id <= patchcanvas.MAX_PLUGIN_ID_ALLOWED
             has_ui = getattr(node, "m_plugin_ui", False)
 

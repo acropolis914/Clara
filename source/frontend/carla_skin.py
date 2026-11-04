@@ -229,7 +229,6 @@ class FlowLayout(QLayout):
         lineHeight = 0
 
         for item in self._items:
-            w = item.widget()
             spaceX = self._hSpacing
             spaceY = self._vSpacing
             nextX = x + item.sizeHint().width() + spaceX
@@ -2500,7 +2499,6 @@ class PluginSlot_Minimal(PluginSlot_Default):
         text_disabled = p['overlay0']
         badge_bg = "rgba(203, 166, 247, 0.12)" if self.is_dark else "rgba(136, 57, 239, 0.10)"
         badge_text = p['mauve']
-        bypass_active = p['peach']
         slider_groove = p['surface0']
         slider_track = accent_color
         slider_handle = p['text']

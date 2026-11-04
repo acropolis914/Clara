@@ -16,12 +16,13 @@ from qt_compat import QObject, QTimer
 
 
 class _SignalFlowState(object):
-    __slots__ = ("enabled", "phase", "levels")
+    __slots__ = ("enabled", "phase", "levels", "flow")
 
     def __init__(self):
         self.enabled = False
         self.phase = 0.0
-        self.levels = {}  # plugin_id -> smoothed activity 0.0 - 1.0
+        self.levels = {}  # plugin_id -> smoothed activity 0.0 - 1.0 (node glow)
+        self.flow = {}    # plugin_id -> source-side output level (cable pulses)
 
 
 state = _SignalFlowState()
@@ -65,6 +66,7 @@ class SignalFlowAnimator(QObject):
         state.enabled = False
         self._timer.stop()
         state.levels = {}
+        state.flow = {}
         self._active_ids = set()
         self._emit_frame()
 

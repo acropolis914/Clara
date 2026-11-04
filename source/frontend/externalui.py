@@ -224,4 +224,6 @@ class ExternalUI(object):
                     break
 
         finally:
-            return gCarla.utils.pipe_client_flush_and_unlock(self.fPipeClient) and not hasError
+            flushed = gCarla.utils.pipe_client_flush_and_unlock(self.fPipeClient)
+
+        return flushed and not hasError

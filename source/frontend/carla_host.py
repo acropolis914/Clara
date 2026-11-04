@@ -1567,14 +1567,9 @@ class HostWindow(QMainWindow):
         if not self.fProjectFilename:
             return qCritical("ERROR: saving project without filename set")
 
-        backend_save_target, is_temp = storage_manager.prepare_for_backend_save(self.fProjectFilename)
+        backend_save_target, _is_temp = storage_manager.prepare_for_backend_save(self.fProjectFilename)
 
         if not self.host.save_project(backend_save_target):
-            if is_temp and os.path.exists(backend_save_target):
-                try:
-                    os.remove(backend_save_target)
-                except Exception:
-                    pass
             CustomMessageBox(
                 self,
                 QMessageBox.Critical,
@@ -1735,7 +1730,7 @@ class HostWindow(QMainWindow):
         with open(extrafile, "r") as fh:
             try:
                 canvasdata = json.load(fh)["canvas"]
-            except:
+            except Exception:
                 return False
 
         log_carla("NOTICE: loading old-style canvas group positions via legacy json file", level="debug")
@@ -5208,7 +5203,7 @@ class HostWindow(QMainWindow):
             with open(filename, "w") as logfile:
                 logfile.write(self.ui.text_logs.toPlainText())
                 logfile.close()
-        except:
+        except Exception:
             return
 
     @pyqtSlot()
@@ -5574,7 +5569,7 @@ class HostWindow(QMainWindow):
 
             try:
                 self.fLadspaRdfList = ladspa_rdf.get_c_ladspa_rdfs(json.load(frLadspa))
-            except:
+            except Exception:
                 pass
 
             frLadspa.close()
@@ -6357,15 +6352,15 @@ def fileCallback(ptr, action, isDir, title, filter):
     filter = charPtrToString(filter)
 
     if action == FILE_CALLBACK_OPEN:
-        ret, ok = QFileDialog.getOpenFileName(
+        ret, _selected_filter = QFileDialog.getOpenFileName(
             gCarla.gui, title, "", filter
         )  # , QFileDialog.ShowDirsOnly if isDir else 0x0)
     elif action == FILE_CALLBACK_SAVE:
-        ret, ok = QFileDialog.getSaveFileName(
+        ret, _selected_filter = QFileDialog.getSaveFileName(
             gCarla.gui, title, "", filter, QFileDialog.ShowDirsOnly if isDir else 0x0
         )
     else:
-        ret, ok = ("", "")
+        ret, _selected_filter = ("", "")
 
     # FIXME use ok value, test if it works as expected
     if not ret:
@@ -6447,7 +6442,7 @@ def initHost(initName, libPrefix, isControl, isPlugin, failError, HostClass=None
                 if HostClass is not None
                 else CarlaHostQtDLL(libname, loadGlobal)
             )
-        except:
+        except Exception:
             host = CarlaHostQtNull()
 
     host.isControl = isControl
@@ -6484,7 +6479,7 @@ def initHost(initName, libPrefix, isControl, isPlugin, failError, HostClass=None
 
     try:
         sys.stdout.flush()
-    except:
+    except Exception:
         pass
 
     sys.stdout = CarlaPrint(False)
