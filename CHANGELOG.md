@@ -87,6 +87,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - The automatic crawl only runs while the real total is unknown.
 - **perf(canvas)**: signal-flow animation is paused while a project loads, removing the 90–120% main-thread spike during load.
 
+### Fixes
+
+#### 2026-11-04 — Load in place: containers and positions first, rack paints while it fills
+
+- **feat(ui)**: the canvas is prepared before the engine loads plugins
+  - Saved group positions are seeded into `canvas.old_group_pos`, so each box is created at its final spot instead of jumping after the load.
+  - Patchbay containers are created first; boxes join them as they appear via the existing standby-descriptor matching.
+- **feat(ui)**: the rack keeps painting during load and scrolls to the top at the end, so rows appear in place instead of all at once (and offscreen).
+
 ### Features
 - **feat(patchbay)**: spammable container header nerd font icons and targeted inline rename collision
   - Positioned container control buttons (`󰅖` ungroup, `󰘖`/`󰪦` collapse/expand, `󰝘`/`󰝙`/`󰝚`/`󰝜` layout switchers) at fixed coordinates on the left of the header for position stability.

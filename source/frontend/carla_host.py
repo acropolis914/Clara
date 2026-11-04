@@ -1397,6 +1397,40 @@ class HostWindow(QMainWindow):
     # --------------------------------------------------------------------------------------------------------
     # Files
 
+    def _prepareCanvasForLoad(self, load_source):
+        """Seed saved positions and containers before plugins arrive, so boxes are born
+        in place instead of jumping there after the load."""
+        if not self.fWithCanvas:
+            return
+
+        try:
+            positions = storage_manager.load_canvas_positions(load_source)
+        except Exception as e:
+            logger.warning("CANVAS", f"prepareCanvasForLoad failed: {e}")
+            return
+
+        if not positions:
+            return
+
+        patchcanvas.canvas.old_group_pos = {}
+        for data in positions:
+            name = data.get("name")
+            if not name:
+                continue
+            split = bool(data.get("split"))
+            patchcanvas.canvas.old_group_pos[name] = (
+                split,
+                QPointF(float(data.get("pos1x", 0)), float(data.get("pos1y", 0))),
+                QPointF(float(data.get("pos2x", 0)), float(data.get("pos2y", 0))) if split else None,
+            )
+
+        containers = getattr(positions, "patchbay_containers", None)
+        if containers:
+            try:
+                patchcanvas.loadContainers(containers)
+            except Exception as e:
+                logger.warning("CANVAS", f"prepareCanvasForLoad containers failed: {e}")
+
     def loadProjectNow(self, source_override=None):
         if not self.fProjectFilename:
             qCritical("ERROR: loading project without filename set")
@@ -1420,6 +1454,7 @@ class HostWindow(QMainWindow):
         if getattr(self, "fLoadingDialog", None) is not None:
             self.fLoadingDialog.setDetail(f"Preparing {os.path.basename(load_source)}...")
         self.fIsProjectLoading = True
+        self._prepareCanvasForLoad(load_source)
 
         # Check if project contains plugins prone to in-process UI/GL thread collisions
         force_bridged = False
@@ -1623,7 +1658,8 @@ class HostWindow(QMainWindow):
         self.ui.rack.setEnabled(False)
         self.ui.graphicsView.setEnabled(False)
         if self.ui.listWidget is not None:
-            self.ui.listWidget.setUpdatesEnabled(False)
+            # keep painting during load so rows appear in place instead of all at the end
+            self.ui.listWidget.setUpdatesEnabled(True)
             self.ui.listWidget.blockSignals(True)
 
         if not hasattr(self, "fLoadingDialog") or self.fLoadingDialog is None:
@@ -1657,6 +1693,7 @@ class HostWindow(QMainWindow):
             self.ui.listWidget.setUpdatesEnabled(True)
             self.ui.listWidget.blockSignals(False)
             self.ui.listWidget.doItemsLayout()
+            self.ui.listWidget.scrollToTop()
 
         self.ui.rack.setEnabled(True)
         self.ui.graphicsView.setEnabled(True)
