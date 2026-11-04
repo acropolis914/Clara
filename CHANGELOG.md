@@ -174,7 +174,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Patchbay layout containers (VBox, HBox, Grid, Freeform), collapse cable rerouting to header slots, interactive resizing, transparent inline rename, and contextual toolbar integration.
 
-### Features
+### Fixes
+
+#### 2026-11-05 — No fade on the ghost swap
+
+- **fix(ui)**: a ghost-hidden box no longer unhides (with the eye-candy fade) when its first port arrives; it stays hidden until the swap. On reveal, any running fade animation for the box and its ports is stopped and opacity forced to 1, so the ghost is replaced in a single frame.
+
+
 - **feat(patchbay)**: route collapsed container cables to header, enable inline rename and group resizing
   - Re-anchored cables of child nodes inside collapsed containers to the header edges so connections remain visible and neatly routed to the group.
   - Added interactive header drag movement, clickable header buttons (`[-]`/`[+]`, `[✕]`, layout switcher), and corner/edge resize handles with dynamic cursors.

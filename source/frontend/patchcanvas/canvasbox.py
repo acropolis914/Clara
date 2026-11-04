@@ -896,7 +896,7 @@ class CanvasBox(QGraphicsObject):
         backend_group_id=None,
     ):
         if len(self.m_port_list_ids) == 0:
-            if options.auto_hide_groups:
+            if options.auto_hide_groups and not getattr(self, "_ghost_hidden", False):
                 log_carla(
                     f"CanvasBox.addPortFromGroup: unhiding box '{self.m_group_name}' (id={self.m_group_id}) on first port '{port_name}'",
                     level="debug"

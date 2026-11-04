@@ -3672,6 +3672,22 @@ class HostWindow(QMainWindow):
                 pass
         QTimer.singleShot(1500, lambda: self._revealGhost(name))
 
+    @staticmethod
+    def _stopWidgetFade(widget):
+        for animation in list(getattr(patchcanvas.canvas, "animation_list", [])):
+            try:
+                if animation.item() is widget:
+                    animation.forceStop()
+                    patchcanvas.canvas.animation_list.remove(animation)
+            except (ValueError, RuntimeError):
+                pass
+        try:
+            widget.setOpacity(1.0)
+            if hasattr(widget, "setShadowOpacity"):
+                widget.setShadowOpacity(1.0)
+        except RuntimeError:
+            pass
+
     def _revealGhost(self, name):
         group = next((g for g in patchcanvas.canvas.group_list if g.group_name == name), None)
         if group is not None:
@@ -3682,10 +3698,15 @@ class HostWindow(QMainWindow):
                     delattr(widget, "_ghost_hidden")
                     has_ports = bool(getattr(widget, "m_port_list_ids", []))
                     if has_ports or not getattr(patchcanvas.options, "auto_hide_groups", False):
+                        self._stopWidgetFade(widget)
                         widget.setVisible(True)
                     widget.update()
                 except RuntimeError:
                     pass
+        if group is not None:
+            for port in list(patchcanvas.canvas.port_list):
+                if port.group_id == group.group_id and port.widget is not None:
+                    self._stopWidgetFade(port.widget)
         patchcanvas.removeGhostGroup(name)
 
     def _maybeRevealGhost(self, clientId):
@@ -3713,6 +3734,7 @@ class HostWindow(QMainWindow):
                 try:
                     delattr(widget, "_ghost_hidden")
                     if getattr(widget, "m_port_list_ids", []) or not getattr(patchcanvas.options, "auto_hide_groups", False):
+                        self._stopWidgetFade(widget)
                         widget.setVisible(True)
                     widget.update()
                 except RuntimeError:
