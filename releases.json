@@ -1,6 +1,30 @@
 {
-  "latest": "1.1.7",
+  "latest": "1.1.8",
   "releases": {
+    "1.1.8": {
+      "version": "1.1.8",
+      "date": "2026-11-04",
+      "urgency": "suggested",
+      "summary": "JSON project files written directly by the engine, accurate patchbay signal flow, honest load progress and safer session saves",
+      "changes": [
+        "Project format: .carjp is written and read by the engine itself (no temp XML), and new saves default to .carjp while .carxp stays fully supported",
+        "Session safety: a failed save no longer clears the dirty flag or deletes autosaves; a failed load keeps the current session; XML and autosave writes are atomic",
+        "Patchbay: ports that arrive before their client group are queued, reused client ids no longer inherit filtered state, and cable pulses follow the real source level (fixed pw-record container, rate and node-id targeting)",
+        "Load: containers and saved positions are applied before plugins load, the progress dialog reports real plugin/phase progress, and the rack paints in place",
+        "Shutdown: SIGTERM always quits, with a 4 s watchdog if a plugin bridge hangs",
+        "Tests: project-storage round-trip, JSON document round-trip and pw-record sampler checks now run in CI"
+      ],
+      "installation": {
+        "appimage": "Download `Clara-1.1.8-x86_64.AppImage`, then: `chmod +x Clara-1.1.8-x86_64.AppImage && ./Clara-1.1.8-x86_64.AppImage`",
+        "flatpak": "Download/run the Flatpak bundle: `flatpak install --user com.github.acropolis914.Clara.flatpak`",
+        "arch": "Install via AUR / PKGBUILD: `paru -S clara-bin` (or `clara-git`)",
+        "ubuntu": "Download `.deb` and run: `sudo dpkg -i clara-ubuntu-*.deb && sudo apt-get install -f`",
+        "fedora": "Download `.rpm` and run: `sudo dnf install clara-*.rpm`",
+        "void": "Extract tarball: `tar --zstd -xvf clara-void-*.tar.zst -C /`",
+        "alpine": "Extract tarball: `tar --zstd -xvf clara-alpine-*.tar.zst -C /`",
+        "nix": "Run directly via Flake: `nix run github:acropolis914/Clara`"
+      }
+    },
     "1.1.7": {
       "version": "1.1.7",
       "date": "2026-10-29",

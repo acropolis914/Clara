@@ -62,7 +62,7 @@ from carla_backend import (
 )
 
 def _get_clara_version():
-    base_version = "1.1.7"
+    base_version = "1.1.8"
     try:
         import subprocess
         tag = subprocess.check_output(
