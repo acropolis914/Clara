@@ -12,6 +12,7 @@
 # its float32 peak from the pipe. Everything stays on the GUI thread.
 # ------------------------------------------------------------------------------------------------------------
 
+import json
 import os
 import shutil
 import struct
@@ -32,6 +33,8 @@ class PwRecordSampler(object):
         self._held = {}     # node name -> peak-hold level
         self._held_at = {}  # node name -> monotonic time of last hold
         self._failed = {}   # node name -> monotonic time of last failure
+        self._ids = {}      # node name -> PipeWire node id
+        self._ids_at = 0.0
         self._available = None
 
     # -- lifecycle -------------------------------------------------------------------------------------------
@@ -128,6 +131,34 @@ class PwRecordSampler(object):
                 return tail
         return name
 
+    def _refresh_ids(self):
+        """Map node names to ids. Targeting a sink by name makes pw-record fall back
+        to the default source (the microphone!); the node id links the monitor."""
+        self._ids_at = time.monotonic()
+        self._ids = {}
+        try:
+            out = subprocess.run(
+                ["pw-dump"], capture_output=True, text=True, timeout=2.0
+            ).stdout
+            for obj in json.loads(out):
+                if obj.get("type") != "PipeWire:Interface:Node":
+                    continue
+                props = obj.get("info", {}).get("props", {}) or {}
+                node_id = obj.get("id")
+                for key in ("node.name", "application.name"):
+                    value = props.get(key)
+                    if value:
+                        self._ids.setdefault(value.lower(), node_id)
+        except Exception:
+            pass
+
+    def _resolve_target(self, name):
+        target = self._target_name(name)
+        now = time.monotonic()
+        if not self._ids or now - self._ids_at > 10.0:
+            self._refresh_ids()
+        return self._ids.get(target.lower(), target)
+
     def _spawn(self, name):
         failed_at = self._failed.get(name)
         if failed_at is not None and time.monotonic() - failed_at < RESPAWN_DELAY:
@@ -138,7 +169,7 @@ class PwRecordSampler(object):
             proc = subprocess.Popen(
                 [
                     "pw-record",
-                    "--target", self._target_name(name),
+                    "--target", str(self._resolve_target(name)),
                     "--rate", str(RATE),
                     "--channels", "1",
                     "--format", "f32",
