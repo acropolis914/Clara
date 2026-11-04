@@ -99,6 +99,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Patchbay containers are created first; boxes join them as they appear via the existing standby-descriptor matching.
 - **feat(ui)**: the rack keeps painting during load and scrolls to the top at the end, so rows appear in place instead of all at once (and offscreen).
 
+### Fixes
+
+#### 2026-11-04 — Autosave atomicity, quiet patchbay assertions, sampler tests
+
+- **fix(session)**: autosaves are written to a sibling `.part` file and renamed into place, so a crash mid-write cannot leave a truncated autosave.
+- **fix(engine)**: `CarlaEngineJack` no longer asserts `groupId != 0` for transient clients (capture/observer streams); it returns silently, removing the load-time assertion noise.
+- **test(pwrecord)**: added `source/tests/test_pwrecord.py` (target naming, node-id resolution, never spawning with a name, ignoring our own capture clients) and wired it into CI.
+
 ### Features
 - **feat(patchbay)**: spammable container header nerd font icons and targeted inline rename collision
   - Positioned container control buttons (`󰅖` ungroup, `󰘖`/`󰪦` collapse/expand, `󰝘`/`󰝙`/`󰝚`/`󰝜` layout switchers) at fixed coordinates on the left of the header for position stability.

@@ -17,5 +17,8 @@ jobs:
       - name: Project storage round-trip (Python)
         run: python3 source/tests/test_project_storage.py
 
+      - name: pw-record sampler checks (Python)
+        run: python3 source/tests/test_pwrecord.py
+
       - name: JSON project document round-trip (C++)
         run: bash scripts/test_json_document.sh
