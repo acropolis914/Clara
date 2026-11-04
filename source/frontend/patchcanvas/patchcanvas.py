@@ -2972,3 +2972,92 @@ def clearGhosts():
         if ghost.scene() is canvas.scene:
             canvas.scene.removeItem(ghost)
     canvas.ghost_list = []
+
+
+class CanvasGhostCable(QGraphicsObject):
+    """Dashed placeholder cable between two ghost groups."""
+
+    def __init__(self, src_name, src_port, dst_name, dst_port):
+        QGraphicsObject.__init__(self)
+        self.src = (src_name, src_port)
+        self.dst = (dst_name, dst_port)
+        self._p1 = QPointF(0, 0)
+        self._p2 = QPointF(0, 0)
+        self.setZValue(-4)
+
+    def boundingRect(self):
+        from qt_compat import QRectF as _QRectF
+        return _QRectF(self._p1, self._p2).normalized().adjusted(-2, -2, 2, 2)
+
+    def setEndpoints(self, p1, p2):
+        self.prepareGeometryChange()
+        self._p1 = p1
+        self._p2 = p2
+        self.update()
+
+    def paint(self, painter, option, widget):
+        from qt_compat import QColor, QPen, QPainter, Qt
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setPen(QPen(QColor(137, 180, 250, 90), 1.2, Qt.DashLine))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawLine(self._p1, self._p2)
+
+
+def _ghostByName(name):
+    for ghost in getattr(canvas, "ghost_list", []):
+        if ghost.m_group_name == name:
+            return ghost
+    return None
+
+
+def _ghostAnchor(ghost, port_name):
+    if ghost is None:
+        return None
+    if port_name in ghost.m_left:
+        return ghost.mapToScene(QPointF(9, 27 + ghost.m_left.index(port_name) * 10.0))
+    if port_name in ghost.m_right:
+        return ghost.mapToScene(QPointF(ghost._width - 9, 27 + ghost.m_right.index(port_name) * 10.0))
+    return None
+
+
+def addGhostCable(src_name, src_port, dst_name, dst_port):
+    if not canvas.scene:
+        return None
+    src = _ghostByName(src_name)
+    dst = _ghostByName(dst_name)
+    if src is None or dst is None:
+        return None
+    p1 = _ghostAnchor(src, src_port) or src.scenePos()
+    p2 = _ghostAnchor(dst, dst_port) or dst.scenePos()
+    cable = CanvasGhostCable(src_name, src_port, dst_name, dst_port)
+    cable.setEndpoints(p1, p2)
+    canvas.scene.addItem(cable)
+    canvas.ghost_cable_list.append(cable)
+    return cable
+
+
+def removeGhostCable(src_name, src_port, dst_name, dst_port):
+    for cable in list(canvas.ghost_cable_list):
+        if cable.src == (src_name, src_port) and cable.dst == (dst_name, dst_port):
+            canvas.ghost_cable_list.remove(cable)
+            if cable.scene() is canvas.scene:
+                canvas.scene.removeItem(cable)
+            return
+
+
+def snapGhostCables(group_name, port_name, pos):
+    for cable in list(canvas.ghost_cable_list):
+        try:
+            if cable.src == (group_name, port_name):
+                cable.setEndpoints(pos, cable._p2)
+            elif cable.dst == (group_name, port_name):
+                cable.setEndpoints(cable._p1, pos)
+        except RuntimeError:
+            pass
+
+
+def clearGhostCables():
+    for cable in list(getattr(canvas, "ghost_cable_list", [])):
+        if cable.scene() is canvas.scene:
+            canvas.scene.removeItem(cable)
+    canvas.ghost_cable_list = []

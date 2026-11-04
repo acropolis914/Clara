@@ -1433,6 +1433,7 @@ class HostWindow(QMainWindow):
 
         # Skeleton: draw every node from the file now, replace it as the real one arrives.
         patchcanvas.clearGhosts()
+        patchcanvas.clearGhostCables()
         for data in positions:
             name = data.get("name")
             if not name:
@@ -1446,6 +1447,24 @@ class HostWindow(QMainWindow):
                 )
             except Exception as e:
                 logger.warning("CANVAS", f"prepareCanvasForLoad ghost '{name}' failed: {e}")
+
+        try:
+            root = storage_manager.get_project_root(load_source)
+            if root is not None:
+                for section in ("ExternalPatchbay", "Patchbay"):
+                    patchbay = root.find(section)
+                    if patchbay is None:
+                        continue
+                    for conn in patchbay.findall("Connection"):
+                        src = conn.findtext("Source") or conn.findtext("PortOut")
+                        dst = conn.findtext("Target") or conn.findtext("PortIn")
+                        if not src or not dst:
+                            continue
+                        src_group, _, src_port = src.rpartition(":")
+                        dst_group, _, dst_port = dst.rpartition(":")
+                        patchcanvas.addGhostCable(src_group, src_port, dst_group, dst_port)
+        except Exception as e:
+            logger.warning("CANVAS", f"prepareCanvasForLoad connections failed: {e}")
 
     def loadProjectNow(self, source_override=None):
         if not self.fProjectFilename:
@@ -1737,6 +1756,7 @@ class HostWindow(QMainWindow):
 
         self._revealAllGhostHidden()
         patchcanvas.clearGhosts()
+        patchcanvas.clearGhostCables()
         self._dismissLoadingDialog()
 
     def loadCanvasGroupPositionsFromProject(self, filename):
@@ -3707,6 +3727,13 @@ class HostWindow(QMainWindow):
             for port in list(patchcanvas.canvas.port_list):
                 if port.group_id == group.group_id and port.widget is not None:
                     self._stopWidgetFade(port.widget)
+                    try:
+                        patchcanvas.snapGhostCables(
+                            group.group_name, port.port_name,
+                            port.widget.sceneBoundingRect().center(),
+                        )
+                    except RuntimeError:
+                        pass
         patchcanvas.removeGhostGroup(name)
 
     def _maybeRevealGhost(self, clientId):
@@ -3976,6 +4003,15 @@ class HostWindow(QMainWindow):
         patchcanvas.connectPorts(
             connectionId, groupOutId, portOutId, groupInId, portInId
         )
+        try:
+            names = {g.group_id: g.group_name for g in patchcanvas.canvas.group_list}
+            ports = {(p.group_id, p.port_id): p.port_name for p in patchcanvas.canvas.port_list}
+            patchcanvas.removeGhostCable(
+                names.get(groupOutId), ports.get((groupOutId, portOutId)),
+                names.get(groupInId), ports.get((groupInId, portInId)),
+            )
+        except Exception:
+            pass
         if getattr(self, "fLoadingDialog", None) is not None:
             self.fLoadingDialog.setDetail("Restoring audio/MIDI graph routing connections...")
         self.updateMiniCanvasLater()
