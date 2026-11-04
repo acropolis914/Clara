@@ -3682,6 +3682,10 @@ class HostWindow(QMainWindow):
         ghost = self._findGhost(name)
         if ghost is None or not group or not group.widgets:
             return
+        if not ghost.bind(group):
+            # ghost and real group disagree: invalidate the ghost instead of hiding the node
+            patchcanvas.removeGhostGroup(name)
+            return
         for widget in group.widgets:
             if widget is None:
                 continue

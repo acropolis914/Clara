@@ -2909,12 +2909,25 @@ class CanvasGhost(QGraphicsObject):
         self.m_group_name = name
         self.m_left = list(left_ports)
         self.m_right = list(right_ports)
+        self.m_bound_group = None
         self.setZValue(-5)
         self.setAcceptedMouseButtons(Qt.NoButton)
 
         rows = max(len(self.m_left), len(self.m_right), 1)
         self._width = max(150.0, len(name) * 7.5 + 28.0)
         self._height = 26.0 + rows * 10.0 + 8.0
+
+    def bind(self, group):
+        """Bind this ghost to its real canvas group. False means the pair does not match."""
+        try:
+            if group is None or getattr(group, "group_name", None) != self.m_group_name:
+                return False
+            if not getattr(group, "widgets", None) or group.widgets[0] is None:
+                return False
+            self.m_bound_group = group
+            return True
+        except RuntimeError:
+            return False
 
     def boundingRect(self):
         return QRectF(0, 0, self._width, self._height)
