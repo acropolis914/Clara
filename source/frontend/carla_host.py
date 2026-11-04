@@ -1735,6 +1735,7 @@ class HostWindow(QMainWindow):
 
             self.fLastLoadedSource = None
 
+        self._revealAllGhostHidden()
         patchcanvas.clearGhosts()
         self._dismissLoadingDialog()
 
@@ -3650,6 +3651,73 @@ class HostWindow(QMainWindow):
         "pw-record",
     )
 
+    def _findGhost(self, name):
+        for ghost in getattr(patchcanvas.canvas, "ghost_list", []):
+            if ghost.m_group_name == name:
+                return ghost
+        return None
+
+    def _hideGroupForGhost(self, name, group):
+        """Keep the real box hidden while its ports arrive; the ghost covers the build."""
+        ghost = self._findGhost(name)
+        if ghost is None or not group or not group.widgets:
+            return
+        for widget in group.widgets:
+            if widget is None:
+                continue
+            try:
+                widget.setVisible(False)
+                widget._ghost_hidden = True
+            except RuntimeError:
+                pass
+        QTimer.singleShot(1500, lambda: self._revealGhost(name))
+
+    def _revealGhost(self, name):
+        group = next((g for g in patchcanvas.canvas.group_list if g.group_name == name), None)
+        if group is not None:
+            for widget in group.widgets:
+                if widget is None or not getattr(widget, "_ghost_hidden", False):
+                    continue
+                try:
+                    delattr(widget, "_ghost_hidden")
+                    has_ports = bool(getattr(widget, "m_port_list_ids", []))
+                    if has_ports or not getattr(patchcanvas.options, "auto_hide_groups", False):
+                        widget.setVisible(True)
+                    widget.update()
+                except RuntimeError:
+                    pass
+        patchcanvas.removeGhostGroup(name)
+
+    def _maybeRevealGhost(self, clientId):
+        group = next((g for g in patchcanvas.canvas.group_list if g.group_id == clientId), None)
+        if group is None:
+            return
+        ghost = self._findGhost(group.group_name)
+        if ghost is None:
+            return
+        expected = len(ghost.m_left) + len(ghost.m_right)
+        if expected <= 0:
+            # project saved before port names were recorded: give the box a moment to fill
+            QTimer.singleShot(200, lambda: self._revealGhost(group.group_name))
+            return
+        count = sum(1 for p in patchcanvas.canvas.port_list if p.group_id == clientId)
+        if count < expected:
+            return
+        self._revealGhost(group.group_name)
+
+    def _revealAllGhostHidden(self):
+        for group in list(patchcanvas.canvas.group_list):
+            for widget in group.widgets:
+                if widget is None or not getattr(widget, "_ghost_hidden", False):
+                    continue
+                try:
+                    delattr(widget, "_ghost_hidden")
+                    if getattr(widget, "m_port_list_ids", []) or not getattr(patchcanvas.options, "auto_hide_groups", False):
+                        widget.setVisible(True)
+                    widget.update()
+                except RuntimeError:
+                    pass
+
     def _centerCanvasOnGroup(self, group):
         """While a project loads, pan the canvas to the node that was just created."""
         try:
@@ -3698,10 +3766,10 @@ class HostWindow(QMainWindow):
         elif clientIcon == PATCHBAY_ICON_FILE:
             pcIcon = patchcanvas.ICON_FILE
 
-        patchcanvas.removeGhostGroup(clientName)
         group_dict = patchcanvas.addGroup(clientId, clientName, pcSplit, pcIcon)
         if getattr(self, "fIsProjectLoading", False):
             self._centerCanvasOnGroup(group_dict)
+            self._hideGroupForGhost(clientName, group_dict)
 
         self.updateMiniCanvasLater()
 
@@ -3837,6 +3905,8 @@ class HostWindow(QMainWindow):
             isAlternate = False
 
         patchcanvas.addPort(clientId, portId, portName, portMode, portType, isAlternate)
+        if getattr(self, "fIsProjectLoading", False):
+            self._maybeRevealGhost(clientId)
         self.updateMiniCanvasLater()
 
     @pyqtSlot(int, int)

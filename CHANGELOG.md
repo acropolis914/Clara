@@ -113,7 +113,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **fix(patchbay)**: `loadContainers()` updates existing containers by id instead of clearing and rebuilding them. It runs before load, after load and on the deferred sweep, so containers were recreated 3× (21 creations for 7 containers) and flickered.
 
-### Features
+### Fixes
+
+#### 2026-11-05 — Ghost swap hides the node build
+
+- **fix(ui)**: the real box is now created hidden while its ports arrive, and is revealed in the same tick the ghost is removed. Previously the ghost was deleted first, so the node was seen growing from a header-only box to its full size (the "re-render" after loading). A 1.5 s timeout reveals it anyway if the port count never matches.
+
+
 
 #### 2026-11-05 — Load skeleton (ghost nodes)
 
