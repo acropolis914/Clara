@@ -79,6 +79,7 @@ def test_resolve_ids(module):
 
 def test_never_spawn_with_a_name(module):
     sampler = module.PwRecordSampler()
+    sampler._available = True  # CI has no pw-record binary
     spawned = []
 
     def fake_run(args, **kwargs):
