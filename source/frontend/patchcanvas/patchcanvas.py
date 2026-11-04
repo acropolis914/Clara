@@ -2894,3 +2894,81 @@ def loadContainers(containers_data):
             canvas.scene.removeItem(container)
         if container in canvas.container_list:
             canvas.container_list.remove(container)
+
+
+# ------------------------------------------------------------------------------------------------------------
+# Load-time skeleton (ghost groups)
+
+class CanvasGhost(QGraphicsObject):
+    """Placeholder drawn from the project file while the real plugin is still loading."""
+
+    def __init__(self, name, left_ports=(), right_ports=()):
+        QGraphicsObject.__init__(self)
+        from qt_compat import Qt
+
+        self.m_group_name = name
+        self.m_left = list(left_ports)
+        self.m_right = list(right_ports)
+        self.setZValue(-5)
+        self.setAcceptedMouseButtons(Qt.NoButton)
+
+        rows = max(len(self.m_left), len(self.m_right), 1)
+        self._width = max(150.0, len(name) * 7.5 + 28.0)
+        self._height = 26.0 + rows * 10.0 + 8.0
+
+    def boundingRect(self):
+        return QRectF(0, 0, self._width, self._height)
+
+    def paint(self, painter, option, widget):
+        from qt_compat import QColor, QFont, QPen, QPainter, Qt
+
+        painter.setRenderHint(QPainter.Antialiasing, True)
+
+        bg = QColor(getattr(canvas.theme, "box_bg_1", "#313244"))
+        bg.setAlpha(150)
+        painter.setBrush(bg)
+        painter.setPen(QPen(QColor(137, 180, 250, 130), 1.2, Qt.DashLine))
+        painter.drawRoundedRect(QRectF(1, 1, self._width - 2, self._height - 2), 6, 6)
+
+        font = QFont()
+        font.setPointSize(9)
+        painter.setFont(font)
+        painter.setPen(QColor(205, 214, 244, 200))
+        painter.drawText(QRectF(9, 4, self._width - 18, 16), Qt.AlignLeft | Qt.AlignVCenter, self.m_group_name)
+
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(137, 180, 250, 160))
+        y = 24.0
+        for i in range(len(self.m_left)):
+            painter.drawRoundedRect(QRectF(5, y + i * 10.0, 9, 6), 2, 2)
+        for i in range(len(self.m_right)):
+            painter.drawRoundedRect(QRectF(self._width - 14, y + i * 10.0, 9, 6), 2, 2)
+
+
+def addGhostGroup(name, pos, left_ports=(), right_ports=()):
+    if not canvas.scene or not name:
+        return None
+    for ghost in canvas.ghost_list:
+        if ghost.m_group_name == name:
+            return ghost
+    ghost = CanvasGhost(name, left_ports, right_ports)
+    ghost.setPos(pos)
+    canvas.scene.addItem(ghost)
+    canvas.ghost_list.append(ghost)
+    return ghost
+
+
+def removeGhostGroup(name):
+    for ghost in list(canvas.ghost_list):
+        if ghost.m_group_name == name:
+            canvas.ghost_list.remove(ghost)
+            if ghost.scene() is canvas.scene:
+                canvas.scene.removeItem(ghost)
+            return
+
+
+def clearGhosts():
+    for ghost in list(canvas.ghost_list):
+        if ghost.scene() is canvas.scene:
+            canvas.scene.removeItem(ghost)
+    canvas.ghost_list = []

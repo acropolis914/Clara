@@ -115,6 +115,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Features
 
+#### 2026-11-05 — Load skeleton (ghost nodes)
+
+- **feat(ui)**: at load start, every node in the project is drawn as a ghost box (name, saved position, port stubs from the recorded `left`/`right` lists). Each ghost is removed as its real client callback arrives; leftovers are cleared when the load finishes. This makes the whole patchbay visible immediately instead of filling in over ~11 seconds.
+
+
+
 #### 2026-11-05 — Port names recorded in canvas positions
 
 - **feat(project)**: `saveGroupPositions()` now stores each group's port names per side (`left` for the output box, `right` for the split input box) in `CanvasPositions`, in both `.carjp` and `.carxp`. This is the data a load-time skeleton needs to draw ports before the plugins exist.

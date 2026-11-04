@@ -138,6 +138,7 @@ class Canvas(object):
         self.connection_list = []
         self.animation_list = []
         self.container_list = []
+        self.ghost_list = []
         self.group_plugin_map = {}
         self.old_group_pos = {}
         self.pipewire_group_map = {}

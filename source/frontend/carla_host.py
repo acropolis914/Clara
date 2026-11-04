@@ -1431,6 +1431,22 @@ class HostWindow(QMainWindow):
             except Exception as e:
                 logger.warning("CANVAS", f"prepareCanvasForLoad containers failed: {e}")
 
+        # Skeleton: draw every node from the file now, replace it as the real one arrives.
+        patchcanvas.clearGhosts()
+        for data in positions:
+            name = data.get("name")
+            if not name:
+                continue
+            try:
+                patchcanvas.addGhostGroup(
+                    name,
+                    QPointF(float(data.get("pos1x", 0)), float(data.get("pos1y", 0))),
+                    data.get("left") or [],
+                    data.get("right") or [],
+                )
+            except Exception as e:
+                logger.warning("CANVAS", f"prepareCanvasForLoad ghost '{name}' failed: {e}")
+
     def loadProjectNow(self, source_override=None):
         if not self.fProjectFilename:
             qCritical("ERROR: loading project without filename set")
@@ -1719,6 +1735,7 @@ class HostWindow(QMainWindow):
 
             self.fLastLoadedSource = None
 
+        patchcanvas.clearGhosts()
         self._dismissLoadingDialog()
 
     def loadCanvasGroupPositionsFromProject(self, filename):
@@ -3681,6 +3698,7 @@ class HostWindow(QMainWindow):
         elif clientIcon == PATCHBAY_ICON_FILE:
             pcIcon = patchcanvas.ICON_FILE
 
+        patchcanvas.removeGhostGroup(clientName)
         group_dict = patchcanvas.addGroup(clientId, clientName, pcSplit, pcIcon)
         if getattr(self, "fIsProjectLoading", False):
             self._centerCanvasOnGroup(group_dict)
