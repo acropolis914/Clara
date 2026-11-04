@@ -39,6 +39,10 @@ except ImportError:
 # Single-instance helpers (standalone Carla only)
 
 def _carla_instance_socket_path():
+    # Dev builds can run next to an installed Carla by pointing this at another path
+    override = os.environ.get("CARLA_SINGLE_INSTANCE_SOCKET")
+    if override:
+        return override
     base = os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()
     return os.path.join(base, "carla-standalone.sock")
 

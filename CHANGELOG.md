@@ -45,6 +45,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `CarlaEngine::saveProject()`/`loadProject()` choose by extension, so `.carjp` is serialized by the engine itself — no temp XML, no Python conversion, and no XML on disk for JSON projects.
   - New saves default to `.carjp`; `.carxp` stays readable and writable for backwards compatibility.
   - `project_storage.py` lost the XML↔JSON conversion (`xml_elem_to_dict`, `save_full_project_from_xml_path`); only the force-bridged pre-check writes a patched temp copy.
+- **chore(launcher)**: `CARLA_SINGLE_INSTANCE_SOCKET` overrides the single-instance socket path, so a source build can run next to an installed Carla without activating it.
 - **chore(cleanup)**: removed dead `tab_titles`/`tab_glyphs`/`nerd_family` block in the settings dialog, unused `old_line_*` locals in `patchcanvas.setOptions`, and an unused `error_entries` list in the project loader.
 - **test(project_storage)**: added `source/tests/test_project_storage.py` covering XML/JSON round-trips, atomic saves, temp-file location and failure reporting.
 
