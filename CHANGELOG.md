@@ -69,6 +69,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - SIGTERM arms a 4 s watchdog (`os._exit`) so a stuck plugin bridge cannot hold a logout hostage.
 - **feat(patchbay)**: signal flow for playback nodes (Spotify, browsers, Electron apps)
   - New `pwrecord` sampler captures a node directly with `pw-record --target`, since playback streams have no PulseAudio source. Used only for nodes the PulseAudio peak-detect sampler cannot resolve.
+- **fix(patchbay)**: the `pw-record` sampler strips the engine's `Client/Node` prefix (`Spotify/spotify` → `spotify`), so playback nodes actually bind and produce a level.
 - **fix(patchbay)**: a reused client id no longer inherits the previous client's filtered state. The engine reuses ids without always sending a removal (e.g. a `pw-record` capture client disappears and its id is given to a plugin), so a real node could inherit a filtered id and lose all its ports. The filtered state is now recomputed on every client add, and cleared on a full canvas refresh.
 - **fix(patchbay)**: ports that arrive before their client group are queued and replayed when the group appears (the engine does not guarantee callback order, which left some nodes without ports during startup/refresh); entries are dropped when the client is removed.
 - **fix(patchbay)**: `pw-record` capture clients are hidden from the patchbay and never sampled themselves; sampling is capped at 8 nodes and disabled while a project loads. A self-sampling loop had stalled loading and churned the canvas.

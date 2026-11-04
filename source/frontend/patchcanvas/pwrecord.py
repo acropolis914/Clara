@@ -118,6 +118,16 @@ class PwRecordSampler(object):
 
     # -- processes -------------------------------------------------------------------------------------------
 
+    @staticmethod
+    def _target_name(name):
+        # The engine reports patchbay clients as "Client/Node" (e.g. Spotify/spotify),
+        # but pw-record wants the PipeWire node name.
+        if "/" in name:
+            tail = name.rsplit("/", 1)[-1].strip()
+            if tail:
+                return tail
+        return name
+
     def _spawn(self, name):
         failed_at = self._failed.get(name)
         if failed_at is not None and time.monotonic() - failed_at < RESPAWN_DELAY:
@@ -128,7 +138,7 @@ class PwRecordSampler(object):
             proc = subprocess.Popen(
                 [
                     "pw-record",
-                    "--target", name,
+                    "--target", self._target_name(name),
                     "--rate", str(RATE),
                     "--channels", "1",
                     "--format", "f32",
