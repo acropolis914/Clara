@@ -127,6 +127,42 @@ def test_new_saves_default_to_json(storage):
     assert storage.get_format_tag("song.carjp") == "json"
 
 
+def test_bridge_map_roundtrip(storage, tmp):
+    path = _write_json(os.path.join(tmp, "bridge.carjp"), CARJP)
+    positions = [{"name": "A", "pos1x": 1, "pos1y": 2, "pos2x": 0, "pos2y": 0, "split": False}]
+    assert storage.save_canvas_positions(path, positions, {"bridge_plugins": [1, 3]}) is True
+    loaded = storage.load_canvas_positions(path)
+    assert getattr(loaded, "bridge_plugins", None) == [1, 3]
+
+    xml_path = _write_text(os.path.join(tmp, "bridge.carxp"), CARXP)
+    assert storage.save_canvas_positions(xml_path, positions, {"bridge_plugins": [0, 2]}) is True
+    assert getattr(storage.load_canvas_positions(xml_path), "bridge_plugins", None) == [0, 2]
+
+
+def test_prepare_for_load_sets_per_plugin_bridge(storage, tmp):
+    doc = {
+        "format": "carla-project-json", "version": "1.0",
+        "CARLA-PROJECT": {
+            "@attributes": {"VERSION": "2.6"},
+            "EngineSettings": {"PreferPluginBridges": "true"},
+            "Plugin": [
+                {"Info": {"Name": "native"}, "Data": {"Options": "1"}},
+                {"Info": {"Name": "bridged"}, "Data": {"Options": "1"}},
+            ],
+        },
+    }
+    path = _write_json(os.path.join(tmp, "prep.carjp"), doc)
+    patched = storage.prepare_for_backend_load(path, bridge_plugins=[1])
+    try:
+        data = json.load(open(patched, encoding="utf-8"))
+        project = data["CARLA-PROJECT"]
+        assert project["EngineSettings"]["PreferPluginBridges"] == "false"
+        assert int(project["Plugin"][0]["Data"]["Options"]) == 1
+        assert int(project["Plugin"][1]["Data"]["Options"]) & 0x800
+    finally:
+        os.remove(patched)
+
+
 def test_failed_save_is_reported(storage, tmp):
     target = os.path.join(tmp, "e.carjp")
     assert storage.finalize_from_backend_save(target, os.path.join(tmp, "missing.carjp")) is False
@@ -139,6 +175,8 @@ def main():
         test_json_positions_keep_engine_data(storage, tmp)
         test_json_load_needs_no_conversion(storage, tmp)
         test_force_bridged_json_copy(storage, tmp)
+        test_bridge_map_roundtrip(storage, tmp)
+        test_prepare_for_load_sets_per_plugin_bridge(storage, tmp)
         test_failed_save_is_reported(storage, tmp)
     test_new_saves_default_to_json(storage)
     print("project_storage: all checks passed")

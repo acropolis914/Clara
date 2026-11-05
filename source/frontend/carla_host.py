@@ -232,6 +232,8 @@ class HostWindow(QMainWindow):
         self.fRecentProjectActions = []
         self.fIsProjectLoading = False
         self.fLoadingPluginTotal = 0
+        self.fLoadingBridgePlugins = None
+        self.fBridgePlugins = []
         self.fCurrentlyRemovingAllPlugins = False
         self.fHasLoadedLv2Plugins = False
 
@@ -1415,6 +1417,9 @@ class HostWindow(QMainWindow):
         if not positions:
             return
 
+        bridge_plugins = getattr(positions, "bridge_plugins", None)
+        self.fLoadingBridgePlugins = list(bridge_plugins) if bridge_plugins is not None else None
+
         patchcanvas.canvas.old_group_pos = {}
         for data in positions:
             name = data.get("name")
@@ -1544,11 +1549,17 @@ class HostWindow(QMainWindow):
         except Exception as e:
             logger.warning("BRIDGE", f"Bridge pre-check warning: {e}")
 
+        bridge_plugins = getattr(self, "fLoadingBridgePlugins", None)
+        if bridge_plugins is not None:
+            force_bridged = False
+
         logger.debug("SESSION", f"load_source='{load_source}', fProjectFilename='{self.fProjectFilename}', engine_running={self.host.is_engine_running()}")
         actual_load_filename = load_source
         tmp_cleanup_file = None
         try:
-            actual_load_filename = storage_manager.prepare_for_backend_load(load_source, force_bridged=force_bridged)
+            actual_load_filename = storage_manager.prepare_for_backend_load(
+                load_source, force_bridged=force_bridged, bridge_plugins=bridge_plugins
+            )
             if actual_load_filename != load_source:
                 tmp_cleanup_file = actual_load_filename
             logger.debug("SESSION", f"prepared actual_load_filename='{actual_load_filename}', exists={os.path.exists(actual_load_filename)}")
@@ -1627,6 +1638,15 @@ class HostWindow(QMainWindow):
 
         self.fIsProjectLoading = False
         self.fHasUnsavedChanges = False
+        self.fLoadingBridgePlugins = None
+        try:
+            from carla_backend import PLUGIN_HAS_CUSTOM_UI
+            self.fBridgePlugins = [
+                index for index, pitem in enumerate(self.fPluginList)
+                if pitem is not None and (self.host.get_plugin_info(index)["hints"] & PLUGIN_HAS_CUSTOM_UI)
+            ]
+        except Exception:
+            self.fBridgePlugins = []
         self.setProperWindowTitle()
 
         for pitem in self.fPluginList:
@@ -1671,6 +1691,7 @@ class HostWindow(QMainWindow):
             extra_meta["split_view_sizes"] = self.splitter.sizes()
         if self.fWithCanvas:
             extra_meta["patchbay_containers"] = patchcanvas.saveContainers()
+        extra_meta["bridge_plugins"] = list(getattr(self, "fBridgePlugins", []))
 
         saved = storage_manager.finalize_from_backend_save(
             self.fProjectFilename, backend_save_target, positions, extra_metadata=extra_meta

@@ -26,6 +26,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **style(cli)**: the startup banner and the terminal SIGINT prompt print their styled text directly instead of inside a rich `Panel`; the content and colors are unchanged.
 
+### Features
+
+#### 2026-11-06 — Per-plugin bridging
+
+- **feat(engine/ui)**: plugins are now bridged individually instead of all-or-nothing. The project stores a `bridge_plugins` index list (learned from `PLUGIN_HAS_CUSTOM_UI` after a load); on load only those plugins get `PLUGIN_OPTION_USE_BRIDGE`, the rest load in-process. Inline-only plugins (JSFX meters, SF2/SFZ) stay native. First load keeps the old all-bridged behaviour, then a save records the map.
+
 ### Performance
 
 #### 2026-11-05 — Signal-flow cost
