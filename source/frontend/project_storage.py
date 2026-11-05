@@ -348,7 +348,13 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                             if isinstance(ports, dict):
                                 entry["left"] = ports.get("left", [])
                                 entry["right"] = ports.get("right", [])
-                                entry["port_modes"] = ports.get("modes", {})
+                                modes = ports.get("modes", {})
+                                if isinstance(modes, str):
+                                    try:
+                                        modes = json.loads(modes)
+                                    except Exception:
+                                        modes = {}
+                                entry["port_modes"] = modes
                             positions.append(entry)
 
             if not positions:
@@ -431,7 +437,7 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                     left_ports = p.get("left") or []
                     right_ports = p.get("right") or []
                     if left_ports or right_ports:
-                        entry["Ports"] = {"left": list(left_ports), "right": list(right_ports), "modes": dict(p.get("port_modes") or {})}
+                        entry["Ports"] = {"left": list(left_ports), "right": list(right_ports), "modes": json.dumps(p.get("port_modes") or {})}
                     canvas_pos_elem["Position"].append(entry)
                 doc["CARLA-PROJECT"]["CanvasPositions"] = canvas_pos_elem
             else:
