@@ -2029,6 +2029,95 @@ class ProjectLoadingDialog(QDialog):
 
 
 
+# ------------------------------------------------------------------------------------------------------------
+# Inline project loading banner (part of the main window, not a dialog)
+
+class InlineLoadingBanner(QWidget):
+    def __init__(self, parent=None, filename=""):
+        super().__init__(parent)
+        from qt_compat import QTimer, QProgressBar, QHBoxLayout, QVBoxLayout, QLabel
+
+        self.setObjectName("InlineLoadingBanner")
+        self.setStyleSheet("""
+            QFrame#InlineLoadingBanner {
+                background-color: #181825;
+                border-bottom: 2px solid #89b4fa;
+            }
+            QLabel { color: #cdd6f4; font-size: 11px; }
+            QProgressBar { background-color: #313244; border: none; border-radius: 3px; }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #89b4fa, stop:0.5 #cba6f7, stop:1 #f5c2e7);
+                border-radius: 3px;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 6, 10, 8)
+        layout.setSpacing(4)
+
+        row = QHBoxLayout()
+        name = os.path.basename(filename) if filename else "Project"
+        self.lbl_title = QLabel(f"<b>Loading:</b> {name}", self)
+        self.lbl_percent = QLabel("8%", self)
+        row.addWidget(self.lbl_title, 1)
+        row.addWidget(self.lbl_percent)
+        layout.addLayout(row)
+
+        self.progressBar = QProgressBar(self)
+        self.progressBar.setRange(0, 100)
+        self.progressBar.setValue(8)
+        self.progressBar.setTextVisible(False)
+        self.progressBar.setFixedHeight(5)
+        layout.addWidget(self.progressBar)
+
+        self.lbl_detail = QLabel("Preparing project & engine...", self)
+        layout.addWidget(self.lbl_detail)
+
+        self._current = 8.0
+        self._target = 20.0
+        self._explicit = False
+        self._timer = QTimer(self)
+        self._timer.setInterval(40)
+        self._timer.timeout.connect(self._tick)
+        self._timer.start()
+
+    def _tick(self):
+        if self._current < self._target:
+            self._current = min(self._target, self._current + max(0.5, (self._target - self._current) * 0.28))
+        elif not self._explicit and self._current < 93.0:
+            self._current += 0.12
+        value = int(self._current)
+        self.progressBar.setValue(value)
+        self.lbl_percent.setText(f"{value}%")
+
+    def setDetail(self, text):
+        if text:
+            self.lbl_detail.setText(str(text))
+
+    def setProgress(self, value, detail=None):
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return
+        self._explicit = True
+        self._target = max(0.0, min(99.0, value))
+        if detail:
+            self.lbl_detail.setText(str(detail))
+
+    def dismiss(self, min_dwell_ms=0):
+        try:
+            self._timer.stop()
+        except Exception:
+            pass
+        self.progressBar.setValue(100)
+        self.lbl_percent.setText("100%")
+        self.lbl_detail.setText("Ready!")
+        self.hide()
+        self.setParent(None)
+        self.deleteLater()
+
+
 
 # ------------------------------------------------------------------------------------------------------------
 # Main

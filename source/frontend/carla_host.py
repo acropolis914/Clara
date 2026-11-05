@@ -1403,6 +1403,9 @@ class HostWindow(QMainWindow):
         if not self.fWithCanvas:
             return
 
+        self.fUserPannedCanvas = False
+        self._lastAutoCenter = None
+
         try:
             positions = storage_manager.load_canvas_positions(load_source)
         except Exception as e:
@@ -1694,7 +1697,10 @@ class HostWindow(QMainWindow):
 
     def projectLoadingStarted(self, filename=""):
         self.ui.rack.setEnabled(False)
-        self.ui.graphicsView.setEnabled(False)
+        # keep the canvas visible and pannable, but not editable
+        self.ui.graphicsView.setEnabled(True)
+        if hasattr(self.ui.graphicsView, "setInteractive"):
+            self.ui.graphicsView.setInteractive(False)
         if self.ui.listWidget is not None:
             # keep painting during load so rows appear in place instead of all at the end
             self.ui.listWidget.setUpdatesEnabled(True)
@@ -1703,7 +1709,10 @@ class HostWindow(QMainWindow):
         if not hasattr(self, "fLoadingDialog") or self.fLoadingDialog is None:
             try:
                 fn = filename or getattr(self, "fProjectFilename", "")
-                self.fLoadingDialog = ProjectLoadingDialog(self.fParentOrSelf, fn)
+                self.fLoadingDialog = InlineLoadingBanner(self.ui.centralwidget, fn)
+                layout = self.ui.centralwidget.layout()
+                if layout is not None:
+                    layout.insertWidget(0, self.fLoadingDialog)
                 self.fLoadingDialog.show()
                 QApplication.processEvents()
             except Exception:
@@ -1735,6 +1744,8 @@ class HostWindow(QMainWindow):
 
         self.ui.rack.setEnabled(True)
         self.ui.graphicsView.setEnabled(True)
+        if hasattr(self.ui.graphicsView, "setInteractive"):
+            self.ui.graphicsView.setInteractive(True)
 
         # Restore the canvas before dismissing the dialog, so 100% means "done" and not
         # "now reconnecting every node".
@@ -3781,13 +3792,24 @@ class HostWindow(QMainWindow):
     def _centerCanvasOnGroup(self, group):
         """While a project loads, pan the canvas to the node that was just created."""
         try:
+            if getattr(self, "fUserPannedCanvas", False):
+                return
             if not self.fWithCanvas or not group or not group.widgets:
                 return
             box = group.widgets[0]
             view = getattr(self.ui, "graphicsView", None)
             if view is None or box is None or box.scene() is None:
                 return
+            viewport = view.viewport()
+            if viewport is None:
+                return
+            current = view.mapToScene(viewport.rect().center())
+            last = getattr(self, "_lastAutoCenter", None)
+            if last is not None and (current - last).manhattanLength() > 200.0:
+                self.fUserPannedCanvas = True
+                return
             view.centerOn(box)
+            self._lastAutoCenter = view.mapToScene(viewport.rect().center())
         except Exception:
             pass
 
