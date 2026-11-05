@@ -349,6 +349,12 @@ class CanvasPort(QGraphicsItem):
                             f"(self='{self.m_port_name}' hover='{hover}')",
                             level="warn",
                         )
+                        # sweep the ghost after this event returns (never delete self mid-handler)
+                        try:
+                            from .patchcanvas import removeUnboundPorts
+                            QTimer.singleShot(0, removeUnboundPorts)
+                        except Exception:
+                            pass
                     else:
                         canvas.callback(ACTION_PORTS_CONNECT, 0, 0, conn)
 
