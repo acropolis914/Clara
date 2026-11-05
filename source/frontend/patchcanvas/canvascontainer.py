@@ -211,6 +211,14 @@ class CanvasContainer(QGraphicsObject):
         )
         self.updateLayout()
 
+    def _headerMinWidth(self):
+        """Narrowest frame that still fits the header controls and the title."""
+        font = QFont()
+        font.setBold(True)
+        font.setPixelSize(12)
+        fm = QFontMetrics(font)
+        return max(120.0, 88.0 + fm.horizontalAdvance(self.m_title) + 12)
+
     def updateLayout(self):
         """Computes positions of member nodes and resizes container frame with zero drift."""
         if not self.m_items:
@@ -240,7 +248,7 @@ class CanvasContainer(QGraphicsObject):
                 max_r = max(max_r, rx + box.boundingRect().width())
                 max_b = max(max_b, ry + box.boundingRect().height())
 
-            new_w = max(CONTAINER_MIN_WIDTH, max_r + CONTAINER_PADDING)
+            new_w = max(self._headerMinWidth(), max_r + CONTAINER_PADDING)
             new_h = max(
                 CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING * 2,
                 max_b + CONTAINER_PADDING,
@@ -255,7 +263,7 @@ class CanvasContainer(QGraphicsObject):
                 current_y += box.boundingRect().height() + CONTAINER_ITEM_SPACING
 
             total_h = current_y - start_rel_y - CONTAINER_ITEM_SPACING
-            new_w = max(CONTAINER_MIN_WIDTH, max_w + CONTAINER_PADDING * 2)
+            new_w = max(self._headerMinWidth(), max_w + CONTAINER_PADDING * 2)
             new_h = CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING * 2 + total_h
 
         elif self.m_layout_mode == CONTAINER_LAYOUT_HBOX:
@@ -267,7 +275,7 @@ class CanvasContainer(QGraphicsObject):
                 current_x += box.boundingRect().width() + CONTAINER_ITEM_SPACING
 
             total_w = current_x - start_rel_x - CONTAINER_ITEM_SPACING
-            new_w = max(CONTAINER_MIN_WIDTH, total_w + CONTAINER_PADDING * 2)
+            new_w = max(self._headerMinWidth(), total_w + CONTAINER_PADDING * 2)
             new_h = CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING * 2 + max_h
 
         else:  # Grid (2-column default)
@@ -295,7 +303,7 @@ class CanvasContainer(QGraphicsObject):
 
             total_w = sum(col_widths) + (cols - 1) * CONTAINER_ITEM_SPACING
             total_h = (current_y + row_max_h) - start_rel_y
-            new_w = max(CONTAINER_MIN_WIDTH, total_w + CONTAINER_PADDING * 2)
+            new_w = max(self._headerMinWidth(), total_w + CONTAINER_PADDING * 2)
             new_h = CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING * 2 + total_h
 
         self.prepareGeometryChange()
@@ -311,7 +319,7 @@ class CanvasContainer(QGraphicsObject):
     def getHeaderPortScenePos(self, port, is_output=True):
         """Returns the scene coordinate along the container header for a port on collapse."""
         c_pos = self.pos()
-        w = max(self.m_width, CONTAINER_MIN_WIDTH)
+        w = self.m_width
         y = c_pos.y() + CONTAINER_HEADER_HEIGHT / 2.0
         if is_output:
             return QPointF(c_pos.x() + w, y)
@@ -479,7 +487,7 @@ class CanvasContainer(QGraphicsObject):
             delta = event.scenePos() - self.m_drag_start_mouse_pos
             orig_w, orig_h = self.m_drag_start_size
             rx, ry = self.m_resize_edge
-            new_w = max(CONTAINER_MIN_WIDTH, orig_w + delta.x()) if rx else orig_w
+            new_w = max(self._headerMinWidth(), orig_w + delta.x()) if rx else orig_w
             new_h = (
                 max(CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING * 2, orig_h + delta.y())
                 if ry

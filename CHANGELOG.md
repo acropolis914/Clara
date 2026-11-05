@@ -38,6 +38,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **diag(patchbay)**: after a project load, log the AABB of every group's box against the AABB of all items drawn inside it (`GROUPAABB`), and every container's frame against the AABB of its complete member set (`CONTAINERAABB`). On the test project both report 0 overflow: content equals the boxes and stays inside the container frames.
 
+#### 2026-11-06 — Containers hug their nodes
+
+- **fix(patchbay)**: container frames no longer reserve a fixed 220 px minimum width. The minimum is now the header (controls + title), so narrow groups like *Buses* shrink to their member width and get the same 14 px gap on both sides. Empty containers keep the old minimum, and collapsed ports track the real frame edge.
+
 ### Features
 
 #### 2026-11-06 — Per-plugin bridging
