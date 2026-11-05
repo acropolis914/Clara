@@ -3447,6 +3447,96 @@ def bindShellConnection(connection_id, group_out_id, port_out_id, group_in_id, p
     return False
 
 
+def auditGroupAABBs():
+    """Compare each group's box AABB with the AABB of everything drawn inside it."""
+    mismatched = 0
+
+    def _grow(rect, item):
+        if not item.isVisible():
+            return rect
+        r = item.sceneBoundingRect()
+        return r if rect.isNull() else rect.united(r)
+
+    for group in canvas.group_list:
+        widgets = [w for w in group.widgets if w is not None]
+        if not widgets:
+            continue
+        try:
+            box_rect = QRectF()
+            content_rect = QRectF()
+            for widget in widgets:
+                box_rect = _grow(box_rect, widget)
+                for child in widget.childItems():
+                    content_rect = _grow(content_rect, child)
+                    for sub in child.childItems():
+                        content_rect = _grow(content_rect, sub)
+            if box_rect.isNull():
+                continue
+            content_rect = box_rect if content_rect.isNull() else content_rect.united(box_rect)
+            dw = content_rect.width() - box_rect.width()
+            dh = content_rect.height() - box_rect.height()
+            if abs(dw) > 1.0 or abs(dh) > 1.0:
+                mismatched += 1
+                log_carla(
+                    f"GROUPAABB '{group.group_name}' box={box_rect.width():.0f}x{box_rect.height():.0f} "
+                    f"content={content_rect.width():.0f}x{content_rect.height():.0f} "
+                    f"dw={dw:+.0f} dh={dh:+.0f}",
+                    level="warn",
+                )
+        except RuntimeError:
+            continue
+
+    log_carla(f"GROUPAABB: {mismatched} group(s) whose content extends past the box", level="info")
+
+
+def auditContainerAABBs():
+    """Compare each container's frame with the AABB of its complete member content."""
+    mismatched = 0
+
+    def _grow(rect, item):
+        if not item.isVisible():
+            return rect
+        r = item.sceneBoundingRect()
+        return r if rect.isNull() else rect.united(r)
+
+    for container in getattr(canvas, "container_list", []):
+        try:
+            frame = container.sceneBoundingRect()
+            box_rect = QRectF()
+            content_rect = QRectF()
+            members = [b for b in container.m_items if b is not None]
+            for box in members:
+                box_rect = _grow(box_rect, box)
+                content_rect = _grow(content_rect, box)
+                for child in box.childItems():
+                    content_rect = _grow(content_rect, child)
+                    for sub in child.childItems():
+                        content_rect = _grow(content_rect, sub)
+            if content_rect.isNull():
+                content_rect = box_rect
+            dw = content_rect.width() - frame.width()
+            dh = content_rect.height() - frame.height()
+            outside = (
+                content_rect.left() < frame.left() - 1
+                or content_rect.top() < frame.top() - 1
+                or content_rect.right() > frame.right() + 1
+                or content_rect.bottom() > frame.bottom() + 1
+            )
+            if outside:
+                mismatched += 1
+            log_carla(
+                f"CONTAINERAABB '{container.m_title}' frame={frame.width():.0f}x{frame.height():.0f} "
+                f"boxes={box_rect.width():.0f}x{box_rect.height():.0f} "
+                f"content={content_rect.width():.0f}x{content_rect.height():.0f} "
+                f"dw={dw:+.0f} dh={dh:+.0f} members={len(members)} outside={outside}",
+                level="warn" if outside else "info",
+            )
+        except RuntimeError:
+            continue
+
+    log_carla(f"CONTAINERAABB: {mismatched} container(s) whose content extends past the frame", level="info")
+
+
 def snapshotShellSizes():
     """Record shell geometry once cables are wired, so finalizeShells compares like with like."""
     for group in canvas.group_list:

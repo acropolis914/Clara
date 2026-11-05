@@ -34,6 +34,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(patchbay)**: ports and cables that arrive before their client are replayed on bind, and unclaimed shells/cables are only dropped 1.2 s after load, so pre-wired plugin connections bind instead of being discarded (72/72 cables bound).
 - **fix(ui)**: the "load plugins bridged?" prompt is skipped when the project already stores a per-plugin `bridge_plugins` map.
 
+#### 2026-11-06 — Group/container AABB audit
+
+- **diag(patchbay)**: after a project load, log the AABB of every group's box against the AABB of all items drawn inside it (`GROUPAABB`), and every container's frame against the AABB of its complete member set (`CONTAINERAABB`). On the test project both report 0 overflow: content equals the boxes and stays inside the container frames.
+
 ### Features
 
 #### 2026-11-06 — Per-plugin bridging

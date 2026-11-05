@@ -1822,6 +1822,8 @@ class HostWindow(QMainWindow):
         try:
             patchcanvas.finalizeShellConnections()
             patchcanvas.finalizeShells()
+            patchcanvas.auditGroupAABBs()
+            patchcanvas.auditContainerAABBs()
         except Exception as e:
             logger.warning("CANVAS", f"finalizeShellsAfterLoad failed: {e}")
 
