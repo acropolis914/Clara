@@ -20,6 +20,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Performance
+
+#### 2026-11-05 — Signal-flow cost
+
+- **perf(canvas)**: the animator runs at 30 FPS, level polling is cached for 100 ms, and only nodes/cables above the visible 0.05 level are repainted. Measured host CPU with signal flow: ~54% before, ~18% after (flow off ~15%).
+
+
 ### Fixes
 
 #### 2026-11-04 — Session safety, updater hardening and cleanup
