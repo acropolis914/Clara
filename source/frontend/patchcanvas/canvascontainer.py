@@ -603,12 +603,41 @@ class CanvasContainer(QGraphicsObject):
     # -------------------------------------------------------------------------
 
     def autoArrangeMembers(self):
-        """Re-apply the container layout; freeform containers also run the active layout algorithm."""
+        """Lay members out left-to-right in signal-flow order (freeform containers)."""
         nodes = [box for box in self.m_items if box is not None]
         if self.m_layout_mode == CONTAINER_LAYOUT_FREEFORM and len(nodes) >= 2:
             try:
-                from .patchcanvas import autoArrangeNodes, syncNodePositions
-                autoArrangeNodes(nodes)
+                from . import canvas
+                from .patchcanvas import _nodeGraph, syncNodePositions
+
+                all_nodes = []
+                for group in canvas.group_list:
+                    for widget in group.widgets:
+                        if widget is not None:
+                            all_nodes.append(widget)
+
+                edges, _incoming, _names = _nodeGraph(all_nodes)
+                layer = {node: 0 for node in all_nodes}
+                for _ in range(len(all_nodes)):
+                    changed = False
+                    for source, targets in edges.items():
+                        for target in targets:
+                            if layer.get(target, 0) < layer.get(source, 0) + 1:
+                                layer[target] = layer[source] + 1
+                                changed = True
+                    if not changed:
+                        break
+
+                nodes.sort(key=lambda node: (layer.get(node, 0), node.x()))
+                x = self.x() + CONTAINER_PADDING
+                y = self.y() + CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING
+                for node in nodes:
+                    node.setPos(x, y)
+                    x += node.boundingRect().width() + 40
+                # refresh freeform offsets so updateLayout keeps the new row
+                self.m_item_offsets = {
+                    node: (node.x() - self.x(), node.y() - self.y()) for node in nodes
+                }
                 syncNodePositions(nodes)
             except Exception:
                 pass

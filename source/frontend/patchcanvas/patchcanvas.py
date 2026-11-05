@@ -2485,7 +2485,7 @@ def arrangeConnected(target_box=None, direction="both"):
     syncNodePositions(subgraph_nodes)
 
 
-def autoArrangeAround(box=None, algorithm=None):
+def autoArrangeAround(box=None, algorithm="flow"):
     """Auto-arrange the subgraph connected to one box, using the active layout algorithm."""
     if box is None:
         selected = getSelectedNodes()
