@@ -340,7 +340,12 @@ class CanvasPort(QGraphicsItem):
                             self.m_port_id,
                         )
                     log_carla(f"CanvasPort.handleMouseRelease: connecting {conn}")
-                    canvas.callback(ACTION_PORTS_CONNECT, 0, 0, conn)
+                    if self.m_port_id < 0 or self.m_hover_item.getPortId() < 0:
+                        # Placeholder port that never bound to the engine; refuse instead of
+                        # sending an id the engine cannot resolve.
+                        log_carla(f"CanvasPort.handleMouseRelease: refusing unbound port {conn}", level="warn")
+                    else:
+                        canvas.callback(ACTION_PORTS_CONNECT, 0, 0, conn)
 
                 canvas.scene.clearSelection()
 

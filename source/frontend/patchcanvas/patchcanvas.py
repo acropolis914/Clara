@@ -3406,6 +3406,45 @@ def finalizeShells():
             if widget is not None and getattr(widget, "_shell_saved_hide", False):
                 widget.setHideUnconnectedPorts(True)
 
+    # Any placeholder port the engine never replaced is a ghost: it cannot be connected
+    # and its negative id trips an engine assertion. Remove the item, not just the dict.
+    for port in list(canvas.port_list):
+        if getattr(port, "port_id", 0) >= 0:
+            continue
+        widget = getattr(port, "widget", None)
+        parent = None
+        try:
+            parent = widget.parentItem() if widget is not None else None
+        except RuntimeError:
+            parent = None
+        if widget is not None:
+            try:
+                canvas.scene.removeItem(widget)
+            except (RuntimeError, TypeError):
+                pass
+        if parent is not None and port.port_id in getattr(parent, "m_port_list_ids", []):
+            parent.removePortFromGroup(port.port_id)
+        try:
+            canvas.port_list.remove(port)
+        except ValueError:
+            pass
+
+    for group in canvas.group_list:
+        for widget in group.widgets:
+            if widget is None:
+                continue
+            for child in list(widget.childItems()):
+                pd = getattr(child, "_port_dict", None)
+                if pd is not None and getattr(pd, "port_id", 0) < 0:
+                    try:
+                        canvas.scene.removeItem(child)
+                    except RuntimeError:
+                        pass
+
+    ghosts = [p.port_id for p in canvas.port_list if getattr(p, "port_id", 0) < 0]
+    if ghosts:
+        log_carla(f"finalizeShells: unbound placeholder ports remain: {ghosts}", level="warn")
+
 
 def addShellConnection(src_name, src_port_name, dst_name, dst_port_name):
     """Create a real cable between shell ports with a temporary negative connection id."""

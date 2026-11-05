@@ -48,6 +48,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(patchbay)**: VBox and HBox containers are auto-sized, so their resize handles and cursors are disabled; Grid and Freeform stay resizable.
 - **fix(patchbay)**: "Auto-Arrange Members" now reorders members by signal-flow layer in every layout mode (VBox/HBox/Grid re-apply their layout in flow order; Freeform lays them out in a row). Previously it silently did nothing outside Freeform.
 
+#### 2026-11-06 — Remove unbound placeholder ports
+
+- **fix(patchbay)**: after a load, any placeholder port the engine never replaced is now removed as a scene item, not only as a dict entry. Clicking one used to send a negative port id, tripping `CarlaEngineJack.cpp` ("fullPortNameA != nullptr") and reporting "Invalid or unsupported plugin type". Connecting to an unbound port is also refused client-side instead of reaching the engine.
+
 ### Features
 
 #### 2026-11-06 — Per-plugin bridging
