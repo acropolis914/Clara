@@ -26,6 +26,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **style(cli)**: the startup banner and the terminal SIGINT prompt print their styled text directly instead of inside a rich `Panel`; the content and colors are unchanged.
 
+### Fixed
+
+#### 2026-11-06 — Seamless patchbay load
+
+- **fix(patchbay)**: the loading shell now matches the final node exactly. Shells are built before the engine enumerates clients (no duplicate nodes), existing clients are adopted in place, saved hide-unconnected state and port types are applied from the first frame, and the saved node size covers inline displays. `SHELLDIFF` reports 0 size differences on the test project.
+- **fix(patchbay)**: ports and cables that arrive before their client are replayed on bind, and unclaimed shells/cables are only dropped 1.2 s after load, so pre-wired plugin connections bind instead of being discarded (72/72 cables bound).
+- **fix(ui)**: the "load plugins bridged?" prompt is skipped when the project already stores a per-plugin `bridge_plugins` map.
+
 ### Features
 
 #### 2026-11-06 — Per-plugin bridging

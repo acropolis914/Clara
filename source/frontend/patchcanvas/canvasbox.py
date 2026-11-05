@@ -1091,7 +1091,7 @@ class CanvasBox(QGraphicsObject):
                 port.widget.setVisible(True)
                 visible_port_list.append(port)
 
-        subbar_h = 22 if self.m_plugin_id >= 0 else 0
+        subbar_h = 22 if (self.m_plugin_id >= 0 or getattr(self, "_shell_reserve_subbar", False)) else 0
         header_total_h = canvas.theme.box_header_height + subbar_h
 
         if len(visible_port_list) == 0:
@@ -1155,6 +1155,15 @@ class CanvasBox(QGraphicsObject):
             self.p_height += canvas.theme.box_pen.width()
 
             self.repositionPorts(visible_port_list)
+
+        saved = getattr(self, "_shell_saved_size", None)
+        if saved and getattr(self, "_shell", False) and not getattr(self, "_shell_bound", False):
+            # Inline displays change the final size only after the plugin is loaded; keep the
+            # shell at the size the node had when it was saved so nothing jumps.
+            if saved[0] > self.p_width or saved[1] > self.p_height:
+                self.p_width = max(self.p_width, saved[0])
+                self.p_height = max(self.p_height, saved[1])
+                self.repositionPorts(visible_port_list)
 
         self.repaintLines(True)
         self.update()
@@ -2348,7 +2357,7 @@ class CanvasBox(QGraphicsObject):
         if not options.inline_displays:
             return
 
-        subbar_h = 22 if self.m_plugin_id >= 0 else 0
+        subbar_h = 22 if (self.m_plugin_id >= 0 or getattr(self, "_shell_reserve_subbar", False)) else 0
         header_total_h = canvas.theme.box_header_height + subbar_h
         inwidth = self.p_width - 16 - self.p_width_in - self.p_width_out
         inheight = (

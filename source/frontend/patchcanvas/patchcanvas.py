@@ -928,6 +928,7 @@ def saveGroupPositions():
         left_ports = []
         right_ports = []
         port_modes = {}
+        port_types = {}
         for port in canvas.port_list:
             if port.group_id != group.group_id or port.widget is None:
                 continue
@@ -940,6 +941,7 @@ def saveGroupPositions():
             else:
                 left_ports.append(port.port_name)
             port_modes[port.port_name] = port.port_mode
+            port_types[port.port_name] = port.port_type
 
         ret.append(
             {
@@ -947,6 +949,7 @@ def saveGroupPositions():
                 "left": left_ports,
                 "right": right_ports,
                 "port_modes": port_modes,
+                "port_types": port_types,
                 "pos1x": pos1.x(),
                 "pos1y": pos1.y(),
                 "pos2x": pos2.x(),
@@ -954,6 +957,8 @@ def saveGroupPositions():
                 "split": group.split,
                 "color": col_str,
                 "hide_unconnected_ports": hide_ports,
+                "width": group.widgets[0].p_width,
+                "height": group.widgets[0].p_height,
             }
         )
 
@@ -3194,11 +3199,24 @@ def clearGhostCables():
 # ------------------------------------------------------------------------------------------------------------
 # Bindable load shells
 
-def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=False, color="", port_modes=None):
+def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=False, color="", port_modes=None, is_plugin=False, port_types=None, size=None):
     """Create a real canvas node from the project file, with placeholder port ids.
     The engine callbacks bind these ids later; nothing is recreated."""
     if not canvas.scene or not name:
         return None
+
+    existing = _groupByName(name)
+    if existing is not None and not getattr(existing.widgets[0], "_shell", False):
+        # Client already exists (engine running): reuse it instead of creating a duplicate.
+        for widget in existing.widgets:
+            if widget is None:
+                continue
+            widget.setPos(pos)
+            if color:
+                widget.setCustomColor(color, notify=False)
+            if hide_unconnected:
+                widget.setHideUnconnectedPorts(True)
+        return existing
 
     gid = getattr(canvas, "next_shell_group_id", -100000)
     canvas.next_shell_group_id = gid - 1
@@ -3220,9 +3238,10 @@ def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=Fa
             widget._shell = True
             widget._shell_name = name
             widget._shell_bound = False
-            # ports are not connected yet: force the full layout while the shell is unconfirmed
-            widget.m_hide_unconnected_ports = False
+            # same hide state as the final node, so the shell is born at the final size
+            widget.m_hide_unconnected_ports = bool(hide_unconnected)
             widget._shell_saved_hide = bool(hide_unconnected)
+            widget._shell_reserve_subbar = bool(is_plugin)
             if color:
                 widget.setCustomColor(color, notify=False)
 
@@ -3237,15 +3256,18 @@ def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=Fa
     group_dict.plugin_inline = False
     group_dict.widgets = [group_box, group_sbox]
 
+    port_types = port_types or {}
+
     def _add_shell_port(target, port_id, mode, port_name):
-        widget = target.addPortFromGroup(port_id, mode, PORT_TYPE_AUDIO_JACK, port_name, False, backend_group_id=gid)
+        ptype = port_types.get(port_name, PORT_TYPE_AUDIO_JACK)
+        widget = target.addPortFromGroup(port_id, mode, ptype, port_name, False, backend_group_id=gid)
         port_dict = getattr(widget, "_port_dict", None)
         if port_dict is not None:
             port_dict.group_id = gid
             port_dict.port_id = port_id
             port_dict.port_name = port_name
             port_dict.port_mode = mode
-            port_dict.port_type = PORT_TYPE_AUDIO_JACK
+            port_dict.port_type = ptype
             port_dict.is_alternate = False
             port_dict.widget = widget
             canvas.port_list.append(port_dict)
@@ -3264,9 +3286,14 @@ def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=Fa
     if group_sbox is not None:
         group_sbox.blockSignals(False)
     # size to all saved ports, not just the header
+    if size and not split:
+        group_box._shell_saved_size = (float(size[0]), float(size[1]))
     group_box.relayout()
     if group_sbox is not None:
         group_sbox.relayout()
+    group_box._shell_initial_size = (group_box.p_width, group_box.p_height)
+    if group_sbox is not None:
+        group_sbox._shell_initial_size = (group_sbox.p_width, group_sbox.p_height)
     group_box.checkItemPos()
     if group_sbox is not None:
         group_sbox.checkItemPos()
@@ -3317,6 +3344,7 @@ def bindGroupShell(name, client_id, plugin_id=-1):
             try:
                 widget.m_group_id = client_id
                 widget.m_plugin_id = plugin_id
+                widget._shell_reserve_subbar = False
                 widget._shell_bound = True
                 widget.relayout()
                 widget.update()
@@ -3336,6 +3364,11 @@ def bindGroupShell(name, client_id, plugin_id=-1):
                     port.widget.m_group_id = client_id
             except RuntimeError:
                 pass
+        # Ports can arrive before their client (engine already running): replay them now.
+        pending_ports = canvas.pending_ports.pop(client_id, None)
+        if pending_ports:
+            for port_id, port_name, port_mode, port_type, is_alternate in pending_ports:
+                addPort(client_id, port_id, port_name, port_mode, port_type, is_alternate)
         log_carla(f"patchcanvas.bindGroupShell: bound '{name}' to client {client_id} plugin {plugin_id}", level="debug")
         return group
     return None
@@ -3354,6 +3387,20 @@ def finalizeShells():
         for port in list(canvas.port_list):
             if port.group_id == group.group_id and getattr(port, "port_id", 0) < 0:
                 removePort(group.group_id, port.port_id)
+        for widget in group.widgets:
+            initial = getattr(widget, "_shell_initial_size", None) if widget is not None else None
+            if widget is not None and initial is not None:
+                # heal any stale geometry left by the engine's port-insertion order
+                widget.relayout()
+            if initial is not None:
+                try:
+                    if abs(widget.p_width - initial[0]) > 0.5 or abs(widget.p_height - initial[1]) > 0.5:
+                        log_carla(
+                            f"SHELLDIFF '{group.group_name}' shell={initial[0]:.0f}x{initial[1]:.0f} final={widget.p_width:.0f}x{widget.p_height:.0f}",
+                            level="warn",
+                        )
+                except RuntimeError:
+                    pass
         # confirmed: apply the saved "hide unused ports" setting once
         for widget in group.widgets:
             if widget is not None and getattr(widget, "_shell_saved_hide", False):
@@ -3365,6 +3412,9 @@ def addShellConnection(src_name, src_port_name, dst_name, dst_port_name):
     src_group = _groupByName(src_name)
     dst_group = _groupByName(dst_name)
     if src_group is None or dst_group is None:
+        return None
+    if src_group.group_id >= 0 and dst_group.group_id >= 0:
+        # both nodes already exist as real clients: the engine owns this cable
         return None
     src_port = next((p for p in canvas.port_list if p.group_id == src_group.group_id and p.port_name == src_port_name), None)
     dst_port = next((p for p in canvas.port_list if p.group_id == dst_group.group_id and p.port_name == dst_port_name), None)
@@ -3395,6 +3445,14 @@ def bindShellConnection(connection_id, group_out_id, port_out_id, group_in_id, p
         log_carla(f"patchcanvas.bindShellConnection: {old_id} -> {connection_id}", level="debug")
         return True
     return False
+
+
+def snapshotShellSizes():
+    """Record shell geometry once cables are wired, so finalizeShells compares like with like."""
+    for group in canvas.group_list:
+        for widget in group.widgets:
+            if widget is not None and getattr(widget, "_shell", False):
+                widget._shell_initial_size = (widget.p_width, widget.p_height)
 
 
 def finalizeShellConnections():

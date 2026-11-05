@@ -1439,6 +1439,18 @@ class HostWindow(QMainWindow):
             except Exception as e:
                 logger.warning("CANVAS", f"prepareCanvasForLoad containers failed: {e}")
 
+        plugin_names = set()
+        root = None
+        try:
+            root = storage_manager.get_project_root(load_source)
+            if root is not None:
+                for plugin in root.findall("Plugin"):
+                    info = plugin.find("Info")
+                    if info is not None:
+                        plugin_names.add(info.findtext("Name", "") or "")
+        except Exception as e:
+            logger.warning("CANVAS", f"prepareCanvasForLoad project root failed: {e}")
+
         # Skeleton: draw every node from the file now, replace it as the real one arrives.
         patchcanvas.clearGhosts()
         patchcanvas.clearGhostCables()
@@ -1456,12 +1468,14 @@ class HostWindow(QMainWindow):
                     bool(data.get("hide_unconnected_ports")),
                     data.get("color") or "",
                     data.get("port_modes") or {},
+                    name in plugin_names,
+                    data.get("port_types") or {},
+                    (data.get("width"), data.get("height")) if data.get("width") and data.get("height") else None,
                 )
             except Exception as e:
                 logger.warning("CANVAS", f"prepareCanvasForLoad shell '{name}' failed: {e}")
 
         try:
-            root = storage_manager.get_project_root(load_source)
             if root is not None:
                 for section in ("ExternalPatchbay", "Patchbay"):
                     patchbay = root.find(section)
@@ -1478,6 +1492,8 @@ class HostWindow(QMainWindow):
         except Exception as e:
             logger.warning("CANVAS", f"prepareCanvasForLoad connections failed: {e}")
 
+        patchcanvas.snapshotShellSizes()
+
     def loadProjectNow(self, source_override=None):
         if not self.fProjectFilename:
             qCritical("ERROR: loading project without filename set")
@@ -1490,9 +1506,6 @@ class HostWindow(QMainWindow):
             self.fProjectFilename = self.fSessionManager.get_canonical_project_filepath(self.fProjectFilename)
             self.setProperWindowTitle()
 
-        if not (self.host.isControl or self.host.is_engine_running()):
-            self.slot_engineStart()
-
         load_source = source_override or self.fProjectFilename
         # Remember what was actually read so a recovery load restores canvas positions from the
         # autosave, while the project keeps its last-saved name/path (fProjectFilename).
@@ -1501,10 +1514,17 @@ class HostWindow(QMainWindow):
         if getattr(self, "fLoadingDialog", None) is not None:
             self.fLoadingDialog.setDetail(f"Preparing {os.path.basename(load_source)}...")
         self.fIsProjectLoading = True
+        # Build the shells before the engine enumerates external clients, so every client
+        # finds its shell already in place instead of creating a duplicate node.
         self._prepareCanvasForLoad(load_source)
+
+        if not (self.host.isControl or self.host.is_engine_running()):
+            self.slot_engineStart()
 
         # Check if project contains plugins prone to in-process UI/GL thread collisions
         force_bridged = False
+        # A saved per-plugin map already says exactly which plugins need a bridge: never ask.
+        bridge_plugins = getattr(self, "fLoadingBridgePlugins", None)
         self.fLoadingPluginTotal = 0
         try:
             # Format-agnostic: the save manager resolves the file (XML or JSON) and hands back a
@@ -1514,7 +1534,7 @@ class HostWindow(QMainWindow):
                 self.fLoadingPluginTotal = len(root.findall("Plugin"))
                 eng_settings = root.find("EngineSettings")
                 prefer_bridges = eng_settings.findtext("PreferPluginBridges") if eng_settings is not None else None
-                if not prefer_bridges or prefer_bridges.lower() in ("false", "0"):
+                if bridge_plugins is None and (not prefer_bridges or prefer_bridges.lower() in ("false", "0")):
                     # Plugins that create their own GL/UI context or run via Wine/yabridge and crash the host
                     # when loaded in-process.
                     collision_tokens = ("element", "juce", "cardinal", "decentsampler", "yabridge", "wine")
@@ -1549,7 +1569,6 @@ class HostWindow(QMainWindow):
         except Exception as e:
             logger.warning("BRIDGE", f"Bridge pre-check warning: {e}")
 
-        bridge_plugins = getattr(self, "fLoadingBridgePlugins", None)
         if bridge_plugins is not None:
             force_bridged = False
 
@@ -1790,12 +1809,20 @@ class HostWindow(QMainWindow):
 
             self.fLastLoadedSource = None
 
-        patchcanvas.finalizeShellConnections()
-        patchcanvas.finalizeShells()
+        # The engine sends plugin cables a moment after the plugins themselves, so give the
+        # pre-wired shells time to bind before dropping anything unclaimed.
+        QTimer.singleShot(1200, self._finalizeShellsAfterLoad)
         self._revealAllGhostHidden()
         patchcanvas.clearGhosts()
         patchcanvas.clearGhostCables()
         self._dismissLoadingDialog()
+
+    def _finalizeShellsAfterLoad(self):
+        try:
+            patchcanvas.finalizeShellConnections()
+            patchcanvas.finalizeShells()
+        except Exception as e:
+            logger.warning("CANVAS", f"finalizeShellsAfterLoad failed: {e}")
 
     def loadCanvasGroupPositionsFromProject(self, filename):
         if not filename or not os.path.exists(filename):

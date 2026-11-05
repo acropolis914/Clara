@@ -144,12 +144,16 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                             "color": p_elem.get("color", ""),
                             "hide_unconnected_ports": p_elem.get("hide_unconnected_ports") in ("1", "true", "True"),
                         }
+                        if p_elem.get("width") and p_elem.get("height"):
+                            entry["width"] = float(p_elem.get("width"))
+                            entry["height"] = float(p_elem.get("height"))
                         ports_elem = p_elem.find("Ports")
                         if ports_elem is not None:
                             try:
                                 entry["left"] = json.loads(ports_elem.get("left", "[]"))
                                 entry["right"] = json.loads(ports_elem.get("right", "[]"))
                                 entry["port_modes"] = json.loads(ports_elem.get("modes", "{}"))
+                                entry["port_types"] = json.loads(ports_elem.get("types", "{}"))
                             except Exception:
                                 pass
                         data_list.append(entry)
@@ -237,6 +241,9 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                     p_elem.set("color", str(pos_data["color"]))
                 if pos_data.get("hide_unconnected_ports"):
                     p_elem.set("hide_unconnected_ports", "1")
+                if pos_data.get("width") and pos_data.get("height"):
+                    p_elem.set("width", str(int(round(pos_data["width"]))))
+                    p_elem.set("height", str(int(round(pos_data["height"]))))
                 left_ports = pos_data.get("left") or []
                 right_ports = pos_data.get("right") or []
                 if left_ports or right_ports:
@@ -244,6 +251,7 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                     ports_elem.set("left", json.dumps(list(left_ports)))
                     ports_elem.set("right", json.dumps(list(right_ports)))
                     ports_elem.set("modes", json.dumps(pos_data.get("port_modes") or {}))
+                    ports_elem.set("types", json.dumps(pos_data.get("port_types") or {}))
 
             _atomic_write_xml(tree, filepath)
             return True
@@ -375,6 +383,9 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                                 "color": str(attrs_pe.get("color", "")),
                                 "hide_unconnected_ports": str(attrs_pe.get("hide_unconnected_ports", "0")) in ("1", "true", "True"),
                             }
+                            if attrs_pe.get("width") and attrs_pe.get("height"):
+                                entry["width"] = float(attrs_pe.get("width"))
+                                entry["height"] = float(attrs_pe.get("height"))
                             ports = pe.get("Ports")
                             if isinstance(ports, dict):
                                 entry["left"] = ports.get("left", [])
@@ -386,6 +397,13 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                                     except Exception:
                                         modes = {}
                                 entry["port_modes"] = modes
+                                types = ports.get("types", {})
+                                if isinstance(types, str):
+                                    try:
+                                        types = json.loads(types)
+                                    except Exception:
+                                        types = {}
+                                entry["port_types"] = types
                             positions.append(entry)
 
             if not positions:
@@ -407,12 +425,17 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                             "color": str(p.get("color", "")),
                             "hide_unconnected_ports": bool(p.get("hide_unconnected_ports", False)),
                         }
+                        if p.get("width") and p.get("height"):
+                            entry["width"] = float(p["width"])
+                            entry["height"] = float(p["height"])
                         if p.get("left"):
                             entry["left"] = list(p["left"])
                         if p.get("right"):
                             entry["right"] = list(p["right"])
                         if p.get("port_modes"):
                             entry["port_modes"] = dict(p["port_modes"])
+                        if p.get("port_types"):
+                            entry["port_types"] = dict(p["port_types"])
                         positions.append(entry)
 
             setattr(positions, "infinite_canvas", is_infinite)
@@ -468,11 +491,19 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                         attrs["color"] = str(p["color"])
                     if p.get("hide_unconnected_ports"):
                         attrs["hide_unconnected_ports"] = "1"
+                    if p.get("width") and p.get("height"):
+                        attrs["width"] = str(int(round(p["width"])))
+                        attrs["height"] = str(int(round(p["height"])))
                     entry = {"@attributes": attrs}
                     left_ports = p.get("left") or []
                     right_ports = p.get("right") or []
                     if left_ports or right_ports:
-                        entry["Ports"] = {"left": list(left_ports), "right": list(right_ports), "modes": json.dumps(p.get("port_modes") or {})}
+                        entry["Ports"] = {
+                            "left": list(left_ports),
+                            "right": list(right_ports),
+                            "modes": json.dumps(p.get("port_modes") or {}),
+                            "types": json.dumps(p.get("port_types") or {}),
+                        }
                     canvas_pos_elem["Position"].append(entry)
                 doc["CARLA-PROJECT"]["CanvasPositions"] = canvas_pos_elem
             else:
@@ -503,12 +534,17 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                         entry["color"] = str(p["color"])
                     if p.get("hide_unconnected_ports"):
                         entry["hide_unconnected_ports"] = True
+                    if p.get("width") and p.get("height"):
+                        entry["width"] = p["width"]
+                        entry["height"] = p["height"]
                     if p.get("left"):
                         entry["left"] = list(p["left"])
                     if p.get("right"):
                         entry["right"] = list(p["right"])
                     if p.get("port_modes"):
                         entry["port_modes"] = dict(p["port_modes"])
+                    if p.get("port_types"):
+                        entry["port_types"] = dict(p["port_types"])
                     clean_positions.append(entry)
                 doc["canvas_positions"] = clean_positions
 

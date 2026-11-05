@@ -65,7 +65,9 @@ def test_xml_positions_roundtrip(storage, tmp):
     path = _write_text(os.path.join(tmp, "a.carxp"), CARXP)
     positions = [{"name": "Node", "pos1x": 5, "pos1y": 6, "pos2x": 0, "pos2y": 0,
                   "split": False, "color": "#00ff00", "hide_unconnected_ports": True,
-                  "left": ["out_L", "out_R"], "right": ["in_L"]}]
+                  "left": ["out_L", "out_R"], "right": ["in_L"],
+                  "port_modes": {"out_L": 2, "in_L": 1}, "port_types": {"out_L": 1, "in_L": 2},
+                  "width": 202, "height": 107}]
     assert storage.save_canvas_positions(path, positions, {"split_view_enabled": True,
                                                            "split_view_sizes": [100, 200]}) is True
     assert not os.path.exists(path + ".tmp"), "atomic save left a temp file behind"
@@ -73,6 +75,8 @@ def test_xml_positions_roundtrip(storage, tmp):
     assert len(loaded) == 1 and loaded[0]["name"] == "Node"
     assert loaded[0]["pos1x"] == 5 and loaded[0]["hide_unconnected_ports"] is True
     assert loaded[0]["left"] == ["out_L", "out_R"] and loaded[0]["right"] == ["in_L"]
+    assert loaded[0]["port_types"] == {"out_L": 1, "in_L": 2}
+    assert loaded[0]["width"] == 202 and loaded[0]["height"] == 107
     assert getattr(loaded, "split_view_sizes") == [100, 200]
     assert getattr(loaded, "infinite_canvas") is True
 
@@ -85,12 +89,16 @@ def test_json_positions_keep_engine_data(storage, tmp):
     assert root.find("Plugin/Info/Name").text == "Test Plugin"
 
     positions = [{"name": "P", "pos1x": 1, "pos1y": 2, "pos2x": 0, "pos2y": 0, "split": False,
-                  "left": ["out_L"], "right": ["in_L", "in_R"]}]
+                  "left": ["out_L"], "right": ["in_L", "in_R"],
+                  "port_modes": {"out_L": 2, "in_L": 1}, "port_types": {"out_L": 1, "in_L": 2},
+                  "width": 158, "height": 83}]
     assert storage.save_canvas_positions(path, positions) is True
     assert not os.path.exists(path + ".tmp"), "atomic save left a temp file behind"
     loaded = storage.load_canvas_positions(path)
     assert loaded[0]["name"] == "P"
     assert loaded[0]["left"] == ["out_L"] and loaded[0]["right"] == ["in_L", "in_R"]
+    assert loaded[0]["port_types"] == {"out_L": 1, "in_L": 2}
+    assert loaded[0]["width"] == 158 and loaded[0]["height"] == 83
 
     # engine-owned data must survive the frontend position write
     with open(path, encoding="utf-8") as f:
