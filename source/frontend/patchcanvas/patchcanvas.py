@@ -3377,37 +3377,44 @@ def bindGroupShell(name, client_id, plugin_id=-1):
 def finalizeShells():
     """Drop shells whose plugin never loaded and placeholder ports that never bound."""
     for group in list(canvas.group_list):
-        box = group.widgets[0]
-        if box is None or not getattr(box, "_shell", False):
+        try:
+            box = group.widgets[0]
+            if box is None or not getattr(box, "_shell", False):
+                continue
+            if not getattr(box, "_shell_bound", False):
+                log_carla(f"patchcanvas.finalizeShells: dropping unbound shell '{group.group_name}'", level="debug")
+                removeGroup(group.group_id)
+                continue
+            for port in list(canvas.port_list):
+                if port.group_id == group.group_id and getattr(port, "port_id", 0) < 0:
+                    removePort(group.group_id, port.port_id)
+            for widget in group.widgets:
+                initial = getattr(widget, "_shell_initial_size", None) if widget is not None else None
+                if widget is not None and initial is not None:
+                    # heal any stale geometry left by the engine's port-insertion order
+                    widget.relayout()
+                if initial is not None:
+                    try:
+                        if abs(widget.p_width - initial[0]) > 0.5 or abs(widget.p_height - initial[1]) > 0.5:
+                            log_carla(
+                                f"SHELLDIFF '{group.group_name}' shell={initial[0]:.0f}x{initial[1]:.0f} final={widget.p_width:.0f}x{widget.p_height:.0f}",
+                                level="warn",
+                            )
+                    except RuntimeError:
+                        pass
+            # confirmed: apply the saved "hide unused ports" setting once
+            for widget in group.widgets:
+                if widget is not None and getattr(widget, "_shell_saved_hide", False):
+                    widget.setHideUnconnectedPorts(True)
+        except RuntimeError:
             continue
-        if not getattr(box, "_shell_bound", False):
-            log_carla(f"patchcanvas.finalizeShells: dropping unbound shell '{group.group_name}'", level="debug")
-            removeGroup(group.group_id)
-            continue
-        for port in list(canvas.port_list):
-            if port.group_id == group.group_id and getattr(port, "port_id", 0) < 0:
-                removePort(group.group_id, port.port_id)
-        for widget in group.widgets:
-            initial = getattr(widget, "_shell_initial_size", None) if widget is not None else None
-            if widget is not None and initial is not None:
-                # heal any stale geometry left by the engine's port-insertion order
-                widget.relayout()
-            if initial is not None:
-                try:
-                    if abs(widget.p_width - initial[0]) > 0.5 or abs(widget.p_height - initial[1]) > 0.5:
-                        log_carla(
-                            f"SHELLDIFF '{group.group_name}' shell={initial[0]:.0f}x{initial[1]:.0f} final={widget.p_width:.0f}x{widget.p_height:.0f}",
-                            level="warn",
-                        )
-                except RuntimeError:
-                    pass
-        # confirmed: apply the saved "hide unused ports" setting once
-        for widget in group.widgets:
-            if widget is not None and getattr(widget, "_shell_saved_hide", False):
-                widget.setHideUnconnectedPorts(True)
 
-    # Any placeholder port the engine never replaced is a ghost: it cannot be connected
-    # and its negative id trips an engine assertion. Remove the item, not just the dict.
+    removeUnboundPorts()
+
+
+def removeUnboundPorts():
+    """Remove shell placeholder ports (negative ids) the engine never replaced.
+    They cannot be connected and their ids trip an engine assertion."""
     for port in list(canvas.port_list):
         if getattr(port, "port_id", 0) >= 0:
             continue

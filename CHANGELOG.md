@@ -52,6 +52,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **fix(patchbay)**: after a load, any placeholder port the engine never replaced is now removed as a scene item, not only as a dict entry. Clicking one used to send a negative port id, tripping `CarlaEngineJack.cpp` ("fullPortNameA != nullptr") and reporting "Invalid or unsupported plugin type". Connecting to an unbound port is also refused client-side instead of reaching the engine.
 
+#### 2026-11-06 — Hardened shell finalization
+
+- **fix(patchbay)**: shell finalization is now exception-safe per group and always runs the placeholder-port sweep, so one deleted item can no longer skip the cleanup and leave clickable ghost ports. The refusal log names both ports so a lingering placeholder is identifiable.
+
 ### Features
 
 #### 2026-11-06 — Per-plugin bridging

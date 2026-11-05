@@ -343,7 +343,12 @@ class CanvasPort(QGraphicsItem):
                     if self.m_port_id < 0 or self.m_hover_item.getPortId() < 0:
                         # Placeholder port that never bound to the engine; refuse instead of
                         # sending an id the engine cannot resolve.
-                        log_carla(f"CanvasPort.handleMouseRelease: refusing unbound port {conn}", level="warn")
+                        hover = self.m_hover_item.getPortName() if hasattr(self.m_hover_item, "getPortName") else "?"
+                        log_carla(
+                            f"CanvasPort.handleMouseRelease: refusing unbound port {conn} "
+                            f"(self='{self.m_port_name}' hover='{hover}')",
+                            level="warn",
+                        )
                     else:
                         canvas.callback(ACTION_PORTS_CONNECT, 0, 0, conn)
 
