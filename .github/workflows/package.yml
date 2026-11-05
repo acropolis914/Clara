@@ -537,6 +537,8 @@ jobs:
           git add aur/clara-bin/PKGBUILD
           git diff --quiet && git diff --staged --quiet || {
             git commit -m "chore(aur): bump clara-bin pkgver to ${TAG} [skip ci]"
+            git fetch origin main
+            git rebase origin/main
             git push origin HEAD:main
           }
 
