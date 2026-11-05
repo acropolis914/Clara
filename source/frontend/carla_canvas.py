@@ -622,7 +622,7 @@ class CanvasToolBarOverlay(QFrame):
 
         now = time.monotonic()
         cached = getattr(self, "_signal_levels_cache", None)
-        if cached is not None and now - cached[0] < 0.05:
+        if cached is not None and now - cached[0] < 0.1:
             return cached[1]
 
         from patchcanvas import signalflow

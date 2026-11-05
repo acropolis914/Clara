@@ -31,7 +31,7 @@ state = _SignalFlowState()
 class SignalFlowAnimator(QObject):
     """Drives the animation clock and smooths per-plugin activity levels."""
 
-    INTERVAL_MS = 16          # ~60 FPS, butter-smooth with OpenGL
+    INTERVAL_MS = 33          # 30 FPS: half the repaint cost, still smooth
     PHASE_STEP = 0.018        # one full pulse cycle per ~0.9 s
     ATTACK = 0.4              # smoothing toward a rising level
     DECAY = 0.82              # falloff when a plugin goes silent
@@ -78,6 +78,11 @@ class SignalFlowAnimator(QObject):
             try:
                 raw = self._provider() or {}
             except Exception:
+                if not getattr(self, "_provider_error_logged", False):
+                    self._provider_error_logged = True
+                    import traceback
+                    from carla_shared import log_carla
+                    log_carla("SIGNALFLOW provider failed:\n" + traceback.format_exc(), level="critical")
                 raw = {}
 
         levels = state.levels
