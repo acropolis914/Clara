@@ -819,12 +819,12 @@ class CanvasToolBarOverlay(QFrame):
             return
         canvas = patchcanvas.canvas
         for conn in list(canvas.connection_list):
-            if getattr(conn, "group_out_id", None) in flow:
+            if flow.get(getattr(conn, "group_out_id", None), 0.0) > 0.05:
                 widget = getattr(conn, "widget", None)
                 if widget is not None:
                     widget.update()
         for group in list(canvas.group_list):
-            if getattr(group, "group_id", None) in levels:
+            if levels.get(getattr(group, "group_id", None), 0.0) > 0.05:
                 for w in group.widgets:
                     if w is not None:
                         w.update()
