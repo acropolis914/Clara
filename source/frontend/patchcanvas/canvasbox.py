@@ -1417,6 +1417,13 @@ class CanvasBox(QGraphicsObject):
         act_x_arrange = arrangeMenu.addAction("Auto-arrange All")
         menu.addMenu(arrangeMenu)
 
+        def _run_auto_arrange_around():
+            from .patchcanvas import autoArrangeAround
+            autoArrangeAround(self)
+
+        act_auto_arrange_around = menu.addAction("Auto-Arrange This Node's Subgraph")
+        act_auto_arrange_around.triggered.connect(_run_auto_arrange_around)
+
         containerMenu = QMenu("Container / Group", menu)
         act_group_vbox = containerMenu.addAction("Group into VBox")
         act_group_hbox = containerMenu.addAction("Group into HBox")

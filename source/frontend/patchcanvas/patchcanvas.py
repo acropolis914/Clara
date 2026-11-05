@@ -2485,6 +2485,49 @@ def arrangeConnected(target_box=None, direction="both"):
     syncNodePositions(subgraph_nodes)
 
 
+def autoArrangeAround(box=None, algorithm=None):
+    """Auto-arrange the subgraph connected to one box, using the active layout algorithm."""
+    if box is None:
+        selected = getSelectedNodes()
+        if not selected:
+            return
+        box = selected[0]
+
+    port_nodes = {}
+    for group in canvas.group_list:
+        for widget in group.widgets:
+            if widget is None:
+                continue
+            for port in canvas.port_list:
+                if port.widget and port.widget.parentItem() is widget:
+                    port_nodes[(port.group_id, port.port_id)] = widget
+
+    adjacency = {}
+    for connection in canvas.connection_list:
+        source = port_nodes.get((connection.group_out_id, connection.port_out_id))
+        target = port_nodes.get((connection.group_in_id, connection.port_in_id))
+        if source is None or target is None or source is target:
+            continue
+        adjacency.setdefault(source, set()).add(target)
+        adjacency.setdefault(target, set()).add(source)
+
+    seen = {box}
+    queue = [box]
+    while queue:
+        current = queue.pop(0)
+        for neighbour in adjacency.get(current, ()):
+            if neighbour not in seen:
+                seen.add(neighbour)
+                queue.append(neighbour)
+
+    nodes = list(seen)
+    if len(nodes) < 2:
+        return
+
+    autoArrangeNodes(nodes, algorithm)
+    syncNodePositions(nodes)
+
+
 def moveAsideNonConnectedNodes(anchor_node=None):
     """
     Moves all nodes that have zero connections (or are disconnected from the active graph)

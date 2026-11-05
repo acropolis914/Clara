@@ -1191,8 +1191,13 @@ class CanvasContextToolBarOverlay(QFrame):
             self.addSeparator()
             self.addButton(
                 icon_arr,
-                "Auto-Arrange Subgraph Connected to This Node",
+                "Arrange Connected Subgraph (layers)",
                 lambda: patchcanvas.arrangeConnected(node, "both"),
+            )
+            self.addButton(
+                icon_tools,
+                "Auto-Arrange Subgraph (layout algorithm)",
+                lambda: patchcanvas.autoArrangeAround(node),
             )
             self.addButton(
                 icon_aside,
