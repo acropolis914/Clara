@@ -602,6 +602,20 @@ class CanvasContainer(QGraphicsObject):
     # Context Menu & Actions
     # -------------------------------------------------------------------------
 
+    def autoArrangeMembers(self):
+        """Re-apply the container layout; freeform containers also run the active layout algorithm."""
+        nodes = [box for box in self.m_items if box is not None]
+        if self.m_layout_mode == CONTAINER_LAYOUT_FREEFORM and len(nodes) >= 2:
+            try:
+                from .patchcanvas import autoArrangeNodes, syncNodePositions
+                autoArrangeNodes(nodes)
+                syncNodePositions(nodes)
+            except Exception:
+                pass
+        self.updateLayout()
+        if self.scene() is not None:
+            self.scene().update()
+
     def contextMenuEvent(self, event):
         menu = QMenu()
 
@@ -629,6 +643,9 @@ class CanvasContainer(QGraphicsObject):
         act_freeform.triggered.connect(
             lambda: self.setLayoutMode(CONTAINER_LAYOUT_FREEFORM)
         )
+
+        act_auto_arrange = menu.addAction("Auto-Arrange Members")
+        act_auto_arrange.triggered.connect(self.autoArrangeMembers)
 
         # Color context menu with Catppuccin palette swatches
         color_menu = QMenu("Color", menu)

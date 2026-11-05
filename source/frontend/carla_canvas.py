@@ -1056,6 +1056,8 @@ class CanvasContextToolBarOverlay(QFrame):
             col_tip = "Expand Group" if is_col else "Collapse Group"
             self.addButton(col_icon, col_tip, lambda: (c.toggleCollapse(), self.updateSelection()))
 
+            self.addButton(icon_tools, "Auto-Arrange Members", lambda: (c.autoArrangeMembers(), self.updateSelection()))
+
             # Ungroup
             self.addButton(icon_del, "Ungroup / Dissolve Container", lambda: (c.ungroup(), self.updateSelection()))
             self.addSeparator()
