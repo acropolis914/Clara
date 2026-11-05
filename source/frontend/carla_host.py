@@ -1581,6 +1581,7 @@ class HostWindow(QMainWindow):
             )
             if actual_load_filename != load_source:
                 tmp_cleanup_file = actual_load_filename
+            logger.debug("BRIDGE", f"bridge_plugins={bridge_plugins} prepared={actual_load_filename}")
             logger.debug("SESSION", f"prepared actual_load_filename='{actual_load_filename}', exists={os.path.exists(actual_load_filename)}")
         except Exception as e:
             logger.error("SESSION", f"Failed to prepare project for loading: {e}")

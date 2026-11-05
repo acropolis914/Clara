@@ -286,10 +286,10 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                         if options_elem is None:
                             options_elem = ET.SubElement(data, "Options")
                         try:
-                            options = int(options_elem.text or "0")
+                            options = int(str(options_elem.text or "0"), 0)
                         except ValueError:
                             options = 0
-                        options_elem.text = str(options | 0x800)
+                        options_elem.text = "0x%x" % (options | 0x800)
 
                 tmp_xml = _temp_project_path()
                 tree.write(tmp_xml, encoding="UTF-8", xml_declaration=True)
@@ -586,10 +586,10 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                     continue
                 data = plugin.setdefault("Data", {})
                 try:
-                    options = int(data.get("Options") or 0)
+                    options = int(str(data.get("Options") or 0), 0)
                 except (TypeError, ValueError):
                     options = 0
-                data["Options"] = str(options | 0x800)
+                data["Options"] = "0x%x" % (options | 0x800)
 
         fd, tmp_json = tempfile.mkstemp(prefix="clara_", suffix=".carjp")
         os.close(fd)

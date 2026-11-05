@@ -165,8 +165,8 @@ def test_prepare_for_load_sets_per_plugin_bridge(storage, tmp):
         data = json.load(open(patched, encoding="utf-8"))
         project = data["CARLA-PROJECT"]
         assert project["EngineSettings"]["PreferPluginBridges"] == "false"
-        assert int(project["Plugin"][0]["Data"]["Options"]) == 1
-        assert int(project["Plugin"][1]["Data"]["Options"]) & 0x800
+        assert int(project["Plugin"][0]["Data"]["Options"], 0) == 1
+        assert int(project["Plugin"][1]["Data"]["Options"], 0) & 0x800
     finally:
         os.remove(patched)
 
