@@ -42,6 +42,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **fix(patchbay)**: container frames no longer reserve a fixed 220 px minimum width. The minimum is now the header (controls + title), so narrow groups like *Buses* shrink to their member width and get the same 14 px gap on both sides. Empty containers keep the old minimum, and collapsed ports track the real frame edge.
 
+#### 2026-11-06 — Container resize and member arrangement
+
+- **fix(patchbay)**: containers can no longer be resized smaller than their members (the drag clamps to the member hull plus padding).
+- **fix(patchbay)**: VBox and HBox containers are auto-sized, so their resize handles and cursors are disabled; Grid and Freeform stay resizable.
+- **fix(patchbay)**: "Auto-Arrange Members" now reorders members by signal-flow layer in every layout mode (VBox/HBox/Grid re-apply their layout in flow order; Freeform lays them out in a row). Previously it silently did nothing outside Freeform.
+
 ### Features
 
 #### 2026-11-06 — Per-plugin bridging

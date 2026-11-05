@@ -211,6 +211,28 @@ class CanvasContainer(QGraphicsObject):
         )
         self.updateLayout()
 
+    def _canResize(self):
+        """VBox/HBox size themselves from their members."""
+        return self.m_layout_mode in (CONTAINER_LAYOUT_GRID, CONTAINER_LAYOUT_FREEFORM)
+
+    def _contentMinSize(self):
+        """Smallest frame that still contains every member and the padding."""
+        min_w = self._headerMinWidth()
+        min_h = CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING * 2
+        for box in self.m_items:
+            if box is None:
+                continue
+            rel = self.m_item_offsets.get(box)
+            if rel is None:
+                rel = (
+                    max(CONTAINER_PADDING, box.x() - self.x()),
+                    max(CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING, box.y() - self.y()),
+                )
+            rect = box.boundingRect()
+            min_w = max(min_w, rel[0] + rect.width() + CONTAINER_PADDING)
+            min_h = max(min_h, rel[1] + rect.height() + CONTAINER_PADDING)
+        return min_w, min_h
+
     def _headerMinWidth(self):
         """Narrowest frame that still fits the header controls and the title."""
         font = QFont()
@@ -394,8 +416,8 @@ class CanvasContainer(QGraphicsObject):
         rect = self.boundingRect()
         margin = 10.0
 
-        # Don't show resize cursor if collapsed
-        if not self.m_collapsed:
+        # Don't show resize cursor if collapsed or auto-sized
+        if not self.m_collapsed and self._canResize():
             at_right = abs(pos.x() - rect.width()) <= margin
             at_bottom = abs(pos.y() - rect.height()) <= margin
             if at_right and at_bottom:
@@ -428,8 +450,8 @@ class CanvasContainer(QGraphicsObject):
             rect = self.boundingRect()
             margin = 10.0
 
-            # 1. Check resize handle on bottom/right corners (when expanded)
-            if not self.m_collapsed:
+            # 1. Check resize handle on bottom/right corners (when expanded and resizable)
+            if not self.m_collapsed and self._canResize():
                 at_right = abs(pos.x() - rect.width()) <= margin
                 at_bottom = abs(pos.y() - rect.height()) <= margin
                 if at_right or at_bottom:
@@ -487,12 +509,9 @@ class CanvasContainer(QGraphicsObject):
             delta = event.scenePos() - self.m_drag_start_mouse_pos
             orig_w, orig_h = self.m_drag_start_size
             rx, ry = self.m_resize_edge
-            new_w = max(self._headerMinWidth(), orig_w + delta.x()) if rx else orig_w
-            new_h = (
-                max(CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING * 2, orig_h + delta.y())
-                if ry
-                else orig_h
-            )
+            min_w, min_h = self._contentMinSize()
+            new_w = max(min_w, orig_w + delta.x()) if rx else orig_w
+            new_h = max(min_h, orig_h + delta.y()) if ry else orig_h
             self.prepareGeometryChange()
             self.m_width = new_w
             self.m_height = new_h
@@ -611,11 +630,10 @@ class CanvasContainer(QGraphicsObject):
     # -------------------------------------------------------------------------
 
     def autoArrangeMembers(self):
-        """Lay members out left-to-right in signal-flow order (freeform containers)."""
+        """Order members by signal flow, then apply the container's layout."""
         nodes = [box for box in self.m_items if box is not None]
-        if self.m_layout_mode == CONTAINER_LAYOUT_FREEFORM and len(nodes) >= 2:
+        if len(nodes) >= 2:
             try:
-                from . import canvas
                 from .patchcanvas import _nodeGraph, syncNodePositions
 
                 all_nodes = []
@@ -637,18 +655,21 @@ class CanvasContainer(QGraphicsObject):
                         break
 
                 nodes.sort(key=lambda node: (layer.get(node, 0), node.x()))
-                x = self.x() + CONTAINER_PADDING
-                y = self.y() + CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING
-                for node in nodes:
-                    node.setPos(x, y)
-                    x += node.boundingRect().width() + 40
-                # refresh freeform offsets so updateLayout keeps the new row
-                self.m_item_offsets = {
-                    node: (node.x() - self.x(), node.y() - self.y()) for node in nodes
-                }
-                syncNodePositions(nodes)
-            except Exception:
-                pass
+                self.m_items = nodes
+                if self.m_layout_mode == CONTAINER_LAYOUT_FREEFORM:
+                    x = self.x() + CONTAINER_PADDING
+                    y = self.y() + CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING
+                    for node in nodes:
+                        node.setPos(x, y)
+                        x += node.boundingRect().width() + 40
+                    # refresh freeform offsets so updateLayout keeps the new row
+                    self.m_item_offsets = {
+                        node: (node.x() - self.x(), node.y() - self.y()) for node in nodes
+                    }
+                    syncNodePositions(nodes)
+            except Exception as e:
+                from .utils import log_carla
+                log_carla(f"CanvasContainer::autoArrangeMembers('{self.m_title}') failed: {e}", level="warn")
         self.updateLayout()
         if self.scene() is not None:
             self.scene().update()
