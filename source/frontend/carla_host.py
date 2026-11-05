@@ -1439,14 +1439,15 @@ class HostWindow(QMainWindow):
             if not name:
                 continue
             try:
-                patchcanvas.addGhostGroup(
+                patchcanvas.addGroupShell(
                     name,
                     QPointF(float(data.get("pos1x", 0)), float(data.get("pos1y", 0))),
+                    bool(data.get("split")),
                     data.get("left") or [],
                     data.get("right") or [],
                 )
             except Exception as e:
-                logger.warning("CANVAS", f"prepareCanvasForLoad ghost '{name}' failed: {e}")
+                logger.warning("CANVAS", f"prepareCanvasForLoad shell '{name}' failed: {e}")
 
         try:
             root = storage_manager.get_project_root(load_source)
@@ -1754,6 +1755,7 @@ class HostWindow(QMainWindow):
 
             self.fLastLoadedSource = None
 
+        patchcanvas.finalizeShells()
         self._revealAllGhostHidden()
         patchcanvas.clearGhosts()
         patchcanvas.clearGhostCables()
@@ -1790,7 +1792,7 @@ class HostWindow(QMainWindow):
             split_sizes = getattr(data_list, "split_view_sizes", None)
             if split_enabled is not None:
                 self._setLoadingProgress(97, "Restoring layout...")
-                self.slot_toggleSideBySideView(bool(split_enabled))
+                self.slot_toggleSideBySideView(bool(split_enabled), refresh=False)
                 if split_sizes and hasattr(self, "splitter"):
                     self.splitter.setSizes(split_sizes)
 
@@ -3511,7 +3513,7 @@ class HostWindow(QMainWindow):
                         self._sync_guard = False
 
     @pyqtSlot(bool)
-    def slot_toggleSideBySideView(self, enabled):
+    def slot_toggleSideBySideView(self, enabled, refresh=True):
         if not hasattr(self, "tabSplit"):
             self.tabSplit = QWidget(self.ui.tabWidget)
             self.splitLayout = QVBoxLayout(self.tabSplit)
@@ -3625,7 +3627,8 @@ class HostWindow(QMainWindow):
                 self.ui.tabWidget.tabBar().show()
 
             self.ui.graphicsView.setFocus()
-            self.slot_canvasRefresh()
+            if refresh:
+                self.slot_canvasRefresh()
         else:
             self.splitter.setStyleSheet("")
             self.ui.tabWidget.setStyleSheet("")
@@ -3654,7 +3657,8 @@ class HostWindow(QMainWindow):
             self.ui.tabWidget.tabBar().show()
             self.ui.tabWidget.setCurrentIndex(1)
             self.ui.graphicsView.setFocus()
-            self.slot_canvasRefresh()
+            if refresh:
+                self.slot_canvasRefresh()
 
     # --------------------------------------------------------------------------------------------------------
     # Canvas (host callbacks)
@@ -3819,10 +3823,13 @@ class HostWindow(QMainWindow):
         elif clientIcon == PATCHBAY_ICON_FILE:
             pcIcon = patchcanvas.ICON_FILE
 
-        group_dict = patchcanvas.addGroup(clientId, clientName, pcSplit, pcIcon)
+        group_dict = patchcanvas.bindGroupShell(clientName, clientId, pluginId)
+        if group_dict is None:
+            group_dict = patchcanvas.addGroup(clientId, clientName, pcSplit, pcIcon)
         if getattr(self, "fIsProjectLoading", False):
             self._centerCanvasOnGroup(group_dict)
-            self._hideGroupForGhost(clientName, group_dict)
+            if group_dict is not None and not getattr(group_dict.widgets[0], "_shell", False):
+                self._hideGroupForGhost(clientName, group_dict)
 
         self.updateMiniCanvasLater()
 
@@ -3960,6 +3967,16 @@ class HostWindow(QMainWindow):
         patchcanvas.addPort(clientId, portId, portName, portMode, portType, isAlternate)
         if getattr(self, "fIsProjectLoading", False):
             self._maybeRevealGhost(clientId)
+            try:
+                group = next((g for g in patchcanvas.canvas.group_list if g.group_id == clientId), None)
+                port = next((p for p in patchcanvas.canvas.port_list if p.group_id == clientId and p.port_id == portId), None)
+                if group is not None and port is not None and port.widget is not None:
+                    patchcanvas.snapGhostCables(
+                        group.group_name, port.port_name,
+                        port.widget.sceneBoundingRect().center(),
+                    )
+            except RuntimeError:
+                pass
         self.updateMiniCanvasLater()
 
     @pyqtSlot(int, int)

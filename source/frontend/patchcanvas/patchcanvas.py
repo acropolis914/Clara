@@ -42,6 +42,7 @@ from . import (
     ICON_LADISH_ROOM,
     PORT_MODE_INPUT,
     PORT_MODE_OUTPUT,
+    PORT_TYPE_AUDIO_JACK,
     SPLIT_YES,
     SPLIT_NO,
     SPLIT_UNDEF,
@@ -1234,6 +1235,16 @@ def addPort(group_id, port_id, port_name, port_mode, port_type, is_alternate=Fal
             level="debug",
         )
         return
+
+    for port in canvas.port_list:
+        if port.group_id != group_id or port.port_name != port_name:
+            continue
+        if getattr(port, "port_id", 0) < 0:
+            port.port_id = port_id
+            port_dict = getattr(port.widget, "_port_dict", None)
+            if port_dict is not None:
+                port_dict.port_id = port_id
+            return
 
     display_name = CanvasGetPortDisplayName(source_group.group_name, port_name)
     visual_group_id = group_id
@@ -3060,10 +3071,14 @@ def addGhostCable(src_name, src_port, dst_name, dst_port):
         return None
     src = _ghostByName(src_name)
     dst = _ghostByName(dst_name)
-    if src is None or dst is None:
+    p1 = _ghostAnchor(src, src_port) if src is not None else None
+    p2 = _ghostAnchor(dst, dst_port) if dst is not None else None
+    if p1 is None:
+        p1 = _anchorFor(src_name, src_port)
+    if p2 is None:
+        p2 = _anchorFor(dst_name, dst_port)
+    if p1 is None or p2 is None:
         return None
-    p1 = _ghostAnchor(src, src_port) or src.scenePos()
-    p2 = _ghostAnchor(dst, dst_port) or dst.scenePos()
     cable = CanvasGhostCable(src_name, src_port, dst_name, dst_port)
     cable.setEndpoints(p1, p2)
     canvas.scene.addItem(cable)
@@ -3096,3 +3111,158 @@ def clearGhostCables():
         if cable.scene() is canvas.scene:
             canvas.scene.removeItem(cable)
     canvas.ghost_cable_list = []
+
+
+# ------------------------------------------------------------------------------------------------------------
+# Bindable load shells
+
+def addGroupShell(name, pos, split, left_ports, right_ports):
+    """Create a real canvas node from the project file, with placeholder port ids.
+    The engine callbacks bind these ids later; nothing is recreated."""
+    if not canvas.scene or not name:
+        return None
+
+    gid = getattr(canvas, "next_shell_group_id", -100000)
+    canvas.next_shell_group_id = gid - 1
+
+    icon = ICON_APPLICATION
+    group_box = CanvasBox(gid, name, icon)
+    group_box.blockSignals(True)
+    group_box.setPos(pos)
+    group_sbox = None
+    if split:
+        group_box.setSplit(True, PORT_MODE_OUTPUT)
+        group_sbox = CanvasBox(gid, name, icon)
+        group_sbox.blockSignals(True)
+        group_sbox.setSplit(True, PORT_MODE_INPUT)
+        group_sbox.setPos(pos.x() + group_box.boundingRect().width() + 300, pos.y())
+
+    for widget in (group_box, group_sbox):
+        if widget is not None:
+            widget._shell = True
+            widget._shell_name = name
+            widget._shell_bound = False
+
+    group_dict = group_dict_t()
+    group_dict.group_id = gid
+    group_dict.group_name = name
+    group_dict.pw_node_name = name
+    group_dict.split = bool(split)
+    group_dict.icon = icon
+    group_dict.plugin_id = -1
+    group_dict.plugin_ui = False
+    group_dict.plugin_inline = False
+    group_dict.widgets = [group_box, group_sbox]
+
+    port_id = -1
+    for port_name in left_ports:
+        group_box.addPortFromGroup(port_id, PORT_MODE_OUTPUT, PORT_TYPE_AUDIO_JACK, port_name, False, backend_group_id=gid)
+        port_id -= 1
+    for port_name in right_ports:
+        target = group_sbox if group_sbox is not None else group_box
+        mode = PORT_MODE_INPUT if group_sbox is not None else PORT_MODE_OUTPUT
+        target.addPortFromGroup(port_id, mode, PORT_TYPE_AUDIO_JACK, port_name, False, backend_group_id=gid)
+        port_id -= 1
+
+    group_box.blockSignals(False)
+    if group_sbox is not None:
+        group_sbox.blockSignals(False)
+    group_box.checkItemPos()
+    if group_sbox is not None:
+        group_sbox.checkItemPos()
+
+    canvas.last_z_value += 1
+    group_box.setZValue(canvas.last_z_value)
+    if group_sbox is not None:
+        canvas.last_z_value += 1
+        group_sbox.setZValue(canvas.last_z_value)
+
+    canvas.group_list.append(group_dict)
+    log_carla(f"patchcanvas.addGroupShell: created '{name}' placeholder id={gid} ports={len(left_ports)}+{len(right_ports)}", level="debug")
+
+    if hasattr(canvas, "container_list"):
+        for container in canvas.container_list:
+            for desc in list(container.m_standby_descriptors):
+                if container.matchesDescriptor(group_box, desc):
+                    container.addItem(group_box)
+                    break
+            if group_sbox is not None:
+                for desc in list(container.m_standby_descriptors):
+                    if container.matchesDescriptor(group_sbox, desc):
+                        container.addItem(group_sbox)
+                        break
+
+    return group_dict
+
+
+def bindGroupShell(name, client_id, plugin_id=-1):
+    """Bind a shell to the engine ids. Returns the bound group, or None when no shell matches."""
+    for group in canvas.group_list:
+        box = group.widgets[0]
+        if box is None or not getattr(box, "_shell", False):
+            continue
+        if getattr(box, "_shell_name", None) != name or getattr(box, "_shell_bound", False):
+            continue
+        group.group_id = client_id
+        group.plugin_id = plugin_id
+        for widget in group.widgets:
+            if widget is None:
+                continue
+            try:
+                widget.m_group_id = client_id
+                widget._shell_bound = True
+                widget.update()
+            except RuntimeError:
+                pass
+        for port in canvas.port_list:
+            if port.widget is None:
+                continue
+            try:
+                if port.widget.parentItem() not in group.widgets:
+                    continue
+                port.group_id = client_id
+                port_dict = getattr(port.widget, "_port_dict", None)
+                if port_dict is not None:
+                    port_dict.group_id = client_id
+                if hasattr(port.widget, "m_group_id"):
+                    port.widget.m_group_id = client_id
+            except RuntimeError:
+                pass
+        log_carla(f"patchcanvas.bindGroupShell: bound '{name}' to client {client_id} plugin {plugin_id}", level="debug")
+        return group
+    return None
+
+
+def finalizeShells():
+    """Drop shells whose plugin never loaded and placeholder ports that never bound."""
+    for group in list(canvas.group_list):
+        box = group.widgets[0]
+        if box is None or not getattr(box, "_shell", False):
+            continue
+        if not getattr(box, "_shell_bound", False):
+            log_carla(f"patchcanvas.finalizeShells: dropping unbound shell '{group.group_name}'", level="debug")
+            removeGroup(group.group_id)
+            continue
+        for port in list(canvas.port_list):
+            if port.group_id == group.group_id and getattr(port, "port_id", 0) < 0:
+                removePort(group.group_id, port.port_id)
+
+
+def _groupByName(name):
+    for group in canvas.group_list:
+        if group.group_name == name:
+            return group
+    return None
+
+
+def _anchorFor(name, port_name):
+    group = _groupByName(name)
+    if group is None:
+        return None
+    for port in canvas.port_list:
+        if port.group_id == group.group_id and port.port_name == port_name and port.widget is not None:
+            try:
+                return port.widget.sceneBoundingRect().center()
+            except RuntimeError:
+                return None
+    return None
