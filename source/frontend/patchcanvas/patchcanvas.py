@@ -3221,9 +3221,9 @@ def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=Fa
     if group_sbox is not None:
         group_sbox.blockSignals(False)
     # size to all saved ports, not just the header
-    group_box.updatePositions()
+    group_box.relayout()
     if group_sbox is not None:
-        group_sbox.updatePositions()
+        group_sbox.relayout()
     group_box.checkItemPos()
     if group_sbox is not None:
         group_sbox.checkItemPos()
@@ -3275,7 +3275,7 @@ def bindGroupShell(name, client_id, plugin_id=-1):
                 widget.m_group_id = client_id
                 widget.m_plugin_id = plugin_id
                 widget._shell_bound = True
-                widget.updatePositions()
+                widget.relayout()
                 widget.update()
             except RuntimeError:
                 pass

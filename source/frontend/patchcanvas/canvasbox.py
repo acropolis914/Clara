@@ -764,7 +764,7 @@ class CanvasBox(QGraphicsObject):
 
     def setHideUnconnectedPorts(self, hide):
         self.m_hide_unconnected_ports = bool(hide)
-        self.updatePositions()
+        self.relayout()
         if hasattr(self, "scene") and self.scene():
             self.scene().update()
 
@@ -928,6 +928,7 @@ class CanvasBox(QGraphicsObject):
         new_widget._port_dict = port_dict
 
         self.m_port_list_ids.append(port_id)
+        self.relayout()
 
         return new_widget
 
@@ -942,7 +943,7 @@ class CanvasBox(QGraphicsObject):
             return
 
         if len(self.m_port_list_ids) > 0:
-            self.updatePositions()
+            self.relayout()
 
         elif self.isVisible():
             if options.auto_hide_groups:
@@ -998,6 +999,29 @@ class CanvasBox(QGraphicsObject):
         self.icon_svg = None
         canvas.scene.removeItem(item)
         del item
+
+    def relayout(self):
+        """Idempotent geometry pass: heal the port list, then lay out."""
+        if not hasattr(self, "m_port_list_ids"):
+            return
+        child_ids = set()
+        for child in self.childItems():
+            port_dict = getattr(child, "_port_dict", None)
+            if port_dict is not None and port_dict.group_id == self.m_group_id:
+                child_ids.add(port_dict.port_id)
+        self.m_port_list_ids = [pid for pid in self.m_port_list_ids if pid in child_ids]
+
+        self.updatePositions()
+
+        try:
+            header = canvas.theme.box_header_height + (22 if self.m_plugin_id >= 0 else 0)
+            if self.m_port_list_ids and self.p_height <= header + 1:
+                log_carla(
+                    f"CanvasBox.relayout: '{self.m_group_name}' collapsed to {self.p_height} with {len(self.m_port_list_ids)} ports",
+                    level="warn",
+                )
+        except Exception:
+            pass
 
     def updatePositions(self):
         self.prepareGeometryChange()
