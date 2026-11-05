@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-for pattern in '^python3 \./carla' '^/usr/bin/python3 /usr/share/carla/carla'; do
+for pattern in 'python3 .*/carla( |$)' 'python3 .*/share/carla/carla( |$)'; do
     for pid in $(pgrep -f "$pattern" || true); do
         kill -9 "$pid" 2>/dev/null || true
     done
