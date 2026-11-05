@@ -5719,7 +5719,6 @@ class HostWindow(QMainWindow):
 
         try:
             from rich.console import Console
-            from rich.panel import Panel
             from rich.prompt import Prompt
             from rich.text import Text
 
@@ -5734,8 +5733,7 @@ class HostWindow(QMainWindow):
                 body.append("[T]", style="bold bright_cyan")
                 body.append("      Keep running in the system tray\n", style="dim")
 
-            Console().print(Panel(body, title="[bold yellow] Clara [/]",
-                                  border_style="yellow", padding=(1, 2)))
+            Console().print(body)
 
             answer = Prompt.ask("[bold yellow]Choice[/]", default="",
                                 show_default=False).strip().lower()

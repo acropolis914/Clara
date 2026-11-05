@@ -20,6 +20,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Style
+
+#### 2026-11-05 — No boxes around the CLI banner and Ctrl+C prompt
+
+- **style(cli)**: the startup banner and the terminal SIGINT prompt print their styled text directly instead of inside a rich `Panel`; the content and colors are unchanged.
+
 ### Performance
 
 #### 2026-11-05 — Signal-flow cost

@@ -95,7 +95,6 @@ def printStartupBanner(extraInfo=None):
 
     try:
         from rich.console import Console
-        from rich.panel import Panel
         from rich.text import Text
 
         body = Text()
@@ -113,7 +112,7 @@ def printStartupBanner(extraInfo=None):
                 body.append(f"\n  {label}: ", style="dim")
                 body.append(str(value), style="dim white")
 
-        Console().print(Panel(body, border_style="bright_magenta", padding=(1, 3)))
+        Console().print(body)
         return
     except ImportError:
         pass
