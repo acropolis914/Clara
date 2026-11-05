@@ -3122,7 +3122,7 @@ def clearGhostCables():
 # ------------------------------------------------------------------------------------------------------------
 # Bindable load shells
 
-def addGroupShell(name, pos, split, left_ports, right_ports):
+def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=False, color=""):
     """Create a real canvas node from the project file, with placeholder port ids.
     The engine callbacks bind these ids later; nothing is recreated."""
     if not canvas.scene or not name:
@@ -3148,6 +3148,11 @@ def addGroupShell(name, pos, split, left_ports, right_ports):
             widget._shell = True
             widget._shell_name = name
             widget._shell_bound = False
+            # ports are not connected yet: force the full layout while the shell is unconfirmed
+            widget.m_hide_unconnected_ports = False
+            widget._shell_saved_hide = bool(hide_unconnected)
+            if color:
+                widget.setCustomColor(color, notify=False)
 
     group_dict = group_dict_t()
     group_dict.group_id = gid
@@ -3186,6 +3191,10 @@ def addGroupShell(name, pos, split, left_ports, right_ports):
     group_box.blockSignals(False)
     if group_sbox is not None:
         group_sbox.blockSignals(False)
+    # size to all saved ports, not just the header
+    group_box.updatePositions()
+    if group_sbox is not None:
+        group_sbox.updatePositions()
     group_box.checkItemPos()
     if group_sbox is not None:
         group_sbox.checkItemPos()
@@ -3197,7 +3206,7 @@ def addGroupShell(name, pos, split, left_ports, right_ports):
         group_sbox.setZValue(canvas.last_z_value)
 
     canvas.group_list.append(group_dict)
-    log_carla(f"patchcanvas.addGroupShell: created '{name}' placeholder id={gid} ports={len(left_ports)}+{len(right_ports)}", level="debug")
+    log_carla(f"patchcanvas.addGroupShell: created '{name}' placeholder id={gid} ports={len(left_ports)}+{len(right_ports)} size={group_box.p_width}x{group_box.p_height}", level="debug")
 
     if hasattr(canvas, "container_list"):
         for container in canvas.container_list:
@@ -3271,6 +3280,10 @@ def finalizeShells():
         for port in list(canvas.port_list):
             if port.group_id == group.group_id and getattr(port, "port_id", 0) < 0:
                 removePort(group.group_id, port.port_id)
+        # confirmed: apply the saved "hide unused ports" setting once
+        for widget in group.widgets:
+            if widget is not None and getattr(widget, "_shell_saved_hide", False):
+                widget.setHideUnconnectedPorts(True)
 
 
 def addShellConnection(src_name, src_port_name, dst_name, dst_port_name):
