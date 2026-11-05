@@ -927,6 +927,7 @@ def saveGroupPositions():
         # Port names per side, so a project skeleton can be drawn before plugins load.
         left_ports = []
         right_ports = []
+        port_modes = {}
         for port in canvas.port_list:
             if port.group_id != group.group_id or port.widget is None:
                 continue
@@ -938,12 +939,14 @@ def saveGroupPositions():
                 right_ports.append(port.port_name)
             else:
                 left_ports.append(port.port_name)
+            port_modes[port.port_name] = port.port_mode
 
         ret.append(
             {
                 "name": group.group_name,
                 "left": left_ports,
                 "right": right_ports,
+                "port_modes": port_modes,
                 "pos1x": pos1.x(),
                 "pos1y": pos1.y(),
                 "pos2x": pos2.x(),
@@ -1242,9 +1245,35 @@ def addPort(group_id, port_id, port_name, port_mode, port_type, is_alternate=Fal
         if getattr(port, "port_id", 0) < 0:
             old_port_id = port.port_id
             port.port_id = port_id
+            port.port_name = port_name
+            port.port_mode = port_mode
+            port.port_type = port_type
+            port.is_alternate = is_alternate
             port_dict = getattr(port.widget, "_port_dict", None)
             if port_dict is not None:
                 port_dict.port_id = port_id
+                port_dict.port_name = port_name
+                port_dict.port_mode = port_mode
+                port_dict.port_type = port_type
+                port_dict.is_alternate = is_alternate
+            if hasattr(port.widget, "setPortMode"):
+                port.widget.setPortMode(port_mode)
+            if hasattr(port.widget, "m_port_type"):
+                port.widget.m_port_type = port_type
+            target_parent = source_group.widgets[0]
+            if source_group.split and source_group.widgets[1] is not None and port_mode == PORT_MODE_INPUT:
+                target_parent = source_group.widgets[1]
+            old_parent = port.widget.parentItem()
+            if old_parent is not None and target_parent is not None and old_parent is not target_parent:
+                if hasattr(old_parent, "m_port_list_ids") and old_port_id in old_parent.m_port_list_ids:
+                    old_parent.m_port_list_ids.remove(old_port_id)
+                port.widget.setParentItem(target_parent)
+                if old_port_id not in target_parent.m_port_list_ids:
+                    target_parent.m_port_list_ids.append(old_port_id)
+                old_parent.updatePositions()
+                target_parent.updatePositions()
+            elif old_parent is not None:
+                old_parent.updatePositions()
             for conn in canvas.connection_list:
                 if conn.group_out_id == group_id and conn.port_out_id == old_port_id:
                     conn.port_out_id = port_id
@@ -3122,7 +3151,7 @@ def clearGhostCables():
 # ------------------------------------------------------------------------------------------------------------
 # Bindable load shells
 
-def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=False, color=""):
+def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=False, color="", port_modes=None):
     """Create a real canvas node from the project file, with placeholder port ids.
     The engine callbacks bind these ids later; nothing is recreated."""
     if not canvas.scene or not name:
@@ -3178,13 +3207,13 @@ def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=Fa
             port_dict.widget = widget
             canvas.port_list.append(port_dict)
 
+    port_modes = port_modes or {}
     port_id = -1
-    for port_name in left_ports:
-        _add_shell_port(group_box, port_id, PORT_MODE_OUTPUT, port_name)
-        port_id -= 1
-    for port_name in right_ports:
-        target = group_sbox if group_sbox is not None else group_box
-        mode = PORT_MODE_INPUT if group_sbox is not None else PORT_MODE_OUTPUT
+    for port_name in list(left_ports) + list(right_ports):
+        mode = port_modes.get(port_name)
+        if mode is None:
+            mode = PORT_MODE_INPUT if port_name in right_ports else PORT_MODE_OUTPUT
+        target = group_sbox if (group_sbox is not None and mode == PORT_MODE_INPUT) else group_box
         _add_shell_port(target, port_id, mode, port_name)
         port_id -= 1
 
@@ -3244,7 +3273,9 @@ def bindGroupShell(name, client_id, plugin_id=-1):
                 continue
             try:
                 widget.m_group_id = client_id
+                widget.m_plugin_id = plugin_id
                 widget._shell_bound = True
+                widget.updatePositions()
                 widget.update()
             except RuntimeError:
                 pass

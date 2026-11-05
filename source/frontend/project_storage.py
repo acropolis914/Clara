@@ -149,6 +149,7 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                             try:
                                 entry["left"] = json.loads(ports_elem.get("left", "[]"))
                                 entry["right"] = json.loads(ports_elem.get("right", "[]"))
+                                entry["port_modes"] = json.loads(ports_elem.get("modes", "{}"))
                             except Exception:
                                 pass
                         data_list.append(entry)
@@ -235,6 +236,7 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                     ports_elem = ET.SubElement(p_elem, "Ports")
                     ports_elem.set("left", json.dumps(list(left_ports)))
                     ports_elem.set("right", json.dumps(list(right_ports)))
+                    ports_elem.set("modes", json.dumps(pos_data.get("port_modes") or {}))
 
             _atomic_write_xml(tree, filepath)
             return True
@@ -346,6 +348,7 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                             if isinstance(ports, dict):
                                 entry["left"] = ports.get("left", [])
                                 entry["right"] = ports.get("right", [])
+                                entry["port_modes"] = ports.get("modes", {})
                             positions.append(entry)
 
             if not positions:
@@ -371,6 +374,8 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                             entry["left"] = list(p["left"])
                         if p.get("right"):
                             entry["right"] = list(p["right"])
+                        if p.get("port_modes"):
+                            entry["port_modes"] = dict(p["port_modes"])
                         positions.append(entry)
 
             setattr(positions, "infinite_canvas", is_infinite)
@@ -426,7 +431,7 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                     left_ports = p.get("left") or []
                     right_ports = p.get("right") or []
                     if left_ports or right_ports:
-                        entry["Ports"] = {"left": list(left_ports), "right": list(right_ports)}
+                        entry["Ports"] = {"left": list(left_ports), "right": list(right_ports), "modes": dict(p.get("port_modes") or {})}
                     canvas_pos_elem["Position"].append(entry)
                 doc["CARLA-PROJECT"]["CanvasPositions"] = canvas_pos_elem
             else:
@@ -461,6 +466,8 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                         entry["left"] = list(p["left"])
                     if p.get("right"):
                         entry["right"] = list(p["right"])
+                    if p.get("port_modes"):
+                        entry["port_modes"] = dict(p["port_modes"])
                     clean_positions.append(entry)
                 doc["canvas_positions"] = clean_positions
 

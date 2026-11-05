@@ -1450,6 +1450,7 @@ class HostWindow(QMainWindow):
                     data.get("right") or [],
                     bool(data.get("hide_unconnected_ports")),
                     data.get("color") or "",
+                    data.get("port_modes") or {},
                 )
             except Exception as e:
                 logger.warning("CANVAS", f"prepareCanvasForLoad shell '{name}' failed: {e}")
