@@ -1240,10 +1240,16 @@ def addPort(group_id, port_id, port_name, port_mode, port_type, is_alternate=Fal
         if port.group_id != group_id or port.port_name != port_name:
             continue
         if getattr(port, "port_id", 0) < 0:
+            old_port_id = port.port_id
             port.port_id = port_id
             port_dict = getattr(port.widget, "_port_dict", None)
             if port_dict is not None:
                 port_dict.port_id = port_id
+            for conn in canvas.connection_list:
+                if conn.group_out_id == group_id and conn.port_out_id == old_port_id:
+                    conn.port_out_id = port_id
+                if conn.group_in_id == group_id and conn.port_in_id == old_port_id:
+                    conn.port_in_id = port_id
             return
 
     display_name = CanvasGetPortDisplayName(source_group.group_name, port_name)
@@ -3154,14 +3160,27 @@ def addGroupShell(name, pos, split, left_ports, right_ports):
     group_dict.plugin_inline = False
     group_dict.widgets = [group_box, group_sbox]
 
+    def _add_shell_port(target, port_id, mode, port_name):
+        widget = target.addPortFromGroup(port_id, mode, PORT_TYPE_AUDIO_JACK, port_name, False, backend_group_id=gid)
+        port_dict = getattr(widget, "_port_dict", None)
+        if port_dict is not None:
+            port_dict.group_id = gid
+            port_dict.port_id = port_id
+            port_dict.port_name = port_name
+            port_dict.port_mode = mode
+            port_dict.port_type = PORT_TYPE_AUDIO_JACK
+            port_dict.is_alternate = False
+            port_dict.widget = widget
+            canvas.port_list.append(port_dict)
+
     port_id = -1
     for port_name in left_ports:
-        group_box.addPortFromGroup(port_id, PORT_MODE_OUTPUT, PORT_TYPE_AUDIO_JACK, port_name, False, backend_group_id=gid)
+        _add_shell_port(group_box, port_id, PORT_MODE_OUTPUT, port_name)
         port_id -= 1
     for port_name in right_ports:
         target = group_sbox if group_sbox is not None else group_box
         mode = PORT_MODE_INPUT if group_sbox is not None else PORT_MODE_OUTPUT
-        target.addPortFromGroup(port_id, mode, PORT_TYPE_AUDIO_JACK, port_name, False, backend_group_id=gid)
+        _add_shell_port(target, port_id, mode, port_name)
         port_id -= 1
 
     group_box.blockSignals(False)
@@ -3203,8 +3222,14 @@ def bindGroupShell(name, client_id, plugin_id=-1):
             continue
         if getattr(box, "_shell_name", None) != name or getattr(box, "_shell_bound", False):
             continue
+        old_group_id = group.group_id
         group.group_id = client_id
         group.plugin_id = plugin_id
+        for conn in canvas.connection_list:
+            if conn.group_out_id == old_group_id:
+                conn.group_out_id = client_id
+            if conn.group_in_id == old_group_id:
+                conn.group_in_id = client_id
         for widget in group.widgets:
             if widget is None:
                 continue
@@ -3246,6 +3271,50 @@ def finalizeShells():
         for port in list(canvas.port_list):
             if port.group_id == group.group_id and getattr(port, "port_id", 0) < 0:
                 removePort(group.group_id, port.port_id)
+
+
+def addShellConnection(src_name, src_port_name, dst_name, dst_port_name):
+    """Create a real cable between shell ports with a temporary negative connection id."""
+    src_group = _groupByName(src_name)
+    dst_group = _groupByName(dst_name)
+    if src_group is None or dst_group is None:
+        return None
+    src_port = next((p for p in canvas.port_list if p.group_id == src_group.group_id and p.port_name == src_port_name), None)
+    dst_port = next((p for p in canvas.port_list if p.group_id == dst_group.group_id and p.port_name == dst_port_name), None)
+    if src_port is None or dst_port is None or src_port.widget is None or dst_port.widget is None:
+        return None
+    temp_id = getattr(canvas, "next_shell_connection_id", -1)
+    canvas.next_shell_connection_id = temp_id - 1
+    connectPorts(temp_id, src_group.group_id, src_port.port_id, dst_group.group_id, dst_port.port_id, fromSplitOrJoin=True)
+    log_carla(f"patchcanvas.addShellConnection: temp id={temp_id} {src_name}:{src_port_name} -> {dst_name}:{dst_port_name}", level="debug")
+    return temp_id
+
+
+def bindShellConnection(connection_id, group_out_id, port_out_id, group_in_id, port_in_id):
+    for conn in canvas.connection_list:
+        if conn.connection_id >= 0:
+            continue
+        if (conn.group_out_id, conn.port_out_id, conn.group_in_id, conn.port_in_id) != (group_out_id, port_out_id, group_in_id, port_in_id):
+            continue
+        old_id = conn.connection_id
+        conn.connection_id = connection_id
+        for group in canvas.group_list:
+            for widget in group.widgets:
+                if widget is None:
+                    continue
+                for cb in getattr(widget, "m_connection_lines", []):
+                    if cb.connection_id == old_id:
+                        cb.connection_id = connection_id
+        log_carla(f"patchcanvas.bindShellConnection: {old_id} -> {connection_id}", level="debug")
+        return True
+    return False
+
+
+def finalizeShellConnections():
+    for conn in list(canvas.connection_list):
+        if conn.connection_id < 0:
+            log_carla(f"patchcanvas.finalizeShellConnections: dropping unbound cable {conn.connection_id}", level="debug")
+            disconnectPorts(conn.connection_id)
 
 
 def _groupByName(name):

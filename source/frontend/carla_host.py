@@ -1463,7 +1463,7 @@ class HostWindow(QMainWindow):
                             continue
                         src_group, _, src_port = src.rpartition(":")
                         dst_group, _, dst_port = dst.rpartition(":")
-                        patchcanvas.addGhostCable(src_group, src_port, dst_group, dst_port)
+                        patchcanvas.addShellConnection(src_group, src_port, dst_group, dst_port)
         except Exception as e:
             logger.warning("CANVAS", f"prepareCanvasForLoad connections failed: {e}")
 
@@ -1755,6 +1755,7 @@ class HostWindow(QMainWindow):
 
             self.fLastLoadedSource = None
 
+        patchcanvas.finalizeShellConnections()
         patchcanvas.finalizeShells()
         self._revealAllGhostHidden()
         patchcanvas.clearGhosts()
@@ -4021,18 +4022,10 @@ class HostWindow(QMainWindow):
         if groupOutId in self.fFilteredPatchbayClients or groupInId in self.fFilteredPatchbayClients:
             return
         self.fConnections[connectionId] = (groupOutId, portOutId, groupInId, portInId)
-        patchcanvas.connectPorts(
-            connectionId, groupOutId, portOutId, groupInId, portInId
-        )
-        try:
-            names = {g.group_id: g.group_name for g in patchcanvas.canvas.group_list}
-            ports = {(p.group_id, p.port_id): p.port_name for p in patchcanvas.canvas.port_list}
-            patchcanvas.removeGhostCable(
-                names.get(groupOutId), ports.get((groupOutId, portOutId)),
-                names.get(groupInId), ports.get((groupInId, portInId)),
+        if not patchcanvas.bindShellConnection(connectionId, groupOutId, portOutId, groupInId, portInId):
+            patchcanvas.connectPorts(
+                connectionId, groupOutId, portOutId, groupInId, portInId
             )
-        except Exception:
-            pass
         if getattr(self, "fLoadingDialog", None) is not None:
             self.fLoadingDialog.setDetail("Restoring audio/MIDI graph routing connections...")
         self.updateMiniCanvasLater()
