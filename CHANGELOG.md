@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Skeletons survive a reload
+
+- **fix(patchbay)**: `bindGroupShell` retries with the base client name after stripping JACK's duplicate suffix (`-01`, `-02`, ...). Reloading with the engine running no longer leaves the new (suffixed) client unbound while the saved shells are dropped at finalize. Adds `test_shell_binding.py`.
+
 #### 2026-11-07 — Track the canvas aggregator
 
 - **fix(build)**: `canvas_ui.py` matched `.gitignore`'s `*_ui.py` and was never committed, so a clean checkout could not import the host. Renamed to `canvas_api.py` and added to the install lists.

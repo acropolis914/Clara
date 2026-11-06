@@ -5,6 +5,8 @@
 # ------------------------------------------------------------------------------------------------------------
 # Imports (Global)
 
+import re
+
 from qt_compat import (
     pyqtSlot,
     qCritical,
@@ -3326,55 +3328,72 @@ def addGroupShell(name, pos, split, left_ports, right_ports, hide_unconnected=Fa
     return group_dict
 
 
+def canonical_client_name(name):
+    """Drop JACK's duplicate-client suffix (-01, -02, ...) so a still-closing
+    client from the previous load cannot stop the new one from binding."""
+    return re.sub(r"-\d{2,}$", "", name or "")
+
+
+def _bind_shell(group, client_id, plugin_id):
+    old_group_id = group.group_id
+    group.group_id = client_id
+    group.plugin_id = plugin_id
+    for conn in canvas.connection_list:
+        if conn.group_out_id == old_group_id:
+            conn.group_out_id = client_id
+        if conn.group_in_id == old_group_id:
+            conn.group_in_id = client_id
+    for widget in group.widgets:
+        if widget is None:
+            continue
+        try:
+            widget.m_group_id = client_id
+            widget.m_plugin_id = plugin_id
+            widget._shell_reserve_subbar = False
+            widget._shell_bound = True
+            widget.relayout()
+            widget.update()
+        except RuntimeError:
+            pass
+    for port in canvas.port_list:
+        if port.widget is None:
+            continue
+        try:
+            if port.widget.parentItem() not in group.widgets:
+                continue
+            port.group_id = client_id
+            port_dict = getattr(port.widget, "_port_dict", None)
+            if port_dict is not None:
+                port_dict.group_id = client_id
+            if hasattr(port.widget, "m_group_id"):
+                port.widget.m_group_id = client_id
+        except RuntimeError:
+            pass
+    # Ports can arrive before their client (engine already running): replay them now.
+    pending_ports = canvas.pending_ports.pop(client_id, None)
+    if pending_ports:
+        for port_id, port_name, port_mode, port_type, is_alternate in pending_ports:
+            addPort(client_id, port_id, port_name, port_mode, port_type, is_alternate)
+    log_carla(f"patchcanvas.bindGroupShell: bound '{group.group_name}' to client {client_id} plugin {plugin_id}", level="debug")
+    return group
+
+
 def bindGroupShell(name, client_id, plugin_id=-1):
     """Bind a shell to the engine ids. Returns the bound group, or None when no shell matches."""
-    for group in canvas.group_list:
-        box = group.widgets[0]
-        if box is None or not getattr(box, "_shell", False):
-            continue
-        if getattr(box, "_shell_name", None) != name or getattr(box, "_shell_bound", False):
-            continue
-        old_group_id = group.group_id
-        group.group_id = client_id
-        group.plugin_id = plugin_id
-        for conn in canvas.connection_list:
-            if conn.group_out_id == old_group_id:
-                conn.group_out_id = client_id
-            if conn.group_in_id == old_group_id:
-                conn.group_in_id = client_id
-        for widget in group.widgets:
-            if widget is None:
+    if not name:
+        return None
+    candidates = [name]
+    base = canonical_client_name(name)
+    if base != name:
+        candidates.append(base)
+    for candidate in candidates:
+        for group in canvas.group_list:
+            box = group.widgets[0]
+            if box is None or not getattr(box, "_shell", False):
                 continue
-            try:
-                widget.m_group_id = client_id
-                widget.m_plugin_id = plugin_id
-                widget._shell_reserve_subbar = False
-                widget._shell_bound = True
-                widget.relayout()
-                widget.update()
-            except RuntimeError:
-                pass
-        for port in canvas.port_list:
-            if port.widget is None:
+            if getattr(box, "_shell_name", None) != candidate or getattr(box, "_shell_bound", False):
                 continue
-            try:
-                if port.widget.parentItem() not in group.widgets:
-                    continue
-                port.group_id = client_id
-                port_dict = getattr(port.widget, "_port_dict", None)
-                if port_dict is not None:
-                    port_dict.group_id = client_id
-                if hasattr(port.widget, "m_group_id"):
-                    port.widget.m_group_id = client_id
-            except RuntimeError:
-                pass
-        # Ports can arrive before their client (engine already running): replay them now.
-        pending_ports = canvas.pending_ports.pop(client_id, None)
-        if pending_ports:
-            for port_id, port_name, port_mode, port_type, is_alternate in pending_ports:
-                addPort(client_id, port_id, port_name, port_mode, port_type, is_alternate)
-        log_carla(f"patchcanvas.bindGroupShell: bound '{name}' to client {client_id} plugin {plugin_id}", level="debug")
-        return group
+            return _bind_shell(group, client_id, plugin_id)
     return None
 
 
