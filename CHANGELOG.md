@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — Widgets split: plugin editor and project dialogs
+
+- **refactor(widgets)**: `carla_widgets.py` (2,151 lines) now re-exports `plugin_edit.py` (`PluginParameter`, `PluginEdit`) and `project_dialogs.py` (`ProjectLoadSummaryDialog`, `ProjectLoadingDialog`, `InlineLoadingBanner`), leaving a 134-line aggregator. Fixed a latent `_app` NameError in the plugin editor close path. Install lists updated.
+
 #### 2026-11-06 — Canvas split into cohesive modules
 
 - **refactor(canvas)**: `carla_canvas.py` (2,621 lines) split into `canvas_logic.py` (stereo patchbay helpers), `canvas_helpers.py` (event/glyph/lock helpers), `canvas_toolbar.py` (navigation palette), `canvas_context_toolbar.py` (context palette), `canvas_viewport.py` (viewport input/overlays) and `canvas_callbacks.py` (global patchbay callback). `canvas_ui.py` re-exports the same names, so host/patchbay imports only changed module name. Install lists include the new files.

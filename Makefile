@@ -692,7 +692,7 @@ endif
 		canvas_context_toolbar.py canvas_viewport.py canvas_callbacks.py \
 		window_events.py minimap.py patchbay_view.py \
 		carla_settings.py carla_skin.py carla_shared.py carla_utils.py \
-		carla_widgets.py externalui.py qt_compat.py qt_config.py resources_rc.py \
+		carla_widgets.py plugin_edit.py project_dialogs.py externalui.py qt_compat.py qt_config.py resources_rc.py \
 		ui_carla_edit.py ui_carla_host.py ui_carla_parameter.py ui_carla_plugin_calf.py \
 		ui_carla_plugin_classic.py ui_carla_plugin_compact.py ui_carla_plugin_default.py \
 		ui_carla_plugin_presets.py ui_carla_settings.py ui_carla_settings_driver.py \

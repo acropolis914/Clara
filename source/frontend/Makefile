@@ -116,6 +116,8 @@ RES = \
 	$(BINDIR)/resources/carla_shared.py \
 	$(BINDIR)/resources/carla_utils.py \
 	$(BINDIR)/resources/carla_widgets.py \
+	$(BINDIR)/resources/plugin_edit.py \
+	$(BINDIR)/resources/project_dialogs.py \
 	$(BINDIR)/resources/externalui.py \
 	$(BINDIR)/resources/midipattern-ui \
 	$(BINDIR)/resources/notes-ui \
