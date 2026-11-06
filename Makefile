@@ -688,6 +688,8 @@ endif
 	@for item in common patchcanvas styles utils widgets dialogs pluginlist \
 		carla_app.py carla_backend.py carla_backend_qt.py carla_frontend.py host_app.py \
 		osc_control.py local_control.py rewire_flow.py settings_panel.py project_menu.py plugins_menu.py engine_menu.py canvas_input.py app_menus.py host_internal.py \
+		canvas_ui.py canvas_logic.py canvas_helpers.py canvas_toolbar.py \
+		canvas_context_toolbar.py canvas_viewport.py canvas_callbacks.py \
 		window_events.py minimap.py patchbay_view.py \
 		carla_settings.py carla_skin.py carla_shared.py carla_utils.py \
 		carla_widgets.py externalui.py qt_compat.py qt_config.py resources_rc.py \

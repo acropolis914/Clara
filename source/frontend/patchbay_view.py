@@ -21,7 +21,7 @@ from carla_backend import (
     PLUGIN_HAS_CUSTOM_UI,
     PLUGIN_HAS_INLINE_DISPLAY,
 )
-from carla_canvas import CanvasViewportFilter, canvasCallback
+from canvas_ui import CanvasViewportFilter, canvasCallback
 from carla_logger import logger
 from carla_shared import (
     CARLA_DEFAULT_CANVAS_ARRANGE_STYLE,

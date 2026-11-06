@@ -32,13 +32,12 @@ from carla_shared import *
 from carla_utils import *
 from carla_widgets import *
 from patchcanvas import patchcanvas
-from carla_canvas import (
+from canvas_ui import (
     CanvasViewportFilter,
     autoConnectStereoPair,
     canvasCallback,
     findStereoPartner,
     findStereoPartnerConnection,
-    log_carla,
 )
 from rewire_flow import RewireFlowMixin
 from local_control import ControlMixin

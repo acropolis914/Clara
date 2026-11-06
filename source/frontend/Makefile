@@ -104,6 +104,13 @@ RES = \
 	$(BINDIR)/resources/canvas_input.py \
 	$(BINDIR)/resources/app_menus.py \
 	$(BINDIR)/resources/host_internal.py \
+	$(BINDIR)/resources/canvas_ui.py \
+	$(BINDIR)/resources/canvas_logic.py \
+	$(BINDIR)/resources/canvas_helpers.py \
+	$(BINDIR)/resources/canvas_toolbar.py \
+	$(BINDIR)/resources/canvas_context_toolbar.py \
+	$(BINDIR)/resources/canvas_viewport.py \
+	$(BINDIR)/resources/canvas_callbacks.py \
 	$(BINDIR)/resources/carla_settings.py \
 	$(BINDIR)/resources/carla_skin.py \
 	$(BINDIR)/resources/carla_shared.py \
