@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — Clean log capture
+
+- **fix(logger)**: ANSI codes are stripped before control characters, so the escaped `\x1b` byte can no longer leave literal `[31m`/`[0m` in history, the UI or `claramsg events`. Leftover (already-ESC-stripped) color codes are cleaned too, and red/yellow prefixes map to ERROR/WARNING when the message has no severity word. `LogEntry` sanitises every message, not just captured stderr.
+
 #### 2026-11-06 — Single Qt compatibility layer
 
 - **refactor(qt)**: removed the per-module PyQt5/PyQt6 import conditionals and import everything through `qt_compat` again: `plugin_edit.py`, `project_dialogs.py`, `carla_widgets.py`, `carla_app.py`, `carla_shared.py`, `carla_instance.py`, `osc_control.py`, `carla_backend_qt.py`, `carla_logger.py`, `dialogs/jackappdialog_py.py`, `utils/qsafesettings.py`, `pluginlist/pluginlistdialog_py.py` and `pluginlist/startup_scanner.py`. `qt_compat` now also exports `QByteArray`, `QCoreApplication`, `QDir`, `QLibraryInfo`, `QLocale`, `QTranslator`, `QT_VERSION_STR`, `PYQT_VERSION_STR`, `QListView`, `QRadioButton` and `QToolBox`. Generated `ui_*.py` and `resources_rc.py` are untouched.

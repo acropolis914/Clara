@@ -70,6 +70,33 @@ KNOWN_TAGS = [
     "BACKEND",
 ]
 
+# ANSI CSI/OSC sequences, plus color codes whose ESC was already stripped by
+# an earlier capture layer (which is how "[31m" used to end up as literal text).
+_ANSI_RE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+_MANGLED_ANSI_RE = re.compile(r"\[[0-9;]{1,8}m")
+_ANSI_LEVEL_RE = re.compile(r"\x1b\[([0-9;]*)m")
+
+
+def _strip_ansi(text):
+    if not isinstance(text, str):
+        return text
+    return _MANGLED_ANSI_RE.sub("", _ANSI_RE.sub("", text))
+
+
+def _ansi_to_level(text):
+    """Map a red/yellow ANSI prefix to a level before the codes are stripped."""
+    if not isinstance(text, str):
+        return None
+    codes = _ANSI_LEVEL_RE.findall(text) + _MANGLED_ANSI_RE.findall(text)
+    for code in codes:
+        parts = code.strip("[]m").split(";")
+        if "31" in parts or "91" in parts:
+            return LOG_LEVEL_ERROR
+        if "33" in parts or "93" in parts:
+            return LOG_LEVEL_WARNING
+    return None
+
+
 class LogEntry:
     __slots__ = ("timestamp", "level", "tag", "message", "raw_text")
 
@@ -77,7 +104,7 @@ class LogEntry:
         self.timestamp = datetime.now()
         self.level = level
         self.tag = tag.upper().strip("[] ") if tag else "APP"
-        self.message = message
+        self.message = _strip_ansi(message)
         self.raw_text = raw_text or f"[{self.tag}] {message}"
 
     def formatted_ui(self):
@@ -235,16 +262,19 @@ class CarlaLogger(QObject):
         if isinstance(text, bytes):
             text = text.decode("utf-8", errors="replace")
 
+        # Read colours before stripping: C++ logs often report severity only
+        # through the ANSI prefix (red = error, yellow = warning).
+        ansi_level = _ansi_to_level(text)
+
+        # ANSI first: dropping the ESC byte first would leave "[31m" in the text.
+        text = _strip_ansi(text)
+
         # Strip non-printable and binary control characters (except tab/newline)
         text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', text)
 
         level = explicit_level if explicit_level is not None else LOG_LEVEL_INFO
         tag = "APP"
-        clean_text = text
-
-        # Strip ANSI escape sequences if any
-        ansi_regex = re.compile(r'\x1b\[[0-9;]*m')
-        clean_text = ansi_regex.sub('', clean_text).strip()
+        clean_text = text.strip()
         if not clean_text:
             return
 
@@ -362,6 +392,8 @@ class CarlaLogger(QObject):
                 level = LOG_LEVEL_WARNING
             elif "DEBUG" in upper_text:
                 level = LOG_LEVEL_DEBUG
+            elif ansi_level is not None:
+                level = ansi_level
 
         # Look for [carla] prefix (e.g. from backend assertions / logging)
         if clean_text.startswith("[carla]"):
