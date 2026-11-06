@@ -2008,7 +2008,7 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
 
             # Restore layout containers (VBox, HBox, Grid)
             containers_data = getattr(data_list, "patchbay_containers", None)
-            logger.info("CANVAS", f"loadCanvasGroupPositionsFromProject: containers_data count={len(containers_data) if containers_data else 0}")
+            logger.debug("CANVAS", f"loadCanvasGroupPositionsFromProject: containers_data count={len(containers_data) if containers_data else 0}")
             if containers_data:
                 patchcanvas.loadContainers(containers_data)
                 self._setLoadingProgress(96, "Restoring containers...")

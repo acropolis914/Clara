@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Quiet the INFO log
+
+- **fix(logging)**: internal chatter no longer shows at INFO: patchbay mouse-release/connection requests, shell-size diffs, container/group AABB audits, canvas-position counts, viewport detection and plugin-discovery start/finish are DEBUG now. AABB audits still warn when something actually overflows, and their summaries warn only when mismatched. Removed the stale `carla_canvas:`/`[SCANNER]` prefixes.
+
 #### 2026-11-06 — Clean log capture
 
 - **fix(logger)**: ANSI codes are stripped before control characters, so the escaped `\x1b` byte can no longer leave literal `[31m`/`[0m` in history, the UI or `claramsg events`. Leftover (already-ESC-stripped) color codes are cleaned too, and red/yellow prefixes map to ERROR/WARNING when the message has no severity word. `LogEntry` sanitises every message, not just captured stderr.

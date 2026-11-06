@@ -109,7 +109,8 @@ def canvasCallback(action, value1, value2, valueStr):
     elif action == patchcanvas.ACTION_PORTS_CONNECT:
         gOut, pOut, gIn, pIn = tuple(int(i) for i in valueStr.split(":"))
         log_carla(
-            f"carla_canvas: ACTION_PORTS_CONNECT {gOut}:{pOut} -> {gIn}:{pIn} (external={gCarla.gui.fExternalPatchbay})"
+            f"connect {gOut}:{pOut} -> {gIn}:{pIn} (external={gCarla.gui.fExternalPatchbay})",
+            level="debug",
         )
 
         if not host.patchbay_connect(

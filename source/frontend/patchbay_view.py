@@ -264,7 +264,7 @@ class CanvasMixin:
         try:
             vp = self.ui.graphicsView.viewport()
             is_gl = "GL" in type(vp).__name__.upper()
-            logger.info(
+            logger.debug(
                 "CANVAS",
                 "Patchbay viewport: %s (%s), update mode %s, UseOpenGL setting=%s, GL available=%s"
                 % (

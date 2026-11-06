@@ -220,7 +220,7 @@ class PluginScannerThread(QThread):
                 continue
 
             self.statusChanged.emit(f"Scanning {label}...")
-            log_carla(f"[SCANNER] Starting discovery for {label} (path='{path}')", level="info")
+            log_carla(f"Starting discovery for {label} (path='{path}')", level="debug")
 
             runner = PluginDiscovery(infoCallback, checkCacheCallback)
             self._currentRunner = runner
@@ -232,7 +232,7 @@ class PluginScannerThread(QThread):
                         break
                     # Gentle yield so Qt main event loop and audio engine experience zero jitter
                     time.sleep(0.003)
-            log_carla(f"[SCANNER] Finished discovery for {label}", level="info")
+            log_carla(f"Finished discovery for {label}", level="debug")
 
             self._currentRunner = None
 

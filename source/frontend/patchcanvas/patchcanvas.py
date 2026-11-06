@@ -3402,7 +3402,7 @@ def finalizeShells():
                         if abs(widget.p_width - initial[0]) > 0.5 or abs(widget.p_height - initial[1]) > 0.5:
                             log_carla(
                                 f"SHELLDIFF '{group.group_name}' shell={initial[0]:.0f}x{initial[1]:.0f} final={widget.p_width:.0f}x{widget.p_height:.0f}",
-                                level="warn",
+                                level="debug",
                             )
                     except RuntimeError:
                         pass
@@ -3596,12 +3596,13 @@ def auditGroupAABBs():
                     f"GROUPAABB '{group.group_name}' box={box_rect.width():.0f}x{box_rect.height():.0f} "
                     f"content={content_rect.width():.0f}x{content_rect.height():.0f} "
                     f"dw={dw:+.0f} dh={dh:+.0f}",
-                    level="warn",
+                    level="debug",
                 )
         except RuntimeError:
             continue
 
-    log_carla(f"GROUPAABB: {mismatched} group(s) whose content extends past the box", level="info")
+    log_carla(f"GROUPAABB: {mismatched} group(s) whose content extends past the box",
+              level="warn" if mismatched else "debug")
 
 
 def auditContainerAABBs():
@@ -3644,12 +3645,13 @@ def auditContainerAABBs():
                 f"boxes={box_rect.width():.0f}x{box_rect.height():.0f} "
                 f"content={content_rect.width():.0f}x{content_rect.height():.0f} "
                 f"dw={dw:+.0f} dh={dh:+.0f} members={len(members)} outside={outside}",
-                level="warn" if outside else "info",
+                level="warn" if outside else "debug",
             )
         except RuntimeError:
             continue
 
-    log_carla(f"CONTAINERAABB: {mismatched} container(s) whose content extends past the frame", level="info")
+    log_carla(f"CONTAINERAABB: {mismatched} container(s) whose content extends past the frame",
+              level="warn" if mismatched else "debug")
 
 
 def snapshotShellSizes():
