@@ -12,7 +12,7 @@ from carla_backend import (
     ENGINE_OPTION_AUDIO_SAMPLE_RATE,
     NSM_CALLBACK_OPEN,
 )
-from carla_settings import DriverSettingsW, RuntimeDriverSettingsW
+from driver_settings import DriverSettingsW, RuntimeDriverSettingsW
 from carla_shared import CARLA_DEFAULT_AUDIO_DRIVER, CARLA_KEY_ENGINE_AUDIO_DRIVER
 from patchcanvas import patchcanvas
 from qt_compat import QMessageBox, QTimer, pyqtSlot

@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — Driver settings split out
+
+- **refactor(settings)**: `DriverSettingsW` and `RuntimeDriverSettingsW` moved to `driver_settings.py`; `carla_settings.py` keeps the main `CarlaSettingsW` and is 1,765 lines (from 2,103). The glyph icon cache is owned by the module that uses it. Engine menu imports updated.
+
 #### 2026-11-06 — Widgets split: plugin editor and project dialogs
 
 - **refactor(widgets)**: `carla_widgets.py` (2,151 lines) now re-exports `plugin_edit.py` (`PluginParameter`, `PluginEdit`) and `project_dialogs.py` (`ProjectLoadSummaryDialog`, `ProjectLoadingDialog`, `InlineLoadingBanner`), leaving a 134-line aggregator. Fixed a latent `_app` NameError in the plugin editor close path. Install lists updated.

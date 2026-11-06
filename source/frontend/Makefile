@@ -112,6 +112,7 @@ RES = \
 	$(BINDIR)/resources/canvas_viewport.py \
 	$(BINDIR)/resources/canvas_callbacks.py \
 	$(BINDIR)/resources/carla_settings.py \
+	$(BINDIR)/resources/driver_settings.py \
 	$(BINDIR)/resources/carla_skin.py \
 	$(BINDIR)/resources/carla_shared.py \
 	$(BINDIR)/resources/carla_utils.py \
