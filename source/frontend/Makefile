@@ -92,11 +92,11 @@ RES = \
 	$(BINDIR)/resources/carla_backend_qt.py \
 	$(BINDIR)/resources/carla_host.py \
 	$(BINDIR)/resources/carla_host_control.py \
-	$(BINDIR)/resources/carla_control.py \
-	$(BINDIR)/resources/carla_rewire_flow.py \
-	$(BINDIR)/resources/carla_host_events.py \
-	$(BINDIR)/resources/carla_host_minicanvas.py \
-	$(BINDIR)/resources/carla_host_canvas.py \
+	$(BINDIR)/resources/local_control.py \
+	$(BINDIR)/resources/rewire_flow.py \
+	$(BINDIR)/resources/window_events.py \
+	$(BINDIR)/resources/minimap.py \
+	$(BINDIR)/resources/patchbay_view.py \
 	$(BINDIR)/resources/carla_settings.py \
 	$(BINDIR)/resources/carla_skin.py \
 	$(BINDIR)/resources/carla_shared.py \

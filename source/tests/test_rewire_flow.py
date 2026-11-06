@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 from qt_compat import QApplication, QPointF
 
-import carla_rewire_flow
-from carla_rewire_flow import RewireFlowMixin
+import rewire_flow
+from rewire_flow import RewireFlowMixin
 
 app = QApplication.instance() or QApplication([])
 
@@ -122,7 +122,7 @@ class FakeHost(RewireFlowMixin):
 
 
 _canvas = FakeCanvas()
-_patchcanvas = carla_rewire_flow.patchcanvas
+_patchcanvas = rewire_flow.patchcanvas
 _patchcanvas.canvas = _canvas
 
 

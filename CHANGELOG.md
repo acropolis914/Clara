@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — Semantic, carla-free module names
+
+- **refactor(naming)**: renamed the hand-written split modules to names that say what they do: `carla_host_events.py` → `window_events.py`, `carla_host_minicanvas.py` → `minimap.py`, `carla_host_canvas.py` → `patchbay_view.py`, `carla_control.py` → `local_control.py`, `carla_rewire_flow.py` → `rewire_flow.py`. Imports, tests and both install lists follow. Generated `ui_*.py` files are untouched.
+
 #### 2026-11-06 — Host split: events, minimap, canvas
 
 - **refactor(host)**: window events/timers/system tray/update checks (`carla_host_events.py`), MiniCanvas controls (`carla_host_minicanvas.py`) and the patchbay canvas setup/menu/callbacks (`carla_host_canvas.py`) moved out of `carla_host.py` into mixins that `HostWindow` inherits. No call sites changed; `carla_host.py` drops from 7,486 to 5,574 lines. Both install lists include the new files.
