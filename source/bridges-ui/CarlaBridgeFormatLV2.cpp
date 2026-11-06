@@ -18,6 +18,12 @@
 #include <string>
 #include <vector>
 
+#ifdef CARLA_OS_LINUX
+# include <signal.h>
+# include <sys/prctl.h>
+# include <unistd.h>
+#endif
+
 #define URI_CARLA_ATOM_WORKER_IN   "http://kxstudio.sf.net/ns/carla/atomWorkerIn"
 #define URI_CARLA_ATOM_WORKER_RESP "http://kxstudio.sf.net/ns/carla/atomWorkerResp"
 #define URI_CARLA_PARAMETER_CHANGE "http://kxstudio.sf.net/ns/carla/parameterChange"
@@ -1528,6 +1534,12 @@ CARLA_BRIDGE_UI_END_NAMESPACE
 
 int main(int argc, const char* argv[])
 {
+#ifdef CARLA_OS_LINUX
+    prctl(PR_SET_PDEATHSIG, SIGKILL);
+    if (getppid() == 1)
+        return 0;
+#endif
+
     CARLA_BRIDGE_UI_USE_NAMESPACE
 
     if (argc < 2)

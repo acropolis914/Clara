@@ -25,6 +25,8 @@
 
 #ifdef CARLA_OS_LINUX
 # include <sched.h>
+# include <sys/prctl.h>
+# include <unistd.h>
 # define SCHED_RESET_ON_FORK 0x40000000
 #endif
 
@@ -306,6 +308,14 @@ private:
 
 int main(int argc, char* argv[])
 {
+#ifdef CARLA_OS_LINUX
+    // Die with the host, even when the host is killed. Otherwise a sample-heavy
+    // bridge gets reparented to init and keeps its memory forever.
+    prctl(PR_SET_PDEATHSIG, SIGKILL);
+    if (getppid() == 1)
+        return 0;
+#endif
+
     // ---------------------------------------------------------------------
     // Check argument count
 
