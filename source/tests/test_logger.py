@@ -13,7 +13,13 @@ from qt_compat import QCoreApplication
 
 app = QCoreApplication.instance() or QCoreApplication([])
 
-from carla_logger import CarlaLogger, LEVEL_NAMES, LOG_LEVEL_ERROR, LOG_LEVEL_WARNING
+from carla_logger import (
+    CarlaLogger,
+    LEVEL_NAMES,
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_ERROR,
+    LOG_LEVEL_WARNING,
+)
 
 
 def check(raw, level, message):
