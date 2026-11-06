@@ -28,6 +28,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Features
 
+#### 2026-11-06 — Scraped LV2 port-role catalog
+
+- **feat(rewire)**: ship an 85 KB role catalog for 531 installed LV2 plugins, generated from `lv2ls`/`lv2info` by `scripts/scrape_lv2_port_roles.py`. Roles come from port names, LV2 designations, port groups and position: `ch:N` (main), `sc:N` (sidechain), `event` (MIDI), `cv:N`.
+- **feat(rewire)**: matching now goes exact name → canonical role → position. Sidechain ports never map to main inputs, repeated names (mixers, repeated L/R buses) fall back to position, and reversed L/R order matches correctly. The same catalog is applied to the old plugin and to the replacement when its label is known.
+- **test(rewire)**: covers sidechain isolation, reversed channels, generic names with catalog roles, mixer role uniqueness and repeated names.
+
 #### 2026-11-06 — claramsg automation
 
 - **feat(cli)**: add the `claramsg` entry point (same client as `clara msg`) and automation commands: `events` (filterable log history), `screenshot` (window or active dialog PNG), `dialogs` and `dialog accept|cancel|click` (drive visible dialogs), and `replace <node> --with-plugin <node> [--apply|--dry-run]`.

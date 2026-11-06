@@ -3223,18 +3223,25 @@ class HostWindow(QMainWindow):
         return None
 
     def _buildRewirePlan(self, pluginId, with_plugin_id=None):
-        from rewire import actual_target, match_ports, normalize_port, role_target
+        from rewire import actual_target, attach_catalog_roles, index_ports, match_ports, normalize_port, role_target
 
         if not self.host.is_engine_running() or getattr(self, "fIsProjectLoading", False):
             return None
         old_group = self._groupForPlugin(pluginId)
         if old_group is None:
             return None
-        old_ports = [normalize_port(port) for port in self._groupPorts(old_group.group_id)]
+        try:
+            old_info = self.host.get_plugin_info(pluginId)
+        except Exception:
+            old_info = None
+        old_label = old_info.get("label") if old_info else None
+        old_ports = index_ports([normalize_port(port) for port in self._groupPorts(old_group.group_id)])
+        attach_catalog_roles(old_ports, old_label)
         if not old_ports:
             return None
 
         new_ports = None
+        new_label = None
         if with_plugin_id is not None:
             try:
                 info = self.host.get_plugin_info(with_plugin_id)
@@ -3245,7 +3252,9 @@ class HostWindow(QMainWindow):
             group = self._groupForPlugin(with_plugin_id)
             if group is None:
                 return None
-            new_ports = [normalize_port(port) for port in self._groupPorts(group.group_id)]
+            new_label = info.get("label")
+            new_ports = index_ports([normalize_port(port) for port in self._groupPorts(group.group_id)])
+            attach_catalog_roles(new_ports, new_label)
             from carla_backend import BINARY_NATIVE
             data = (
                 info.get("build") or BINARY_NATIVE, info.get("type"), info.get("filename"),
@@ -3268,9 +3277,11 @@ class HostWindow(QMainWindow):
                     info.get("label"), info.get("uniqueId"), None,
                 )
             btype, ptype, filename, label, uniqueId, _extra = data
+            new_label = label
             candidate = self._findExistingPluginPorts(ptype, filename, label, uniqueId, pluginId)
             if candidate is not None:
-                new_ports = [normalize_port(port) for port in candidate]
+                new_ports = index_ports([normalize_port(port) for port in candidate])
+                attach_catalog_roles(new_ports, new_label)
 
         btype, ptype, filename, label, uniqueId, extraPtr = data
         exact = new_ports is not None
@@ -3279,7 +3290,7 @@ class HostWindow(QMainWindow):
             seen = set()
             for port in new_ports:
                 target = actual_target(port)
-                key = (target["mode"], target["kind"], target["name"].casefold())
+                key = (target["mode"], target["kind"], target["name"].casefold(), target["index"])
                 if key not in seen:
                     seen.add(key)
                     targets.append(target)
@@ -3288,10 +3299,17 @@ class HostWindow(QMainWindow):
             seen = set()
             for port in old_ports:
                 target = role_target(port)
-                if target["role"] not in seen:
-                    seen.add(target["role"])
+                key = (target["role"], target.get("role_key"))
+                if key not in seen:
+                    seen.add(key)
                     targets.append(target)
 
+        log_carla(
+            f"rewire: old_label={old_label!r} new_label={new_label!r} "
+            f"catalog_old={bool(old_ports and old_ports[0].get('catalog_role'))} "
+            f"catalog_new={bool(new_ports and new_ports[0].get('catalog_role'))}",
+            level="debug",
+        )
         return {
             "old_group": old_group,
             "old_ports": old_ports,
@@ -3452,14 +3470,19 @@ class HostWindow(QMainWindow):
         QTimer.singleShot(150, self._pollRewire)
 
     def _finishRewire(self, group, new_ports):
-        from rewire import normalize_port, resolve_target
+        from rewire import attach_catalog_roles, index_ports, normalize_port, resolve_target
 
         state = getattr(self, "_rewireState", None)
         self._rewireState = None
         if state is None or group is None:
             return
 
-        new_ports = [normalize_port(port) for port in new_ports]
+        try:
+            new_info = self.host.get_plugin_info(state["pluginId"])
+        except Exception:
+            new_info = None
+        new_ports = index_ports([normalize_port(port) for port in new_ports])
+        attach_catalog_roles(new_ports, new_info.get("label") if new_info else None)
         by_port = {row["old"]["key"]: row for row in state["plan"]}
         kept = dropped = failed = 0
 

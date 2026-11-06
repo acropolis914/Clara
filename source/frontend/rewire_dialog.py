@@ -57,9 +57,10 @@ _REASON_LABELS = {
 def _target_key(target):
     if not target:
         return None
-    if "role" in target:
-        return ("role",) + tuple(target["role"])
-    return ("port", target.get("mode"), target.get("kind"), target.get("name", "").casefold())
+    if "name" in target:
+        return ("port", target.get("mode"), target.get("kind"),
+                target.get("name", "").casefold(), target.get("index"))
+    return ("role", target.get("role_key"), (target.get("role") or (None, None, 0))[2])
 
 
 class RewireDialog(QDialog):

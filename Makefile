@@ -581,6 +581,7 @@ endif
 		source/frontend/carla-patchbay \
 		source/frontend/carla-rack \
 		source/frontend/*.py \
+		source/frontend/lv2_port_roles.json \
 		$(DESTDIR)$(DATADIR)/carla/
 
 	install -m 644 \
