@@ -670,6 +670,26 @@ class ProjectFormat:
         return "ProjectFormat(%r, %r, kind=%r)" % (self.id, self.ext, self.kind)
 
 
+def resolve_no_bridge_entries(entries, plugin_names):
+    """Accept legacy indices or stable names; return current plugin indices."""
+    if not entries:
+        return []
+    if all(isinstance(entry, int) for entry in entries):
+        return list(entries)
+    indices = []
+    used = set()
+    for entry in entries:
+        key = str(entry)
+        for index, name in enumerate(plugin_names):
+            if index in used:
+                continue
+            if name == key:
+                indices.append(index)
+                used.add(index)
+                break
+    return indices
+
+
 class ProjectStorageManager:
     """Dispatches and coordinates project file persistence across formats"""
 

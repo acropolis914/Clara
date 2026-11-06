@@ -38,7 +38,9 @@ def _catalog():
         try:
             with open(path, encoding="utf-8") as handle:
                 _CATALOG = json.load(handle)
-        except Exception:
+        except Exception as exc:
+            import sys
+            sys.stderr.write("rewire: cannot load %s: %s\n" % (path, exc))
             _CATALOG = {}
     return _CATALOG
 

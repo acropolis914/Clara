@@ -13,7 +13,7 @@ import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend"))
 
-from project_storage import ProjectStorageManager
+from project_storage import ProjectStorageManager, resolve_no_bridge_entries
 
 CARXP = """<?xml version='1.0' encoding='UTF-8'?>
 <CARLA-PROJECT VERSION='2.0'>
@@ -195,6 +195,13 @@ def test_prepare_for_load_no_bridge(storage, tmp):
         os.remove(patched)
 
 
+def test_no_bridge_entries_are_stable():
+    assert resolve_no_bridge_entries([8, 9], ["a", "b"]) == [8, 9]
+    assert resolve_no_bridge_entries(["b"], ["a", "b", "c"]) == [1]
+    assert resolve_no_bridge_entries(["missing"], ["a"]) == []
+    assert resolve_no_bridge_entries([], ["a"]) == []
+
+
 def test_failed_save_is_reported(storage, tmp):
     target = os.path.join(tmp, "e.carjp")
     assert storage.finalize_from_backend_save(target, os.path.join(tmp, "missing.carjp")) is False
@@ -210,6 +217,7 @@ def main():
         test_bridge_map_roundtrip(storage, tmp)
         test_prepare_for_load_sets_per_plugin_bridge(storage, tmp)
         test_prepare_for_load_no_bridge(storage, tmp)
+        test_no_bridge_entries_are_stable()
         test_failed_save_is_reported(storage, tmp)
     test_new_saves_default_to_json(storage)
     print("project_storage: all checks passed")

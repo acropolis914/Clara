@@ -40,7 +40,7 @@ from carla_canvas import (
     findStereoPartnerConnection,
     log_carla,
 )
-from project_storage import storage_manager
+from project_storage import resolve_no_bridge_entries, storage_manager
 from project_session import ProjectSessionManager
 from carla_logger import logger, KNOWN_TAGS, LEVEL_NAMES
 
@@ -235,6 +235,7 @@ class HostWindow(QMainWindow):
         self.fRecentProjectActions = []
         self.fIsProjectLoading = False
         self.fLoadingPluginTotal = 0
+        self.fLoadGeneration = 0
         self.fLoadingBridgePlugins = None
         self.fBridgePlugins = []
         self.fNoBridgePlugins = []
@@ -1403,6 +1404,35 @@ class HostWindow(QMainWindow):
     # --------------------------------------------------------------------------------------------------------
     # Files
 
+    def _loadNoBridgePlugins(self, entries, load_source):
+        """Accept legacy indices or stable plugin names; return current indices."""
+        if not entries:
+            return []
+        if all(isinstance(entry, int) for entry in entries):
+            return list(entries)
+        try:
+            root = storage_manager.get_project_root(load_source)
+        except Exception:
+            root = None
+        names = []
+        if root is not None:
+            for plugin in root.findall("Plugin"):
+                info = plugin.find("Info")
+                names.append(info.findtext("Name", "") if info is not None else "")
+        return resolve_no_bridge_entries(entries, names)
+
+    def _noBridgePluginNames(self):
+        names = []
+        for index in getattr(self, "fNoBridgePlugins", []):
+            try:
+                info = self.host.get_plugin_info(index)
+            except Exception:
+                continue
+            name = info.get("name") if info else None
+            if name:
+                names.append(name)
+        return names
+
     def _prepareCanvasForLoad(self, load_source):
         """Seed saved positions and containers before plugins arrive, so boxes are born
         in place instead of jumping there after the load."""
@@ -1421,7 +1451,8 @@ class HostWindow(QMainWindow):
         if not positions:
             return
 
-        self.fNoBridgePlugins = list(getattr(positions, "no_bridge_plugins", None) or [])
+        self.fNoBridgePlugins = self._loadNoBridgePlugins(
+            getattr(positions, "no_bridge_plugins", None), load_source)
         bridge_plugins = getattr(positions, "bridge_plugins", None)
         if bridge_plugins is not None and self.fNoBridgePlugins:
             blocked = set(self.fNoBridgePlugins)
@@ -1642,16 +1673,27 @@ class HostWindow(QMainWindow):
             target = self
             if dialog:
                 target = QApplication.activeModalWidget() or QApplication.activeWindow() or self
+            import tempfile
             if path is None:
-                import tempfile
-                path = os.path.join(tempfile.gettempdir(), "clara-screenshot.png")
-            path = os.path.abspath(os.path.expanduser(str(path)))
-            folder = os.path.dirname(path)
-            if folder:
-                os.makedirs(folder, exist_ok=True)
+                # mkstemp gives a private 0600 regular file, so a predictable /tmp path
+                # cannot be pre-created as a symlink to a victim file.
+                fd, path = tempfile.mkstemp(prefix="clara-screenshot-", suffix=".png",
+                                            dir=tempfile.gettempdir())
+                os.close(fd)
+            else:
+                path = os.path.abspath(os.path.expanduser(str(path)))
+                if os.path.islink(path) or (os.path.exists(path) and not os.path.isfile(path)):
+                    return {"ok": False, "error": "refusing to overwrite a symlink or special file"}
+                folder = os.path.dirname(path)
+                if folder:
+                    os.makedirs(folder, exist_ok=True)
             pixmap = target.grab()
             if pixmap is None or not pixmap.save(path, "PNG"):
                 return {"ok": False, "error": "could not save screenshot"}
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass
             return {"ok": True, "path": path, "width": pixmap.width(), "height": pixmap.height()}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
@@ -1679,7 +1721,7 @@ class HostWindow(QMainWindow):
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
-    def msgDialogAction(self, action, text=None):
+    def msgDialogAction(self, action, text=None, force=False):
         try:
             from qt_compat import QApplication, QDialog, QPushButton
             target = QApplication.activeModalWidget() or QApplication.activeWindow()
@@ -1698,6 +1740,9 @@ class HostWindow(QMainWindow):
                 if not text:
                     return {"ok": False, "error": "click needs a button text"}
                 wanted = str(text).casefold()
+                dangerous = ("discard", "delete", "remove", "erase", "overwrite", "format", "reset", "quit")
+                if not force and any(word in wanted for word in dangerous):
+                    return {"ok": False, "error": "refusing destructive button without force"}
                 for button in target.findChildren(QPushButton):
                     if button.isVisible() and wanted in (button.text() or "").casefold():
                         QTimer.singleShot(0, button.click)
@@ -1719,7 +1764,8 @@ class HostWindow(QMainWindow):
             path = request.get("path")
             if not path or not os.path.isfile(path):
                 return {"v": 1, "ok": False, "error": {"code": "not_found", "message": "project not found: %s" % path}}
-            self.queueControlOpen(path)
+            if not self.queueControlOpen(path, interactive=False):
+                return {"v": 1, "ok": False, "error": {"code": "dirty", "message": "unsaved changes; save the project first"}}
             return {"v": 1, "ok": True}
         if cmd == "events":
             return {"v": 1, "ok": True, "data": {"events": self.msgEvents(
@@ -1735,18 +1781,23 @@ class HostWindow(QMainWindow):
                 return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
             return {"v": 1, "ok": True, "data": result}
         if cmd == "dialog":
-            result = self.msgDialogAction(request.get("action"), request.get("text"))
+            result = self.msgDialogAction(request.get("action"), request.get("text"), bool(request.get("force")))
             if not result.get("ok"):
                 return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
             return {"v": 1, "ok": True, "data": result}
         if cmd == "replace":
             node = request.get("node")
             other = request.get("with")
-            if not isinstance(node, int) or (other is not None and not isinstance(other, int)):
-                return {"v": 1, "ok": False, "error": {"code": "bad_request", "message": "node and with must be ids"}}
+            other_node = request.get("with_node")
+            if (not isinstance(node, int)
+                    or (other is not None and not isinstance(other, int))
+                    or (other_node is not None and not isinstance(other_node, int))):
+                return {"v": 1, "ok": False, "error": {"code": "bad_request", "message": "node and plugin ids must be integers"}}
+            if other is not None and other_node is not None:
+                return {"v": 1, "ok": False, "error": {"code": "bad_request", "message": "use with or with_node, not both"}}
             node = self._resolveNodePluginId(node)
-            if other is not None:
-                other = self._resolveNodePluginId(other)
+            if other_node is not None:
+                other = self._resolveNodePluginId(other_node)
             auto = bool(request.get("auto"))
             dry_run = bool(request.get("dry_run"))
             if auto or dry_run:
@@ -1774,6 +1825,8 @@ class HostWindow(QMainWindow):
             self.setProperWindowTitle()
 
         load_source = source_override or self.fProjectFilename
+        # A stale delayed finalize must never touch a newer load's shells.
+        self.fLoadGeneration += 1
         # Remember what was actually read so a recovery load restores canvas positions from the
         # autosave, while the project keeps its last-saved name/path (fProjectFilename).
         self.fLastLoadedSource = load_source
@@ -1949,8 +2002,8 @@ class HostWindow(QMainWindow):
 
         return True
 
-    def queueControlOpen(self, filename):
-        """Accept an open request even while loading; apply it once the engine is free."""
+    def queueControlOpen(self, filename, interactive=True):
+        """Accept an open request; never discard unsaved edits without an answer."""
         path = os.path.abspath(filename)
         current = os.path.abspath(self.fProjectFilename or "")
         if path == current:
@@ -1960,9 +2013,31 @@ class HostWindow(QMainWindow):
             else:
                 self.showIfNeeded()
             return True
+        if getattr(self, "fHasUnsavedChanges", False):
+            if not interactive:
+                return False
+            QTimer.singleShot(0, lambda p=path: self._promptControlOpen(p))
+            return True
         self._pendingControlOpen = path
         QTimer.singleShot(500, self._applyControlOpen)
         return True
+
+    def _promptControlOpen(self, path):
+        answer = QMessageBox.question(
+            self,
+            self.tr("Unsaved Changes"),
+            self.tr("This project has unsaved changes. Save before opening\n%s?") % path,
+            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+            QMessageBox.Save,
+        )
+        if answer == QMessageBox.Cancel:
+            return
+        if answer == QMessageBox.Save:
+            self.saveProjectNow()
+            if getattr(self, "fHasUnsavedChanges", False):
+                return
+        self._pendingControlOpen = path
+        QTimer.singleShot(0, self._applyControlOpen)
 
     def _applyControlOpen(self):
         path = getattr(self, "_pendingControlOpen", None)
@@ -1983,11 +2058,24 @@ class HostWindow(QMainWindow):
             filename = os.path.abspath(filename)
             if not os.path.isfile(filename):
                 return False
+            previous_filename = self.fProjectFilename
+            previous_source = getattr(self, "fLastLoadedSource", None) or previous_filename
             if self.fPluginCount > 0:
                 self.pluginRemoveAll()
             self.fProjectFilename = filename
             self.setProperWindowTitle()
-            return bool(self.loadProjectNow(source_override=filename))
+            if self.loadProjectNow(source_override=filename):
+                return True
+            # The old plugins are already unloaded; put the previous session back.
+            if previous_source and os.path.isfile(previous_source):
+                logger.warning("APP", f"open failed; restoring previous project {previous_source}")
+                self.fProjectFilename = previous_filename or previous_source
+                self.setProperWindowTitle()
+                try:
+                    self.loadProjectNow(source_override=previous_source)
+                except Exception as exc:
+                    logger.warning("APP", f"restoring previous project failed: {exc}")
+            return False
         except Exception as exc:
             logger.warning("APP", f"openProjectFromControl failed: {exc}")
             return False
@@ -2026,7 +2114,7 @@ class HostWindow(QMainWindow):
         if self.fWithCanvas:
             extra_meta["patchbay_containers"] = patchcanvas.saveContainers()
         extra_meta["bridge_plugins"] = list(getattr(self, "fBridgePlugins", []))
-        extra_meta["no_bridge_plugins"] = list(getattr(self, "fNoBridgePlugins", []) or [])
+        extra_meta["no_bridge_plugins"] = self._noBridgePluginNames()
 
         saved = storage_manager.finalize_from_backend_save(
             self.fProjectFilename, backend_save_target, positions, extra_metadata=extra_meta
@@ -2127,13 +2215,15 @@ class HostWindow(QMainWindow):
 
         # The engine sends plugin cables a moment after the plugins themselves, so give the
         # pre-wired shells time to bind before dropping anything unclaimed.
-        QTimer.singleShot(1200, self._finalizeShellsAfterLoad)
+        QTimer.singleShot(1200, lambda: self._finalizeShellsAfterLoad(self.fLoadGeneration))
         self._revealAllGhostHidden()
         patchcanvas.clearGhosts()
         patchcanvas.clearGhostCables()
         self._dismissLoadingDialog()
 
-    def _finalizeShellsAfterLoad(self):
+    def _finalizeShellsAfterLoad(self, token=None):
+        if token is not None and token != getattr(self, "fLoadGeneration", token):
+            return
         try:
             patchcanvas.finalizeShellConnections()
             patchcanvas.finalizeShells()
@@ -3284,6 +3374,9 @@ class HostWindow(QMainWindow):
                 attach_catalog_roles(new_ports, new_label)
 
         btype, ptype, filename, label, uniqueId, extraPtr = data
+        if new_ports is not None and not any(port["kind"] in ("audio", "midi", "cv") for port in new_ports):
+            log_carla("rewire: replacement has no audio/MIDI/CV ports", level="warn")
+            return None
         exact = new_ports is not None
         if exact:
             targets = []
@@ -3304,6 +3397,14 @@ class HostWindow(QMainWindow):
                     seen.add(key)
                     targets.append(target)
 
+        from carla_backend import PLUGIN_HAS_CUSTOM_UI, PLUGIN_OPTION_USE_BRIDGE
+        hints = int((locals().get("info") or {}).get("hints", 0) or 0)
+        ident = ((label or "") + " " + (filename or "")).lower()
+        if (hints & PLUGIN_HAS_CUSTOM_UI) or "cardinal" in ident or "decentsampler" in ident:
+            bridge_options = PLUGIN_OPTION_USE_BRIDGE
+        else:
+            bridge_options = 0
+
         log_carla(
             f"rewire: old_label={old_label!r} new_label={new_label!r} "
             f"catalog_old={bool(old_ports and old_ports[0].get('catalog_role'))} "
@@ -3320,6 +3421,7 @@ class HostWindow(QMainWindow):
             },
             "targets": targets,
             "exact": exact,
+            "options": bridge_options,
             "data": (btype, ptype, filename, label, uniqueId, extraPtr),
             "label": label or os.path.basename(filename or "") or "plugin",
         }
@@ -3394,13 +3496,16 @@ class HostWindow(QMainWindow):
 
         try:
             ok = self.host.add_plugin(
-                btype, ptype, filename, None, label, uniqueId, extraPtr, PLUGIN_OPTIONS_NULL
+                btype, ptype, filename, None, label, uniqueId, extraPtr,
+                plan_info.get("options", PLUGIN_OPTIONS_NULL)
             )
         except Exception as exc:
             log_carla("rewire: add_plugin raised: %s" % exc, level="warn")
             ok = False
         if not ok:
             self.host.replace_plugin(self.host.get_max_plugin_number())
+            if self._groupForPlugin(pluginId) is not None:
+                log_carla("rewire: load failed, old plugin kept", level="warn")
             self._rewireResult = {"done": True, "error": "plugin load failed", "plugin": pluginId}
             CustomMessageBox(
                 self, QMessageBox.Critical, self.tr("Error"), self.tr("Failed to load plugin"),
@@ -3408,6 +3513,9 @@ class HostWindow(QMainWindow):
             )
             return {"ok": False, "error": self.host.get_last_error()}
 
+        if pluginId in (getattr(self, "fNoBridgePlugins", None) or []):
+            # The slot changed plugin; let the new one follow the normal UI policy.
+            self.fNoBridgePlugins.remove(pluginId)
         self._rewireState = {
             "pluginId": pluginId,
             "old_gid": old_gid,
@@ -3431,6 +3539,8 @@ class HostWindow(QMainWindow):
         new_box = new_group.widgets[0] if new_group.widgets else None
         if old_box is None or new_box is None:
             return
+        old_sbox = old_group.widgets[1] if old_group.split and len(old_group.widgets) > 1 else None
+        old_sbox_pos = old_sbox.pos() if old_sbox is not None else None
         try:
             if getattr(old_box, "m_custom_color", None):
                 new_box.setCustomColor(old_box.m_custom_color.name(), notify=False)
@@ -3442,7 +3552,17 @@ class HostWindow(QMainWindow):
                     container.removeItem(old_box, to_standby=False)
                     container.addItem(new_box)
                     break
-        except RuntimeError:
+            if old_sbox is not None:
+                if not new_group.split:
+                    patchcanvas.splitGroup(new_group.group_id)
+                if new_group.split and len(new_group.widgets) > 1 and new_group.widgets[1] is not None:
+                    new_group.widgets[1].setPos(old_sbox_pos)
+                    for container in patchcanvas.canvas.container_list:
+                        if container.containsBox(old_sbox):
+                            container.removeItem(old_sbox, to_standby=False)
+                            container.addItem(new_group.widgets[1])
+                            break
+        except (RuntimeError, Exception):
             pass
         plugin_id = new_group.plugin_id
         patchcanvas.removeGroup(old_gid)
@@ -3464,7 +3584,15 @@ class HostWindow(QMainWindow):
             self._finishRewire(group, ports)
             return
         state["last_count"] = count
-        if now > state["deadline"] or (count == 0 and now - state["started"] > 3.0):
+        if count == 0 and added_at is not None and now - added_at >= 3.0:
+            try:
+                info = self.host.get_plugin_info(state["pluginId"]) or {}
+            except Exception:
+                info = {}
+            if not any(int(info.get(key, 0) or 0) for key in ("audioIns", "audioOuts", "midiIns", "midiOuts")):
+                self._finishRewire(group, ports)
+                return
+        if now > state["deadline"]:
             self._finishRewire(group, ports)
             return
         QTimer.singleShot(150, self._pollRewire)
@@ -3802,6 +3930,11 @@ class HostWindow(QMainWindow):
 
     @pyqtSlot(int)
     def slot_handlePluginRemovedCallback(self, pluginId):
+        if getattr(self, "fNoBridgePlugins", None):
+            self.fNoBridgePlugins = [
+                index - 1 if index > pluginId else index
+                for index in self.fNoBridgePlugins if index != pluginId
+            ]
         if self.fWithCanvas:
             patchcanvas.handlePluginRemoved(pluginId)
 

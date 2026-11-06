@@ -13,6 +13,7 @@ Run from the repository root:
     python3 scripts/scrape_lv2_port_roles.py
 """
 
+import argparse
 import json
 import os
 import re
@@ -143,12 +144,26 @@ def main():
                 buckets[kind + "_" + direction] = roles
         if buckets:
             catalog[uri] = {"n": name, **buckets}
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--force", action="store_true", help="write even when the plugin count drops sharply")
+    args = parser.parse_args()
     target = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           "..", "source", "frontend", "lv2_port_roles.json")
+    old_count = 0
+    try:
+        with open(target, encoding="utf-8") as handle:
+            old_count = len(json.load(handle))
+    except Exception:
+        pass
+    if old_count and len(catalog) < old_count * 0.8 and not args.force:
+        print("refusing to write: %i plugins, previous catalog had %i (use --force)"
+              % (len(catalog), old_count), file=sys.stderr)
+        return 1
     with open(target, "w", encoding="utf-8") as handle:
         json.dump(catalog, handle, separators=(",", ":"))
     print("wrote %i LV2 plugins to %s" % (len(catalog), os.path.abspath(target)))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

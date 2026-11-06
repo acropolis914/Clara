@@ -262,6 +262,7 @@ HERE="$(dirname "$(readlink -f "$0")")"
 exec "$HERE/../../AppRun" "$@"
 CLARAWRAP
 chmod +x "$APPDIR/usr/bin/clara"
+ln -sf clara "$APPDIR/usr/bin/claramsg"
 
 # ---------------------------------------------------------------------------------------------------------------------
 # gather remaining non-Qt dependencies (native libs, jack, sndfile, ...)

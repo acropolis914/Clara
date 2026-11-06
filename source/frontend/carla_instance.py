@@ -394,10 +394,17 @@ def run_msg_cli(argv, socket_path):
     dialog_parser = sub.add_parser("dialog", help="act on the active dialog")
     dialog_parser.add_argument("action", choices=("accept", "cancel", "click"))
     dialog_parser.add_argument("text", nargs="?")
+    dialog_parser.add_argument("--force", action="store_true", help="allow destructive button text")
+
+    open_parser = sub.add_parser("open", help="open a project in the running window")
+    open_parser.add_argument("path")
 
     replace_parser = sub.add_parser("replace", help="replace a plugin, optionally auto-rewire")
     replace_parser.add_argument("node", type=int)
-    replace_parser.add_argument("--with-plugin", dest="other", type=int, default=None)
+    replace_parser.add_argument("--with-plugin", dest="other", type=int, default=None,
+                                help="plugin id of the replacement")
+    replace_parser.add_argument("--with-node", dest="other_node", type=int, default=None,
+                                help="node id of the replacement")
     replace_parser.add_argument("--apply", dest="auto", action="store_true", help="apply the auto-mapping without the dialog")
     replace_parser.add_argument("--dry-run", action="store_true")
     replace_parser.add_argument("--no-wait", action="store_true")
@@ -460,18 +467,30 @@ def run_msg_cli(argv, socket_path):
         return 0
 
     if args.cmd == "dialog":
-        payload = build_request("dialog", action=args.action, text=args.text or "")
+        payload = build_request("dialog", action=args.action, text=args.text or "", force=bool(args.force))
         reply = _send(socket_path, payload)
         if reply is None:
             return 1
         print(json.dumps(reply.get("data") or {}, indent=2))
         return 0
 
+    if args.cmd == "open":
+        reply = _send(socket_path, build_request("open", path=os.path.abspath(args.path)))
+        if reply is None:
+            return 1
+        print("opened")
+        return 0
+
     if args.cmd == "replace":
+        if args.other is not None and args.other_node is not None:
+            _emit_error("use either --with-plugin or --with-node, not both")
+            return 2
         payload = build_request("replace")
         payload["node"] = args.node
         if args.other is not None:
             payload["with"] = args.other
+        if args.other_node is not None:
+            payload["with_node"] = args.other_node
         payload["auto"] = bool(args.auto)
         payload["dry_run"] = bool(args.dry_run)
         reply = _send(socket_path, payload)
@@ -488,7 +507,7 @@ def run_msg_cli(argv, socket_path):
                 print("  %-24s -> %-24s (%s)" % (
                     row.get("old"), row.get("target") or "DROP", row.get("reason")))
         elif args.auto and not args.no_wait:
-            deadline = time.monotonic() + 30.0
+            deadline = time.monotonic() + 45.0
             while time.monotonic() < deadline:
                 status = _send(socket_path, build_request("rewire_status"))
                 state = (status or {}).get("data") or {}
