@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Features
 
+#### 2026-11-06 — Per-plugin "never bridge" overrides
+
+- **feat(bridge)**: `CanvasPositions` now stores `no_bridge_plugins`. On load those indices get `AVOID_BRIDGE` and lose `USE_BRIDGE` even if an older map still lists them; the learned map subtracts them on save. Used to unbridge the four LSP `mixer_x8` nodes (18 → 14 bridge processes). Total memory stayed roughly flat (~3.7 GB) because the plugin data moved in-process; the win is fewer processes, not less sample RAM.
+
 #### 2026-11-06 — Single instance lock and control channel
 
 - **feat(instance)**: replace the fixed-path raw socket with a per-session `QLockFile` lock plus a `QLocalServer` channel. The lock is taken before Qt starts and the channel listens before the host/GUI, so a second launch forwards `SHOW` or `OPEN <project>` to the running window instead of starting another. `--no-gui` / control processes do not take the GUI lock. Old fixed-path instances are detected once for migration.

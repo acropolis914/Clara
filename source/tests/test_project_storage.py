@@ -171,6 +171,30 @@ def test_prepare_for_load_sets_per_plugin_bridge(storage, tmp):
         os.remove(patched)
 
 
+def test_prepare_for_load_no_bridge(storage, tmp):
+    doc = {
+        "format": "carla-project-json", "version": "1.0",
+        "CARLA-PROJECT": {
+            "@attributes": {"VERSION": "2.6"},
+            "EngineSettings": {"PreferPluginBridges": "true"},
+            "Plugin": [
+                {"Info": {"Name": "native"}, "Data": {"Options": "0x801"}},
+                {"Info": {"Name": "blocked"}, "Data": {"Options": "0x801"}},
+            ],
+        },
+    }
+    path = _write_json(os.path.join(tmp, "nobridge.carjp"), doc)
+    patched = storage.prepare_for_backend_load(path, bridge_plugins=[0], no_bridge_plugins=[1])
+    try:
+        data = json.load(open(patched, encoding="utf-8"))
+        plugins = data["CARLA-PROJECT"]["Plugin"]
+        assert int(plugins[0]["Data"]["Options"], 0) & 0x800
+        blocked = int(plugins[1]["Data"]["Options"], 0)
+        assert not (blocked & 0x800) and (blocked & 0x1000)
+    finally:
+        os.remove(patched)
+
+
 def test_failed_save_is_reported(storage, tmp):
     target = os.path.join(tmp, "e.carjp")
     assert storage.finalize_from_backend_save(target, os.path.join(tmp, "missing.carjp")) is False
@@ -185,6 +209,7 @@ def main():
         test_force_bridged_json_copy(storage, tmp)
         test_bridge_map_roundtrip(storage, tmp)
         test_prepare_for_load_sets_per_plugin_bridge(storage, tmp)
+        test_prepare_for_load_no_bridge(storage, tmp)
         test_failed_save_is_reported(storage, tmp)
     test_new_saves_default_to_json(storage)
     print("project_storage: all checks passed")

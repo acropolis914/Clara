@@ -74,7 +74,7 @@ class BaseProjectHandler:
     def save_positions(self, filepath, positions):
         raise NotImplementedError
 
-    def prepare_for_load(self, filepath, force_bridged=False, bridge_plugins=None):
+    def prepare_for_load(self, filepath, force_bridged=False, bridge_plugins=None, no_bridge_plugins=None):
         """Returns a path the engine can load (the file itself, or a patched temp copy)"""
         raise NotImplementedError
 
@@ -195,6 +195,11 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                     setattr(data_list, "bridge_plugins", json.loads(canvas_elem.get("bridge_plugins", "[]")))
                 except Exception:
                     pass
+            if canvas_elem is not None and "no_bridge_plugins" in canvas_elem.attrib:
+                try:
+                    setattr(data_list, "no_bridge_plugins", json.loads(canvas_elem.get("no_bridge_plugins", "[]")))
+                except Exception:
+                    pass
             return data_list
         except Exception as e:
             print("CarlaXmlProjectHandler::load_positions error:", e)
@@ -218,6 +223,8 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
             if extra_metadata:
                 if "bridge_plugins" in extra_metadata:
                     canvas_pos_elem.set("bridge_plugins", json.dumps(list(extra_metadata["bridge_plugins"])))
+                if "no_bridge_plugins" in extra_metadata:
+                    canvas_pos_elem.set("no_bridge_plugins", json.dumps(list(extra_metadata["no_bridge_plugins"])))
                 if "split_view_enabled" in extra_metadata:
                     canvas_pos_elem.set("split_view_enabled", "1" if extra_metadata["split_view_enabled"] else "0")
                 if "split_view_sizes" in extra_metadata:
@@ -259,8 +266,8 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
             print("CarlaXmlProjectHandler::save_positions error:", e)
             return False
 
-    def prepare_for_load(self, filepath, force_bridged=False, bridge_plugins=None):
-        if not force_bridged and bridge_plugins is None:
+    def prepare_for_load(self, filepath, force_bridged=False, bridge_plugins=None, no_bridge_plugins=None):
+        if not force_bridged and bridge_plugins is None and no_bridge_plugins is None:
             return filepath
         try:
             tree = ET.parse(filepath)
@@ -274,10 +281,11 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                     pref = ET.SubElement(eng_settings, "PreferPluginBridges")
                 pref.text = "true" if force_bridged else "false"
 
-                if bridge_plugins is not None:
-                    wanted = set(bridge_plugins)
+                wanted = set(bridge_plugins or [])
+                blocked = set(no_bridge_plugins or [])
+                if wanted or blocked:
                     for index, plugin in enumerate(root.findall("Plugin")):
-                        if index not in wanted:
+                        if index not in wanted and index not in blocked:
                             continue
                         data = plugin.find("Data")
                         if data is None:
@@ -289,7 +297,11 @@ class CarlaXmlProjectHandler(BaseProjectHandler):
                             options = int(str(options_elem.text or "0"), 0)
                         except ValueError:
                             options = 0
-                        options_elem.text = "0x%x" % (options | 0x800)
+                        if index in blocked:
+                            options = (options & ~0x800) | 0x1000
+                        else:
+                            options = options | 0x800
+                        options_elem.text = "0x%x" % options
 
                 tmp_xml = _temp_project_path()
                 tree.write(tmp_xml, encoding="UTF-8", xml_declaration=True)
@@ -345,6 +357,7 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
             split_view_sizes = None
             containers_data = doc.get("patchbay_containers")
             bridge_plugins = None
+            no_bridge_plugins = None
             if "CARLA-PROJECT" in doc and isinstance(doc["CARLA-PROJECT"], dict):
                 c_pos = doc["CARLA-PROJECT"].get("CanvasPositions", {})
                 if isinstance(c_pos, dict):
@@ -362,6 +375,11 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                             bridge_plugins = json.loads(str(attrs.get("bridge_plugins", "[]")))
                         except Exception:
                             bridge_plugins = None
+                    if "no_bridge_plugins" in attrs:
+                        try:
+                            no_bridge_plugins = json.loads(str(attrs.get("no_bridge_plugins", "[]")))
+                        except Exception:
+                            no_bridge_plugins = None
                     if "Containers" in c_pos:
                         try:
                             containers_data = c_pos["Containers"] if isinstance(c_pos["Containers"], list) else json.loads(str(c_pos["Containers"]))
@@ -447,6 +465,8 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                 setattr(positions, "patchbay_containers", containers_data)
             if bridge_plugins is not None:
                 setattr(positions, "bridge_plugins", bridge_plugins)
+            if no_bridge_plugins is not None:
+                setattr(positions, "no_bridge_plugins", no_bridge_plugins)
             return positions
         except Exception as e:
             print("CarlaJsonProjectHandler::load_positions error:", e)
@@ -466,6 +486,8 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
                 if extra_metadata:
                     if "bridge_plugins" in extra_metadata:
                         c_attrs["bridge_plugins"] = json.dumps(list(extra_metadata["bridge_plugins"]))
+                    if "no_bridge_plugins" in extra_metadata:
+                        c_attrs["no_bridge_plugins"] = json.dumps(list(extra_metadata["no_bridge_plugins"]))
                     if "split_view_enabled" in extra_metadata:
                         c_attrs["split_view_enabled"] = "1" if extra_metadata["split_view_enabled"] else "0"
                     if "split_view_sizes" in extra_metadata:
@@ -557,9 +579,9 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
             print("CarlaJsonProjectHandler::save_positions error:", e)
             return False
 
-    def prepare_for_load(self, filepath, force_bridged=False, bridge_plugins=None):
+    def prepare_for_load(self, filepath, force_bridged=False, bridge_plugins=None, no_bridge_plugins=None):
         """The engine parses .carjp directly; only bridge overrides need a temp copy."""
-        if not force_bridged and bridge_plugins is None:
+        if not force_bridged and bridge_plugins is None and no_bridge_plugins is None:
             return filepath
 
         doc = self._read_json(filepath)
@@ -576,20 +598,27 @@ class CarlaJsonProjectHandler(BaseProjectHandler):
 
         engine_settings["PreferPluginBridges"] = "true" if force_bridged else "false"
 
-        if bridge_plugins is not None:
+        wanted = set(bridge_plugins or [])
+        blocked = set(no_bridge_plugins or [])
+        if wanted or blocked:
             plugins = project.get("Plugin", [])
             if isinstance(plugins, dict):
                 plugins = [plugins]
-            wanted = set(bridge_plugins)
             for index, plugin in enumerate(plugins):
-                if index not in wanted or not isinstance(plugin, dict):
+                if index not in wanted and index not in blocked:
+                    continue
+                if not isinstance(plugin, dict):
                     continue
                 data = plugin.setdefault("Data", {})
                 try:
                     options = int(str(data.get("Options") or 0), 0)
                 except (TypeError, ValueError):
                     options = 0
-                data["Options"] = "0x%x" % (options | 0x800)
+                if index in blocked:
+                    options = (options & ~0x800) | 0x1000
+                else:
+                    options = options | 0x800
+                data["Options"] = "0x%x" % options
 
         fd, tmp_json = tempfile.mkstemp(prefix="clara_", suffix=".carjp")
         os.close(fd)
@@ -828,9 +857,11 @@ class ProjectStorageManager:
     def save_canvas_positions(self, filepath, positions, extra_metadata=None):
         return self.handler_for(filepath).save_positions(filepath, positions, extra_metadata=extra_metadata)
 
-    def prepare_for_backend_load(self, filepath, force_bridged=False, bridge_plugins=None):
+    def prepare_for_backend_load(self, filepath, force_bridged=False, bridge_plugins=None, no_bridge_plugins=None):
         """Prepares a file path readable by the C++ engine (converts non-XML projects to a temp XML)."""
-        return self.handler_for(filepath).prepare_for_load(filepath, force_bridged=force_bridged, bridge_plugins=bridge_plugins)
+        return self.handler_for(filepath).prepare_for_load(
+            filepath, force_bridged=force_bridged, bridge_plugins=bridge_plugins,
+            no_bridge_plugins=no_bridge_plugins)
 
     def prepare_for_backend_save(self, target_filepath):
         """Returns (backend_save_target, is_temporary) for saving from C++ backend.
