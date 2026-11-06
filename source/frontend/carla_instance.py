@@ -382,7 +382,7 @@ OVERVIEW
 
 COMMANDS
   status
-      pid, version, mode, project path, plugin count and uptime.
+      pid, version, mode, project path, unsaved-changes flag, plugin count and uptime.
 
   show
       Raise the running window.
@@ -533,13 +533,22 @@ def print_examples(prog="claramsg"):
     print(_paint(text, prog) if _use_color() else text)
 
 
+class _MsgParser(argparse.ArgumentParser):
+    """Argparse errors must escape Carla's stderr capture."""
+
+    def error(self, message):
+        _emit_error(self.format_usage().rstrip("\n"))
+        _emit_error("%s: error: %s" % (self.prog, message))
+        raise SystemExit(2)
+
+
 def run_msg_cli(argv, socket_path, prog="claramsg"):
-    parser = argparse.ArgumentParser(prog=prog, add_help=False)
+    parser = _MsgParser(prog=prog, add_help=False)
     parser.add_argument("-h", "--help", action="store_true", dest="show_help",
                         help="show this help")
     parser.add_argument("--examples", action="store_true",
                         help="show copy-paste examples")
-    sub = parser.add_subparsers(dest="cmd")
+    sub = parser.add_subparsers(dest="cmd", parser_class=_MsgParser)
     sub.add_parser("help", help="show this help")
     sub.add_parser("examples", help="show copy-paste examples")
     sub.add_parser("show", help="raise the running window")
@@ -717,8 +726,11 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
             _emit_error((reply.get("error") or {}).get("message", "failed"))
             return 1
         data = reply.get("data") or {}
-        for key in ("pid", "version", "mode", "project", "plugins", "uptime"):
-            print("%-8s %s" % (key, data.get(key, "")))
+        for key in ("pid", "version", "mode", "project", "dirty", "plugins", "uptime"):
+            value = data.get(key, "")
+            if key == "dirty" and key in data:
+                value = "yes" if value else "no"
+            print("%-8s %s" % (key, value))
         return 0
 
     payload = build_request("list", what=args.what, full=bool(args.full))

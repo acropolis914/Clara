@@ -73,6 +73,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+#### 2026-11-06 — CLI errors, dirty status and safe dev restarts
+
+- **fix(cli)**: `claramsg` argument errors are no longer swallowed by Carla's stderr capture. Bad usage (for example `claramsg list -j` without a target) now prints the usage and error and exits 2; unknown commands do the same.
+- **fix(cli)**: `claramsg examples` no longer needs a running instance, like `--examples`.
+- **feat(cli)**: `claramsg status` reports whether the project has unsaved changes (`dirty yes/no`).
+- **fix(scripts)**: `scripts/run_clara_dev.sh` refuses to kill a running instance with unsaved changes (set `CLARA_DEV_FORCE=1` to discard them), uses SIGTERM before SIGKILL, and drops the obsolete fixed-socket cleanup.
+
 #### 2026-11-06 — Audit fixes (data loss, rewire safety, control channel)
 
 - **fix(session)**: opening a project through the control channel now refuses (CLI) or prompts Save/Discard/Cancel (GUI) when there are unsaved edits. If the new load fails, the previous project is loaded again instead of leaving an empty session.

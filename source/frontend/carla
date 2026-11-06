@@ -64,7 +64,7 @@ if __name__ == '__main__':
             _client_name = os.path.basename(_arg.split("=", 1)[1])
     _first = first_positional(_client_argv)
     if _client_name == "claramsg" or _first == "msg":
-        _wants_help = any(arg in ("-h", "--help", "help", "--examples") for arg in _client_argv)
+        _wants_help = any(arg in ("-h", "--help", "help", "examples", "--examples") for arg in _client_argv)
         _has_command = any(not arg.startswith("-") and arg not in ("msg", "help") for arg in _client_argv)
         if _wants_help or (_client_name == "claramsg" and not _has_command):
             if _first == "msg":

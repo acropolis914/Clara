@@ -1631,6 +1631,7 @@ class HostWindow(ControlMixin, RewireFlowMixin, QMainWindow):
             "version": version,
             "mode": "nogui" if gCarla.nogui else "gui",
             "project": self.fProjectFilename or "",
+            "dirty": bool(getattr(self, "fHasUnsavedChanges", False)),
             "plugins": int(getattr(self, "fPluginCount", 0)),
             "uptime": int(time.time() - _CLARA_PROCESS_START),
         }
