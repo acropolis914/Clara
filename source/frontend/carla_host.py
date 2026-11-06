@@ -3093,10 +3093,25 @@ class HostWindow(QMainWindow):
         if not old_ports:
             return False
 
-        data = self.showAddPluginDialog()
+        self._replaceTargetId = pluginId
+        self._replaceRequestInfo = None
+        try:
+            data = self.showAddPluginDialog()
+        finally:
+            self._replaceTargetId = None
         if data is None:
-            return False
-        btype, ptype, filename, label, uniqueId, extraPtr = data
+            info = self._replaceRequestInfo
+            self._replaceRequestInfo = None
+            if info is None:
+                return False
+            btype = info.get("build")
+            ptype = info.get("type")
+            filename = info.get("filename")
+            label = info.get("label")
+            uniqueId = info.get("uniqueId")
+            extraPtr = None
+        else:
+            btype, ptype, filename, label, uniqueId, extraPtr = data
 
         new_ports = self._findExistingPluginPorts(ptype, filename, label, uniqueId, pluginId)
         exact = new_ports is not None
@@ -3255,6 +3270,11 @@ class HostWindow(QMainWindow):
 
     def loadPluginFromInfo(self, info):
         self._lastLoadedFromDialog = True
+        if getattr(self, "_replaceTargetId", None) is not None:
+            # The plugin browser chose a plugin while a replace is pending: capture it
+            # instead of adding a second node.
+            self._replaceRequestInfo = info
+            return True
         if not self.host.is_engine_running():
             QMessageBox.warning(
                 self,
