@@ -614,7 +614,7 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
             print(json.dumps(events, indent=2))
         else:
             for entry in events:
-                print("%s [%-5s] [%s] %s" % (
+                print("%s  %-8s %-10s %s" % (
                     entry.get("time", ""), entry.get("level", ""),
                     entry.get("tag", ""), entry.get("message", "")))
         return 0

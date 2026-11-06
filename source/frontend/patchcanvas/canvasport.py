@@ -345,7 +345,7 @@ class CanvasPort(QGraphicsItem):
                             self.m_group_id,
                             eff_self,
                         )
-                    log_carla(f"connect request {conn}", level="debug")
+                    log_carla("request " + conn.replace(":", " → ", 2), level="debug")
                     if eff_self < 0 or eff_hover < 0:
                         # Placeholder port that never bound to the engine; refuse instead of
                         # sending an id the engine cannot resolve.

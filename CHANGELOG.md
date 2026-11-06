@@ -28,6 +28,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Readable log lines
+
+- **style(logging)**: console and file lines are now `HH:MM:SS  LEVEL     TAG        message` with aligned columns; DEBUG messages render dim. `claramsg events` uses the same columns. Connection/disconnect/stereo/scan messages use `→` and drop stale prefixes; the giant periodic `SIGNALFLOW` dump is opt-in via `CLARA_DEBUG_SIGNALFLOW=1`.
+- **fix(logging)**: assertion failures are always ERROR again; the benign-expression filter used to demote `assertion failure: "size > 0"` to DEBUG. `engineCallback: PLUGIN_ADDED` and desktop-log chatter are DEBUG now.
+
 #### 2026-11-07 — Quiet the INFO log
 
 - **fix(logging)**: internal chatter no longer shows at INFO: patchbay mouse-release/connection requests, shell-size diffs, container/group AABB audits, canvas-position counts, viewport detection and plugin-discovery start/finish are DEBUG now. AABB audits still warn when something actually overflows, and their summaries warn only when mismatched. Removed the stale `carla_canvas:`/`[SCANNER]` prefixes.

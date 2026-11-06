@@ -110,7 +110,7 @@ class LogEntry:
     def formatted_ui(self):
         time_str = self.timestamp.strftime("%H:%M:%S")
         lvl_str = LEVEL_NAMES.get(self.level, "INFO")
-        return f"[{time_str}] [{lvl_str}] [{self.tag}] {self.message}"
+        return f"{time_str}  {lvl_str:<8} {self.tag:<10} {self.message}"
 
 class CarlaLogger(QObject):
     logAdded = pyqtSignal(object)  # Emits LogEntry
@@ -231,13 +231,13 @@ class CarlaLogger(QObject):
             if tag_style not in _custom_theme.styles:
                 tag_style = "tag_app"
             text = Text()
-            text.append(f"[{time_str}] ", style="timestamp")
-            text.append(f"[{lvl_name}] ", style=style_name)
-            text.append(f"[{entry.tag}] ", style=tag_style)
-            text.append(f"{entry.message}")
-            _rich_console.print(text)
+            text.append(f"{time_str}  ", style="timestamp")
+            text.append(f"{lvl_name:<8} ", style=style_name)
+            text.append(f"{entry.tag:<10} ", style=tag_style)
+            text.append(entry.message, style="dim" if entry.level == LOG_LEVEL_DEBUG else "")
+            _rich_console.print(text, soft_wrap=True)
         else:
-            print(f"[{time_str}] [{lvl_name}] [{entry.tag}] {entry.message}")
+            print(f"{time_str}  {lvl_name:<8} {entry.tag:<10} {entry.message}")
 
     def debug(self, tag, message):
         self.log(LOG_LEVEL_DEBUG, tag, message)
@@ -367,9 +367,15 @@ class CarlaLogger(QObject):
             "IT IS WRONG TO QUERY THE LATENCY",
             "[CLAP HOST]",
             "MODEL AND ENGINE GRAPH COUNTS DO NOT MATCH",
+            "LOG PATH:",
+            "CHECKING DESKTOPFILE AT:",
         )
         is_yabridge_line = bool(re.search(r'\[[\w\.-]+-[A-Za-z0-9]{8}\]', clean_text))
-        if is_yabridge_line or any(b in upper_text for b in benign_noise):
+        if "ASSERTION FAILURE" in upper_text:
+            # Always an error, even when the asserted expression looks benign.
+            level = LOG_LEVEL_ERROR
+            tag = "BACKEND"
+        elif is_yabridge_line or any(b in upper_text for b in benign_noise):
             level = LOG_LEVEL_DEBUG
             if tag in ("APP", "WRN"):
                 if "PATCHBAY" in upper_text:
@@ -383,10 +389,7 @@ class CarlaLogger(QObject):
                 else:
                     tag = "BACKEND"
         elif explicit_level is None:
-            if "ASSERTION FAILURE" in upper_text:
-                level = LOG_LEVEL_ERROR
-                tag = "BACKEND"
-            elif "ERROR" in upper_text or "CRITICAL" in upper_text or "FAIL" in upper_text:
+            if "ERROR" in upper_text or "CRITICAL" in upper_text or "FAIL" in upper_text:
                 level = LOG_LEVEL_ERROR
             elif "WARN" in upper_text:
                 level = LOG_LEVEL_WARNING

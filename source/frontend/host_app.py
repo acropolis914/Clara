@@ -2008,7 +2008,7 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
 
             # Restore layout containers (VBox, HBox, Grid)
             containers_data = getattr(data_list, "patchbay_containers", None)
-            logger.debug("CANVAS", f"loadCanvasGroupPositionsFromProject: containers_data count={len(containers_data) if containers_data else 0}")
+            logger.debug("CANVAS", f"containers restored: {len(containers_data) if containers_data else 0}")
             if containers_data:
                 patchcanvas.loadContainers(containers_data)
                 self._setLoadingProgress(96, "Restoring containers...")
@@ -2590,7 +2590,8 @@ def engineCallback(host, action, pluginId, value1, value2, value3, valuef, value
         host.DebugCallback.emit(pluginId, value1, value2, value3, valuef, valueStr)
     elif action == ENGINE_CALLBACK_PLUGIN_ADDED:
         log_carla(
-            f"engineCallback: PLUGIN_ADDED id={pluginId}, type={value1}, name='{valueStr}'"
+            f"engineCallback: PLUGIN_ADDED id={pluginId}, type={value1}, name='{valueStr}'",
+            level="debug",
         )
         host.PluginAddedCallback.emit(pluginId, value1, valueStr)
         if gCarla.gui is not None and not getattr(gCarla.gui, "fIsProjectLoading", False):

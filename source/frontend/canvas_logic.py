@@ -138,7 +138,8 @@ def autoConnectStereoPair(gOut, pOut, gIn, pIn):
 
             if src_partner and dst_partner:
                 log_carla(
-                    f"carla_canvas: Stereo auto-wire (Alt): {gOut}:{src_partner.port_id} ('{src_partner.port_name}') -> {gIn}:{dst_partner.port_id} ('{dst_partner.port_name}')"
+                    f"stereo auto-wire: {gOut}:{src_partner.port_id} → {gIn}:{dst_partner.port_id}",
+                    level="debug",
                 )
                 gCarla.gui.host.patchbay_connect(
                     gCarla.gui.fExternalPatchbay,
@@ -148,7 +149,7 @@ def autoConnectStereoPair(gOut, pOut, gIn, pIn):
                     dst_partner.port_id,
                 )
     except Exception as e:
-        log_carla(f"carla_canvas: Stereo auto-wire error: {e}")
+        log_carla(f"stereo auto-wire failed: {e}", level="warn")
 
 
 def findStereoPartnerConnection(connectionId):
@@ -196,7 +197,7 @@ def findStereoPartnerConnection(connectionId):
                     ):
                         return cid
     except Exception as e:
-        log_carla(f"carla_canvas: findStereoPartnerConnection error: {e}")
+        log_carla(f"stereo partner lookup failed: {e}", level="warn")
     return None
 
 

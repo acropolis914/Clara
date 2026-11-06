@@ -47,6 +47,13 @@ def test_entry_messages_are_cleaned():
     assert LogEntry(LOG_LEVEL_ERROR, "PLUGIN", "[31mkeep [0mthis").message == "keep this"
 
 
+
+
+def test_assertion_failure_stays_an_error():
+    log = CarlaLogger()
+    log.log_raw_string('Carla assertion failure: "size > 0" in file x.cpp, line 1')
+    assert log.history[-1].level == LOG_LEVEL_ERROR, LEVEL_NAMES.get(log.history[-1].level)
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

@@ -3401,7 +3401,7 @@ def finalizeShells():
                     try:
                         if abs(widget.p_width - initial[0]) > 0.5 or abs(widget.p_height - initial[1]) > 0.5:
                             log_carla(
-                                f"SHELLDIFF '{group.group_name}' shell={initial[0]:.0f}x{initial[1]:.0f} final={widget.p_width:.0f}x{widget.p_height:.0f}",
+                                f"shell diff '{group.group_name}': {initial[0]:.0f}x{initial[1]:.0f} → {widget.p_width:.0f}x{widget.p_height:.0f}",
                                 level="debug",
                             )
                     except RuntimeError:
@@ -3593,16 +3593,14 @@ def auditGroupAABBs():
             if abs(dw) > 1.0 or abs(dh) > 1.0:
                 mismatched += 1
                 log_carla(
-                    f"GROUPAABB '{group.group_name}' box={box_rect.width():.0f}x{box_rect.height():.0f} "
-                    f"content={content_rect.width():.0f}x{content_rect.height():.0f} "
-                    f"dw={dw:+.0f} dh={dh:+.0f}",
+                    f"group AABB '{group.group_name}': box {box_rect.width():.0f}x{box_rect.height():.0f}, "
+                    f"content {content_rect.width():.0f}x{content_rect.height():.0f} ({dw:+.0f}x{dh:+.0f})",
                     level="debug",
                 )
         except RuntimeError:
             continue
 
-    log_carla(f"GROUPAABB: {mismatched} group(s) whose content extends past the box",
-              level="warn" if mismatched else "debug")
+    log_carla(f"group AABB: {mismatched} overflowing", level="warn" if mismatched else "debug")
 
 
 def auditContainerAABBs():
@@ -3641,17 +3639,15 @@ def auditContainerAABBs():
             if outside:
                 mismatched += 1
             log_carla(
-                f"CONTAINERAABB '{container.m_title}' frame={frame.width():.0f}x{frame.height():.0f} "
-                f"boxes={box_rect.width():.0f}x{box_rect.height():.0f} "
-                f"content={content_rect.width():.0f}x{content_rect.height():.0f} "
-                f"dw={dw:+.0f} dh={dh:+.0f} members={len(members)} outside={outside}",
+                f"container AABB '{container.m_title}': frame {frame.width():.0f}x{frame.height():.0f}, "
+                f"content {content_rect.width():.0f}x{content_rect.height():.0f} ({dw:+.0f}x{dh:+.0f})"
+                + (" outside" if outside else ""),
                 level="warn" if outside else "debug",
             )
         except RuntimeError:
             continue
 
-    log_carla(f"CONTAINERAABB: {mismatched} container(s) whose content extends past the frame",
-              level="warn" if mismatched else "debug")
+    log_carla(f"container AABB: {mismatched} overflowing", level="warn" if mismatched else "debug")
 
 
 def snapshotShellSizes():

@@ -108,18 +108,16 @@ def canvasCallback(action, value1, value2, valueStr):
 
     elif action == patchcanvas.ACTION_PORTS_CONNECT:
         gOut, pOut, gIn, pIn = tuple(int(i) for i in valueStr.split(":"))
-        log_carla(
-            f"connect {gOut}:{pOut} -> {gIn}:{pIn} (external={gCarla.gui.fExternalPatchbay})",
-            level="debug",
-        )
+        suffix = " (external)" if gCarla.gui.fExternalPatchbay else ""
+        log_carla(f"connect {gOut}:{pOut} → {gIn}:{pIn}{suffix}", level="debug")
 
         if not host.patchbay_connect(
             gCarla.gui.fExternalPatchbay, gOut, pOut, gIn, pIn
         ):
             err = host.get_last_error()
-            log_carla(f"carla_canvas: Connection failed: {err}", level="warn")
+            log_carla(f"connect failed: {err}", level="warn")
         else:
-            log_carla("carla_canvas: Connection request succeeded", level="debug")
+            log_carla("connect ok", level="debug")
             if hasattr(gCarla.gui, "markProjectModified"):
                 gCarla.gui.markProjectModified()
             if QApplication.keyboardModifiers() & Qt.AltModifier:
@@ -127,10 +125,8 @@ def canvasCallback(action, value1, value2, valueStr):
 
     elif action == patchcanvas.ACTION_PORTS_DISCONNECT:
         connectionId = value1
-        log_carla(
-            f"carla_canvas: ACTION_PORTS_DISCONNECT connectionId={connectionId} (external={gCarla.gui.fExternalPatchbay})",
-            level="debug",
-        )
+        suffix = " (external)" if gCarla.gui.fExternalPatchbay else ""
+        log_carla(f"disconnect {connectionId}{suffix}", level="debug")
 
         alt_pressed = bool(QApplication.keyboardModifiers() & Qt.AltModifier)
         partner_conn_id = None
@@ -139,15 +135,13 @@ def canvasCallback(action, value1, value2, valueStr):
 
         if not host.patchbay_disconnect(gCarla.gui.fExternalPatchbay, connectionId):
             err = host.get_last_error()
-            log_carla(f"carla_canvas: Disconnect failed: {err}", level="warn")
+            log_carla(f"disconnect failed: {err}", level="warn")
         else:
-            log_carla("carla_canvas: Disconnect request succeeded")
+            log_carla("disconnect ok", level="debug")
             if hasattr(gCarla.gui, "markProjectModified"):
                 gCarla.gui.markProjectModified()
             if partner_conn_id is not None:
-                log_carla(
-                    f"carla_canvas: Stereo auto-disconnect (Alt): connectionId={partner_conn_id}"
-                )
+                log_carla(f"stereo auto-disconnect: {partner_conn_id}", level="debug")
                 host.patchbay_disconnect(gCarla.gui.fExternalPatchbay, partner_conn_id)
 
     elif action == patchcanvas.ACTION_PLUGIN_CLONE:

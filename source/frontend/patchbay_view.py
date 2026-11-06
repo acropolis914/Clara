@@ -266,7 +266,7 @@ class CanvasMixin:
             is_gl = "GL" in type(vp).__name__.upper()
             logger.debug(
                 "CANVAS",
-                "Patchbay viewport: %s (%s), update mode %s, UseOpenGL setting=%s, GL available=%s"
+                "viewport: %s (%s), %s, OpenGL=%s/%s"
                 % (
                     "OpenGL" if is_gl else "Software raster",
                     type(vp).__name__,

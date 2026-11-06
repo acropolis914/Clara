@@ -5,6 +5,7 @@
 # ------------------------------------------------------------------------------------------------------------
 # Imports (Global)
 # ------------------------------------------------------------------------------------------------------------
+import os
 import re
 
 # ------------------------------------------------------------------------------------------------------------
@@ -593,15 +594,16 @@ class CanvasToolBarOverlay(QFrame):
         now = time.monotonic()
         if now - getattr(self, "_flow_debug_at", 0.0) > 5.0:
             self._flow_debug_at = now
-            names = {g.group_id: g.group_name for g in groups}
-            conns = [(c.group_out_id, c.group_in_id) for c in patchcanvas.canvas.connection_list][:30]
-            log_carla(
-                "SIGNALFLOW flow=%s conns=%s" % (
-                    {names.get(k, k): round(v, 3) for k, v in flow.items()},
-                    [(names.get(o, o), names.get(i, i)) for o, i in conns],
-                ),
-                level="debug",
-            )
+            if os.environ.get("CLARA_DEBUG_SIGNALFLOW"):
+                names = {g.group_id: g.group_name for g in groups}
+                conns = [(c.group_out_id, c.group_in_id) for c in patchcanvas.canvas.connection_list][:30]
+                log_carla(
+                    "SIGNALFLOW flow=%s conns=%s" % (
+                        {names.get(k, k): round(v, 3) for k, v in flow.items()},
+                        [(names.get(o, o), names.get(i, i)) for o, i in conns],
+                    ),
+                    level="debug",
+                )
 
         return levels, flow
 
