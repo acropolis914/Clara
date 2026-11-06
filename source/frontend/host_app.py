@@ -1667,6 +1667,7 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         load_source = source_override or self.fProjectFilename
         # A stale delayed finalize must never touch a newer load's shells.
         self.fLoadGeneration += 1
+        self._shellFinalizePending = False
         # Remember what was actually read so a recovery load restores canvas positions from the
         # autosave, while the project keeps its last-saved name/path (fProjectFilename).
         self.fLastLoadedSource = load_source
@@ -1986,13 +1987,28 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
 
             self.fLastLoadedSource = None
 
-        # The engine sends plugin cables a moment after the plugins themselves, so give the
-        # pre-wired shells time to bind before dropping anything unclaimed.
-        QTimer.singleShot(1200, lambda: self._finalizeShellsAfterLoad(self.fLoadGeneration))
+        # The engine sends plugin clients/cables a moment after the plugins themselves.
+        # Keep extending the settle window while clients still arrive, so a slow reload
+        # does not drop every shell before its client exists.
+        self._shellFinalizePending = True
+        self._shellFinalizeTries = 0
+        self._shellSettleDeadline = time.monotonic() + 2.0
+        QTimer.singleShot(1200, self._finalizeShellsSoon)
         self._revealAllGhostHidden()
         patchcanvas.clearGhosts()
         patchcanvas.clearGhostCables()
         self._dismissLoadingDialog()
+
+    def _finalizeShellsSoon(self):
+        if not getattr(self, "_shellFinalizePending", False):
+            return
+        if (time.monotonic() < getattr(self, "_shellSettleDeadline", 0.0)
+                and getattr(self, "_shellFinalizeTries", 0) < 40):
+            self._shellFinalizeTries = getattr(self, "_shellFinalizeTries", 0) + 1
+            QTimer.singleShot(500, self._finalizeShellsSoon)
+            return
+        self._shellFinalizePending = False
+        self._finalizeShellsAfterLoad(self.fLoadGeneration)
 
     def _finalizeShellsAfterLoad(self, token=None):
         if token is not None and token != getattr(self, "fLoadGeneration", token):

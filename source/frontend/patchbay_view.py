@@ -5,6 +5,8 @@
 # Patchbay canvas setup, menu actions and callbacks, split out of host_app.py.
 # HostWindow inherits this mixin.
 
+import time
+
 from carla_app import QSafeSettings
 from carla_backend import (
     ENGINE_PROCESS_MODE_CONTINUOUS_RACK,
@@ -835,6 +837,8 @@ class CanvasMixin:
             f"host_app: slot_handlePatchbayClientAddedCallback clientId={clientId}, clientIcon={clientIcon}, pluginId={pluginId}, clientName='{clientName}'",
             level="debug"
         )
+        if getattr(self, "_shellFinalizePending", False):
+            self._shellSettleDeadline = time.monotonic() + 2.0
         if self._isHiddenPatchbayClientName(clientName):
             self.fFilteredPatchbayClients.add(clientId)
             return
