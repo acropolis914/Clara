@@ -344,9 +344,18 @@ class CanvasPort(QGraphicsItem):
                         # Placeholder port that never bound to the engine; refuse instead of
                         # sending an id the engine cannot resolve.
                         hover = self.m_hover_item.getPortName() if hasattr(self.m_hover_item, "getPortName") else "?"
+                        try:
+                            from .patchcanvas import canvas as _pc_canvas
+                            neg = [p.port_id for p in _pc_canvas.port_list if getattr(p, "port_id", 0) < 0]
+                            parent = self.parentItem()
+                            pname = getattr(parent, "m_group_name", None)
+                            shell = getattr(parent, "_shell", None)
+                        except Exception:
+                            neg, pname, shell = [], None, None
                         log_carla(
                             f"CanvasPort.handleMouseRelease: refusing unbound port {conn} "
-                            f"(self='{self.m_port_name}' hover='{hover}')",
+                            f"(self='{self.m_port_name}' hover='{hover}' parent='{pname}' "
+                            f"shell={shell} negative_ports={neg[:10]})",
                             level="warn",
                         )
                         # sweep the ghost after this event returns (never delete self mid-handler)

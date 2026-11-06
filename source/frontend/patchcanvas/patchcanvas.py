@@ -3415,6 +3415,7 @@ def finalizeShells():
 def removeUnboundPorts():
     """Remove shell placeholder ports (negative ids) the engine never replaced.
     They cannot be connected and their ids trip an engine assertion."""
+    removed = 0
     for port in list(canvas.port_list):
         if getattr(port, "port_id", 0) >= 0:
             continue
@@ -3435,6 +3436,7 @@ def removeUnboundPorts():
             canvas.port_list.remove(port)
         except ValueError:
             pass
+        removed += 1
 
     for group in canvas.group_list:
         for widget in group.widgets:
@@ -3451,6 +3453,8 @@ def removeUnboundPorts():
     ghosts = [p.port_id for p in canvas.port_list if getattr(p, "port_id", 0) < 0]
     if ghosts:
         log_carla(f"finalizeShells: unbound placeholder ports remain: {ghosts}", level="warn")
+    elif removed:
+        log_carla(f"removeUnboundPorts: removed {removed} placeholder port(s)", level="info")
 
 
 def addShellConnection(src_name, src_port_name, dst_name, dst_port_name):
