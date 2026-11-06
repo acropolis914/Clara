@@ -54,6 +54,15 @@ def test_assertion_failure_stays_an_error():
     log.log_raw_string('Carla assertion failure: "size > 0" in file x.cpp, line 1')
     assert log.history[-1].level == LOG_LEVEL_ERROR, LEVEL_NAMES.get(log.history[-1].level)
 
+
+
+def test_sfizz_mapping_is_debug():
+    log = CarlaLogger()
+    log.log_raw_string("[carla] Mapping absolutePath '/tmp/sfizz/x.sfz' relative to targetDir '/tmp/sfizz'")
+    entry = log.history[-1]
+    assert entry.level == LOG_LEVEL_DEBUG, LEVEL_NAMES.get(entry.level)
+    assert entry.message.startswith("Mapping absolutePath")
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

@@ -202,6 +202,10 @@ if __name__ == '__main__':
     setUpSignals()
 
     # ------------------------------------------------------------------------------------------------------------------
+    # Backend/bridge stdout is part of the log too; format and filter it.
+    if not gCarla.nogui:
+        logger.start_capturing_stdout()
+
     # Init host backend
 
     host = initHost(initName, libPrefix, False, False, True)

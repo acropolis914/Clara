@@ -237,7 +237,8 @@ class CarlaLogger(QObject):
             text.append(entry.message, style="dim" if entry.level == LOG_LEVEL_DEBUG else "")
             _rich_console.print(text, soft_wrap=True)
         else:
-            print(f"{time_str}  {lvl_name:<8} {entry.tag:<10} {entry.message}")
+            out = getattr(self, "_terminal_out", None) or sys.stdout
+            print(f"{time_str}  {lvl_name:<8} {entry.tag:<10} {entry.message}", file=out)
 
     def debug(self, tag, message):
         self.log(LOG_LEVEL_DEBUG, tag, message)
@@ -369,6 +370,8 @@ class CarlaLogger(QObject):
             "MODEL AND ENGINE GRAPH COUNTS DO NOT MATCH",
             "LOG PATH:",
             "CHECKING DESKTOPFILE AT:",
+            "MAPPING ABSOLUTEPATH",
+            "CREATING SYMLINK FOR",
         )
         is_yabridge_line = bool(re.search(r'\[[\w\.-]+-[A-Za-z0-9]{8}\]', clean_text))
         if "ASSERTION FAILURE" in upper_text:
@@ -418,40 +421,58 @@ class CarlaLogger(QObject):
                 tag = "ENGINE"
         self.log(level, tag, clean_text)
 
+    def _capture_fd(self, fd):
+        import threading
+        pipe_r, pipe_w = os.pipe()
+        os.dup2(pipe_w, fd)
+        os.close(pipe_w)
+
+        def _reader():
+            # Read binary chunks and split by newline to handle non-UTF8/binary pollution
+            buf = bytearray()
+            while True:
+                try:
+                    chunk = os.read(pipe_r, 4096)
+                    if not chunk:
+                        break
+                    buf.extend(chunk)
+                    while b"\n" in buf:
+                        line, _, buf = buf.partition(b"\n")
+                        decoded_line = line.strip(b"\r\n ").decode("utf-8", errors="replace")
+                        if decoded_line:
+                            self.log_raw_string(decoded_line)
+                except Exception:
+                    break
+
+        threading.Thread(target=_reader, daemon=True).start()
+
     def start_capturing_stderr(self):
         """Intercept C/C++ backend stderr (fd 2) and route output through CarlaLogger"""
         if getattr(self, "_stderr_captured", False):
             return
         self._stderr_captured = True
         try:
-            import threading
             self._orig_stderr_fd = os.dup(2)
-            pipe_r, pipe_w = os.pipe()
-            os.dup2(pipe_w, 2)
-            os.close(pipe_w)
-
-            def _stderr_reader():
-                # Read binary chunks and split by newline to handle non-UTF8/binary pollution
-                buf = bytearray()
-                while True:
-                    try:
-                        chunk = os.read(pipe_r, 4096)
-                        if not chunk:
-                            break
-                        buf.extend(chunk)
-                        while b"\n" in buf:
-                            line, _, buf = buf.partition(b"\n")
-                            # Strip carriage returns and decode with replacement
-                            decoded_line = line.strip(b"\r\n ").decode("utf-8", errors="replace")
-                            if decoded_line:
-                                self.log_raw_string(decoded_line)
-                    except Exception:
-                        break
-
-            t = threading.Thread(target=_stderr_reader, daemon=True)
-            t.start()
+            self._capture_fd(2)
         except Exception as e:
             print("CarlaLogger: failed to capture backend stderr:", e)
+
+    def start_capturing_stdout(self):
+        """Intercept C/C++ backend and bridge stdout (fd 1) too, so [carla] lines
+        are formatted and filtered instead of leaking raw to the terminal."""
+        if getattr(self, "_stdout_captured", False):
+            return
+        self._stdout_captured = True
+        try:
+            global _rich_console
+            self._orig_stdout_fd = os.dup(1)
+            self._terminal_out = os.fdopen(
+                os.dup(1), "w", buffering=1, encoding="utf-8", errors="replace")
+            if HAVE_RICH:
+                _rich_console = Console(theme=_custom_theme, file=self._terminal_out)
+            self._capture_fd(1)
+        except Exception as e:
+            print("CarlaLogger: failed to capture backend stdout:", e)
 
 # Singleton global instance
 logger = CarlaLogger()

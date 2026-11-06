@@ -936,9 +936,9 @@ class CanvasBox(QGraphicsObject):
         if port_id in self.m_port_list_ids:
             self.m_port_list_ids.remove(port_id)
         else:
-            qCritical(
-                "PatchCanvas::CanvasBox.removePort(%i) - unable to find port to remove"
-                % port_id
+            log_carla(
+                "PatchCanvas::CanvasBox.removePort(%i) - unable to find port to remove" % port_id,
+                level="debug",
             )
             return
 

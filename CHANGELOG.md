@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Backend stdout joins the log
+
+- **fix(logging)**: the GUI host now captures backend/bridge stdout (fd 1) as well as stderr, so raw `[carla]` lines are formatted and classified instead of leaking to the terminal. `Mapping absolutePath` and `Creating symlink` are DEBUG noise. The `CanvasBox.removePort(...) unable to find port` teardown message is DEBUG too.
+
 #### 2026-11-07 — Restore plugin-browser Qt imports
 
 - **fix(pluginlist)**: `QComboBox` was dropped when the PyQt conditionals moved to `qt_compat`, crashing the patchbay context menu's Replace action with `NameError`. Restored it and added the two `carla_backend_qtweb` names the static import check found missing.
