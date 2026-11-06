@@ -146,6 +146,18 @@ def test_repeated_names_use_position():
     assert [port_role(p) for p in ports] == ["ch:0", "ch:1", "ch:2", "ch:3"]
 
 
+def test_catalog_names_override_order():
+    uri = "http://calf.sourceforge.net/plugins/SidechainCompressor"
+    ports = index_ports([
+        port("Sidechain 2", MODE_IN, KIND_AUDIO, 1),
+        port("In R", MODE_IN, KIND_AUDIO, 2),
+        port("Sidechain", MODE_IN, KIND_AUDIO, 3),
+        port("In L", MODE_IN, KIND_AUDIO, 4),
+    ])
+    attach_catalog_roles(ports, uri)
+    assert [port_role(p) for p in ports] == ["sc:1", "ch:1", "sc:0", "ch:0"]
+
+
 def test_mixer_catalog_roles_are_unique():
     uri = "http://lsp-plug.in/plugins/lv2/mixer_x8_stereo"
     ports = index_ports([
@@ -184,6 +196,7 @@ def main():
     test_catalog_roles_for_generic_names()
     test_catalog_sidechain_drops_into_plain_plugin()
     test_repeated_names_use_position()
+    test_catalog_names_override_order()
     test_mixer_catalog_roles_are_unique()
     test_duplicate_output_target_is_rejected()
     test_normalize_canvas_port()

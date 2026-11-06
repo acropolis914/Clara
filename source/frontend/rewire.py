@@ -98,13 +98,25 @@ def attach_catalog_roles(ports, label):
     if not roles:
         return ports
     counters = {}
+    seen_names = {}
     for port in ports:
         bucket = port["kind"] + "_" + port["mode"]
         index = counters.get(bucket, 0)
         counters[bucket] = index + 1
         values = roles.get(bucket)
-        if values and index < len(values):
-            port["catalog_role"] = values[index]
+        if not values:
+            continue
+        role_index = index
+        names = roles.get(bucket + "_names")
+        if names:
+            folded = (port.get("name") or "").casefold()
+            occurrence = seen_names.get((bucket, folded), 0)
+            seen_names[(bucket, folded)] = occurrence + 1
+            matches = [i for i, name in enumerate(names) if name.casefold() == folded]
+            if occurrence < len(matches):
+                role_index = matches[occurrence]
+        if role_index < len(values):
+            port["catalog_role"] = values[role_index]
     return ports
 
 

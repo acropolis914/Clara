@@ -66,7 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(cli)**: `--with-plugin` is a plugin id and the new `--with-node` takes a node id; `claramsg open` is available; dirty opens fail with a clear message; the result wait is 45 s; `dialog click` refuses destructive button text without `--force`.
 - **fix(security)**: the default screenshot is a private 0600 temp file and explicit paths refuse symlinks/special files.
 - **fix(canvas)**: the delayed shell finalize is tied to a load generation, so a previous load can no longer drop a newer load's shells.
-- **fix(tools)**: the LV2 scraper refuses a >20% catalog shrink without `--force`, catalog load errors are logged, and the AppImage gets a `claramsg` launcher.
+- **fix(tools)**: the LV2 scraper refuses a >20% catalog shrink without `--force`, catalog load errors are logged, and the AppImage gets a `claramsg` launcher. Catalog roles now match by port name when it is unique, with position as fallback.
 
 #### 2026-11-06 — Bridges must die with the host
 

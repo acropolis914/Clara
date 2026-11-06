@@ -141,7 +141,10 @@ def main():
         for (kind, direction), items in grouped.items():
             roles = roles_for(items)
             if roles:
-                buckets[kind + "_" + direction] = roles
+                key = kind + "_" + direction
+                buckets[key] = roles
+                if kind == "audio":
+                    buckets[key + "_names"] = [port["name"] for port in items]
         if buckets:
             catalog[uri] = {"n": name, **buckets}
     parser = argparse.ArgumentParser()
