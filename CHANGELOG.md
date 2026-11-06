@@ -38,7 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 #### 2026-11-06 — Bridges must die with the host
 
-- **fix(bridge)**: both bridge binaries now set `PR_SET_PDEATHSIG` (Linux) and exit if already reparented. Without this, killing or crashing Clara left `carla-bridge-native` processes alive forever; a sample player held 2.5 GB of swapped memory after the host was gone. Orphaned bridges from earlier runs were also cleaned up manually.
+- **fix(bridge)**: both bridge binaries set `PR_SET_PDEATHSIG` (Linux), exit if already reparented, and run a 1-second parent watchdog as a portable fallback. Without this, killing or crashing Clara left `carla-bridge-native` processes alive forever; a sample player held 2.5 GB of swapped memory after the host was gone. Verified: `kill -9` on the host now drops all 18 bridges within one second. The dev launcher also kills bridges by command line (`pkill -x` never matched the truncated 15-char process name). Orphaned bridges from earlier runs were cleaned up manually.
 
 ### Fixed
 

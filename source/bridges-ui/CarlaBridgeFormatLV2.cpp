@@ -18,10 +18,13 @@
 #include <string>
 #include <vector>
 
-#ifdef CARLA_OS_LINUX
+#ifdef CARLA_OS_UNIX
 # include <signal.h>
-# include <sys/prctl.h>
+# include <pthread.h>
 # include <unistd.h>
+#endif
+#ifdef CARLA_OS_LINUX
+# include <sys/prctl.h>
 #endif
 
 #define URI_CARLA_ATOM_WORKER_IN   "http://kxstudio.sf.net/ns/carla/atomWorkerIn"
@@ -1532,12 +1535,33 @@ CARLA_BRIDGE_UI_END_NAMESPACE
 
 // --------------------------------------------------------------------------------------------------------------------
 
+#ifdef CARLA_OS_UNIX
+static void* carla_parentWatchdog(void*)
+{
+    const pid_t parent = getppid();
+    for (;;)
+    {
+        sleep(1);
+        if (getppid() != parent)
+            _exit(0);
+    }
+    return nullptr;
+}
+#endif
+
 int main(int argc, const char* argv[])
 {
 #ifdef CARLA_OS_LINUX
     prctl(PR_SET_PDEATHSIG, SIGKILL);
     if (getppid() == 1)
         return 0;
+#endif
+#ifdef CARLA_OS_UNIX
+    {
+        pthread_t watchdog;
+        if (pthread_create(&watchdog, nullptr, carla_parentWatchdog, nullptr) == 0)
+            pthread_detach(watchdog);
+    }
 #endif
 
     CARLA_BRIDGE_UI_USE_NAMESPACE

@@ -8,7 +8,7 @@ for pattern in 'python3 .*/carla( |$)' 'python3 .*/share/carla/carla( |$)'; do
         kill -9 "$pid" 2>/dev/null || true
     done
 done
-pkill -x carla-bridge-native 2>/dev/null || true
+pkill -f 'carla-bridge-native' 2>/dev/null || true
 pkill -x pw-record 2>/dev/null || true
 sleep 2
 

@@ -21,6 +21,8 @@
 
 #ifdef CARLA_OS_UNIX
 # include <signal.h>
+# include <pthread.h>
+# include <unistd.h>
 #endif
 
 #ifdef CARLA_OS_LINUX
@@ -306,6 +308,20 @@ private:
 
 // -------------------------------------------------------------------------
 
+#ifdef CARLA_OS_UNIX
+static void* carla_parentWatchdog(void*)
+{
+    const pid_t parent = getppid();
+    for (;;)
+    {
+        sleep(1);
+        if (getppid() != parent)
+            _exit(0);
+    }
+    return nullptr;
+}
+#endif
+
 int main(int argc, char* argv[])
 {
 #ifdef CARLA_OS_LINUX
@@ -314,6 +330,13 @@ int main(int argc, char* argv[])
     prctl(PR_SET_PDEATHSIG, SIGKILL);
     if (getppid() == 1)
         return 0;
+#endif
+#ifdef CARLA_OS_UNIX
+    {
+        pthread_t watchdog;
+        if (pthread_create(&watchdog, nullptr, carla_parentWatchdog, nullptr) == 0)
+            pthread_detach(watchdog);
+    }
 #endif
 
     // ---------------------------------------------------------------------
