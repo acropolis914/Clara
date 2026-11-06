@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — Host split: events, minimap, canvas
+
+- **refactor(host)**: window events/timers/system tray/update checks (`carla_host_events.py`), MiniCanvas controls (`carla_host_minicanvas.py`) and the patchbay canvas setup/menu/callbacks (`carla_host_canvas.py`) moved out of `carla_host.py` into mixins that `HostWindow` inherits. No call sites changed; `carla_host.py` drops from 7,486 to 5,574 lines. Both install lists include the new files.
+
 #### 2026-11-06 — Rewire flow extracted and tested
 
 - **refactor(host)**: the control-channel handlers (`msgEvents`, `msgScreenshot`, `msgDialogs`, `msgDialogAction`, `handleMsgRequest`) and control-driven project open moved to `carla_control.py` (`ControlMixin`); the replace/rewire flow moved to `carla_rewire_flow.py` (`RewireFlowMixin`). `HostWindow` inherits both, so no call sites changed. `carla_host.py` is 700 lines shorter; both new files are added to the install lists.

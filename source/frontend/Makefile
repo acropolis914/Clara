@@ -94,6 +94,9 @@ RES = \
 	$(BINDIR)/resources/carla_host_control.py \
 	$(BINDIR)/resources/carla_control.py \
 	$(BINDIR)/resources/carla_rewire_flow.py \
+	$(BINDIR)/resources/carla_host_events.py \
+	$(BINDIR)/resources/carla_host_minicanvas.py \
+	$(BINDIR)/resources/carla_host_canvas.py \
 	$(BINDIR)/resources/carla_settings.py \
 	$(BINDIR)/resources/carla_skin.py \
 	$(BINDIR)/resources/carla_shared.py \

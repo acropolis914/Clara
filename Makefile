@@ -687,7 +687,9 @@ endif
 	# Install resources (re-use python files)
 	@for item in common patchcanvas styles utils widgets dialogs pluginlist \
 		carla_app.py carla_backend.py carla_backend_qt.py carla_frontend.py carla_host.py \
-		carla_host_control.py carla_control.py carla_rewire_flow.py carla_settings.py carla_skin.py carla_shared.py carla_utils.py \
+		carla_host_control.py carla_control.py carla_rewire_flow.py \
+		carla_host_events.py carla_host_minicanvas.py carla_host_canvas.py \
+		carla_settings.py carla_skin.py carla_shared.py carla_utils.py \
 		carla_widgets.py externalui.py qt_compat.py qt_config.py resources_rc.py \
 		ui_carla_edit.py ui_carla_host.py ui_carla_parameter.py ui_carla_plugin_calf.py \
 		ui_carla_plugin_classic.py ui_carla_plugin_compact.py ui_carla_plugin_default.py \
