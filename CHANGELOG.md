@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — Canvas input extracted
+
+- **refactor(host)**: canvas scrollbar state and keyboard shortcuts moved to `canvas_input.py` (`CanvasInputMixin`). `host_app.py` is 4,073 lines. Added to both install lists.
+
 #### 2026-11-06 — Engine menu actions extracted
 
 - **refactor(host)**: engine start/stop/config moved to `engine_menu.py` (`EngineMenuMixin`). `host_app.py` is 4,192 lines. Added to both install lists.
