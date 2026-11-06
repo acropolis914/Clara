@@ -11,46 +11,29 @@ from abc import abstractmethod
 # ------------------------------------------------------------------------------------------------------------
 # Imports (PyQt)
 
-from qt_compat import qt_config
-
-if qt_config == 5:
-    from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QByteArray
-    from PyQt5.QtGui import QCursor, QIcon, QPalette, QPixmap
-    from PyQt5.QtWidgets import (
-        QApplication,
-        QDialog,
-        QFileDialog,
-        QHBoxLayout,
-        QInputDialog,
-        QLabel,
-        QMenu,
-        QMessageBox,
-        QProgressBar,
-        QPushButton,
-        QScrollArea,
-        QTextEdit,
-        QVBoxLayout,
-        QWidget,
-    )
-elif qt_config == 6:
-    from PyQt6.QtCore import pyqtSignal, pyqtSlot, Qt, QByteArray
-    from PyQt6.QtGui import QCursor, QIcon, QPalette, QPixmap
-    from PyQt6.QtWidgets import (
-        QApplication,
-        QDialog,
-        QFileDialog,
-        QHBoxLayout,
-        QInputDialog,
-        QLabel,
-        QMenu,
-        QMessageBox,
-        QProgressBar,
-        QPushButton,
-        QScrollArea,
-        QTextEdit,
-        QVBoxLayout,
-        QWidget,
-    )
+from qt_compat import (
+    QApplication,
+    QByteArray,
+    QCursor,
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QIcon,
+    QInputDialog,
+    QLabel,
+    QMenu,
+    QMessageBox,
+    QPalette,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+    Qt,
+    pyqtSignal,
+    pyqtSlot,
+)
 
 # ------------------------------------------------------------------------------------------------------------
 # Imports (Custom)

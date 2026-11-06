@@ -60,17 +60,14 @@ from qt_compat import (
     QTimer,
     QToolButton,
     QVBoxLayout,
+    QByteArray,
+    QListView,
+    QRadioButton,
+    QToolBox,
     QWidget,
     Qt,
     pyqtSignal,
 )
-
-try:
-    from PyQt6.QtCore import QByteArray
-    from PyQt6.QtWidgets import QComboBox, QListView, QRadioButton, QToolBox  # noqa: F811
-except ImportError:  # pragma: no cover - Qt5 fallback
-    from PyQt5.QtCore import QByteArray
-    from PyQt5.QtWidgets import QComboBox, QListView, QRadioButton, QToolBox  # noqa: F811
 
 # ------------------------------------------------------------------------------------------------------------
 # Imports (Custom)

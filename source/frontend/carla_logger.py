@@ -7,11 +7,7 @@ import os
 import re
 import time
 from datetime import datetime
-from qt_config import qt as qt_config
-if qt_config == 5:
-    from PyQt5.QtCore import QObject, pyqtSignal
-else:
-    from PyQt6.QtCore import QObject, pyqtSignal
+from qt_compat import QObject, pyqtSignal
 
 # Import rich if available, with graceful fallback
 try:

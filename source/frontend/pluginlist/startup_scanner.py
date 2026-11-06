@@ -15,14 +15,10 @@ for _d in (_FRONTEND_DIR, _HERE):
 
 from qt_compat import (
     QObject,
+    QByteArray,
     QThread,
     pyqtSignal,
 )
-
-try:
-    from PyQt6.QtCore import QByteArray
-except ImportError:
-    from PyQt5.QtCore import QByteArray
 
 from carla_backend import (
     BINARY_NATIVE,

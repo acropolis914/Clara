@@ -5,12 +5,7 @@
 # ------------------------------------------------------------------------------------------------------------
 # Imports (Global)
 
-from qt_compat import qt_config
-
-if qt_config == 5:
-    from PyQt5.QtCore import pyqtSignal, QObject
-elif qt_config == 6:
-    from PyQt6.QtCore import pyqtSignal, QObject
+from qt_compat import QObject, pyqtSignal
 
 # ------------------------------------------------------------------------------------------------------------
 # Imports (Custom)

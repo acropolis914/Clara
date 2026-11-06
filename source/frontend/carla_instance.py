@@ -13,6 +13,7 @@ import sys
 import time
 
 from qt_compat import (
+    QCoreApplication,
     QLockFile,
     QLocalServer,
     QLocalSocket,
@@ -32,12 +33,6 @@ from clara_instance_core import (
     encode_request,
     error_reply,
 )
-
-try:
-    from PyQt6.QtCore import QCoreApplication
-except ImportError:
-    from PyQt5.QtCore import QCoreApplication
-
 
 MAX_CONNECTIONS = 16
 REPLY_CLOSE_DELAY_MS = 250

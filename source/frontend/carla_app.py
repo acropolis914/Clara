@@ -16,20 +16,19 @@ from ctypes import CDLL, RTLD_GLOBAL
 # ------------------------------------------------------------------------------------------------------------
 # Imports (PyQt)
 
-from qt_compat import qt_config
-
-# pylint: disable=import-error
-
-if qt_config == 5:
-    from PyQt5.QtCore import QT_VERSION, Qt, QCoreApplication, QLibraryInfo, QLocale, QTranslator
-    from PyQt5.QtGui import QColor, QIcon, QPalette
-    from PyQt5.QtWidgets import QApplication
-elif qt_config == 6:
-    from PyQt6.QtCore import QT_VERSION, Qt, QCoreApplication, QLibraryInfo, QLocale, QTranslator
-    from PyQt6.QtGui import QColor, QIcon, QPalette
-    from PyQt6.QtWidgets import QApplication
-
-# pylint: enable=import-error
+from qt_compat import (
+    QApplication,
+    QColor,
+    QCoreApplication,
+    QIcon,
+    QLibraryInfo,
+    QLocale,
+    QPalette,
+    QT_VERSION,
+    QTranslator,
+    Qt,
+    qt_config,
+)
 # pylint: disable=possibly-used-before-assignment
 
 # ------------------------------------------------------------------------------------------------------------

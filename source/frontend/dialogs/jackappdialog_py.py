@@ -21,6 +21,7 @@ from qt_compat import (
     QLineEdit,
     QPixmap,
     QPushButton,
+    QRadioButton,
     QSettings,
     QSizePolicy,
     QSpacerItem,
@@ -29,14 +30,7 @@ from qt_compat import (
     Qt,
     QVBoxLayout,
     QWidget,
-    qt_config,
 )
-
-# QRadioButton is not exported by qt_compat
-if qt_config == 5:
-    from PyQt5.QtWidgets import QRadioButton
-elif qt_config == 6:
-    from PyQt6.QtWidgets import QRadioButton
 
 # ------------------------------------------------------------------------------------------------------------
 # Constants (mirrors CarlaLibJackHints.h)

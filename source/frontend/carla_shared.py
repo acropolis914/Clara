@@ -22,27 +22,19 @@ except Exception:
 # ------------------------------------------------------------------------------------------------------------
 # Imports (PyQt)
 
-from qt_compat import qt_config
-
-# pylint: disable=import-error
-
-if qt_config == 5:
-    # import changed in PyQt 5.15.8, so try both
-    try:
-        from PyQt5.Qt import PYQT_VERSION_STR
-    except ImportError:
-        from PyQt5.QtCore import PYQT_VERSION_STR
-
-    from PyQt5.QtCore import qFatal, QT_VERSION, QT_VERSION_STR, qWarning, QDir, QSettings
-    from PyQt5.QtGui import QIcon
-    from PyQt5.QtWidgets import QFileDialog, QMessageBox
-
-elif qt_config == 6:
-    from PyQt6.QtCore import qFatal, PYQT_VERSION_STR, QT_VERSION, QT_VERSION_STR, qWarning, QDir, QSettings
-    from PyQt6.QtGui import QIcon
-    from PyQt6.QtWidgets import QFileDialog, QMessageBox
-
-# pylint: enable=import-error
+from qt_compat import (
+    PYQT_VERSION_STR,
+    QDir,
+    QFileDialog,
+    QIcon,
+    QMessageBox,
+    QSettings,
+    QT_VERSION,
+    QT_VERSION_STR,
+    qFatal,
+    qWarning,
+    qt_config,
+)
 # pylint: disable=possibly-used-before-assignment
 
 # ------------------------------------------------------------------------------------------------------------
