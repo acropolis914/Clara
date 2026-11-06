@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Track the canvas aggregator
+
+- **fix(build)**: `canvas_ui.py` matched `.gitignore`'s `*_ui.py` and was never committed, so a clean checkout could not import the host. Renamed to `canvas_api.py` and added to the install lists.
+
 #### 2026-11-07 — Loading banner takes over
 
 - **fix(loading)**: when a recent-project/autosave prompt already owns `fLoadingDialog`, starting the actual load now closes it and shows the inline loading banner instead of silently reusing the prompt. Banner construction failures are logged instead of swallowed.
@@ -59,7 +63,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 #### 2026-11-06 — Canvas split into cohesive modules
 
-- **refactor(canvas)**: `carla_canvas.py` (2,621 lines) split into `canvas_logic.py` (stereo patchbay helpers), `canvas_helpers.py` (event/glyph/lock helpers), `canvas_toolbar.py` (navigation palette), `canvas_context_toolbar.py` (context palette), `canvas_viewport.py` (viewport input/overlays) and `canvas_callbacks.py` (global patchbay callback). `canvas_ui.py` re-exports the same names, so host/patchbay imports only changed module name. Install lists include the new files.
+- **refactor(canvas)**: `carla_canvas.py` (2,621 lines) split into `canvas_logic.py` (stereo patchbay helpers), `canvas_helpers.py` (event/glyph/lock helpers), `canvas_toolbar.py` (navigation palette), `canvas_context_toolbar.py` (context palette), `canvas_viewport.py` (viewport input/overlays) and `canvas_callbacks.py` (global patchbay callback). `canvas_api.py` re-exports the same names, so host/patchbay imports only changed module name. Install lists include the new files.
 
 #### 2026-11-06 — App menus and host internals extracted
 

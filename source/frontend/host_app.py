@@ -32,7 +32,7 @@ from carla_shared import *
 from carla_utils import *
 from carla_widgets import *
 from patchcanvas import patchcanvas
-from canvas_ui import (
+from canvas_api import (
     CanvasViewportFilter,
     autoConnectStereoPair,
     canvasCallback,

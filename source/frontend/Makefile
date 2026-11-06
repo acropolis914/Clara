@@ -104,7 +104,7 @@ RES = \
 	$(BINDIR)/resources/canvas_input.py \
 	$(BINDIR)/resources/app_menus.py \
 	$(BINDIR)/resources/host_internal.py \
-	$(BINDIR)/resources/canvas_ui.py \
+	$(BINDIR)/resources/canvas_api.py \
 	$(BINDIR)/resources/canvas_logic.py \
 	$(BINDIR)/resources/canvas_helpers.py \
 	$(BINDIR)/resources/canvas_toolbar.py \
