@@ -56,6 +56,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **fix(patchbay)**: shell finalization is now exception-safe per group and always runs the placeholder-port sweep, so one deleted item can no longer skip the cleanup and leave clickable ghost ports. The refusal log names both ports so a lingering placeholder is identifiable.
 
+#### 2026-11-06 — Bind shell port ids on the widget
+
+- **fix(patchbay)**: binding a shell port updated the port dictionary but not the `CanvasPort` widget's own id. The connection code reads the widget id, so remapped ports kept sending their negative placeholder ids and were refused by the engine guard. The widget id/name now update with the dictionary, and the connection path uses the dictionary id as the source of truth. A post-load check reports any port whose widget id is still stale (currently 0).
+
 ### Features
 
 #### 2026-11-06 — Per-plugin bridging

@@ -325,22 +325,28 @@ class CanvasPort(QGraphicsItem):
                         )
                         break
                 else:
+                    def _effective_id(w):
+                        pd = getattr(w, "_port_dict", None)
+                        return getattr(pd, "port_id", getattr(w, "m_port_id", -1))
+
+                    eff_self = _effective_id(self)
+                    eff_hover = _effective_id(self.m_hover_item)
                     if self.m_port_mode == PORT_MODE_OUTPUT:
                         conn = "%i:%i:%i:%i" % (
                             self.m_group_id,
-                            self.m_port_id,
+                            eff_self,
                             self.m_hover_item.getGroupId(),
-                            self.m_hover_item.getPortId(),
+                            eff_hover,
                         )
                     else:
                         conn = "%i:%i:%i:%i" % (
                             self.m_hover_item.getGroupId(),
-                            self.m_hover_item.getPortId(),
+                            eff_hover,
                             self.m_group_id,
-                            self.m_port_id,
+                            eff_self,
                         )
                     log_carla(f"CanvasPort.handleMouseRelease: connecting {conn}")
-                    if self.m_port_id < 0 or self.m_hover_item.getPortId() < 0:
+                    if eff_self < 0 or eff_hover < 0:
                         # Placeholder port that never bound to the engine; refuse instead of
                         # sending an id the engine cannot resolve.
                         hover = self.m_hover_item.getPortName() if hasattr(self.m_hover_item, "getPortName") else "?"
@@ -358,10 +364,10 @@ class CanvasPort(QGraphicsItem):
                             f"shell={shell} negative_ports={neg[:10]})",
                             level="warn",
                         )
-                        # sweep the ghost after this event returns (never delete self mid-handler)
+                        # remove the clicked ghost after this event returns (never delete self mid-handler)
                         try:
-                            from .patchcanvas import removeUnboundPorts
-                            QTimer.singleShot(0, removeUnboundPorts)
+                            from .patchcanvas import removePortWidget
+                            QTimer.singleShot(0, lambda w=self: removePortWidget(w))
                         except Exception:
                             pass
                     else:

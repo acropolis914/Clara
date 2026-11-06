@@ -1261,6 +1261,10 @@ def addPort(group_id, port_id, port_name, port_mode, port_type, is_alternate=Fal
                 port_dict.port_mode = port_mode
                 port_dict.port_type = port_type
                 port_dict.is_alternate = is_alternate
+            if hasattr(port.widget, "m_port_id"):
+                port.widget.m_port_id = port_id
+            if hasattr(port.widget, "setPortName"):
+                port.widget.setPortName(port_name)
             if hasattr(port.widget, "setPortMode"):
                 port.widget.setPortMode(port_mode)
             if hasattr(port.widget, "m_port_type"):
@@ -3450,11 +3454,72 @@ def removeUnboundPorts():
                     except RuntimeError:
                         pass
 
+    # Scene-wide: a placeholder can outlive its group entry and stay clickable.
+    live_group_ids = {g.group_id for g in canvas.group_list}
+    orphan_boxes = {}
+    for item in list(canvas.scene.items()):
+        if item.type() != CanvasPortType:
+            continue
+        pd = getattr(item, "_port_dict", None)
+        effective = getattr(pd, "port_id", None)
+        if effective is None:
+            try:
+                effective = item.getPortId()
+            except RuntimeError:
+                continue
+        if effective is not None and effective >= 0:
+            continue
+        parent = item.parentItem()
+        pname = getattr(parent, "m_group_name", "?") if parent is not None else "?"
+        pid = getattr(parent, "m_group_id", "?") if parent is not None else "?"
+        in_list = pid in live_group_ids
+        orphan_boxes.setdefault((pname, pid, in_list), 0)
+        orphan_boxes[(pname, pid, in_list)] += 1
+        try:
+            canvas.scene.removeItem(item)
+        except RuntimeError:
+            pass
+        removed += 1
+    if orphan_boxes:
+        log_carla(f"removeUnboundPorts: cleaned negative ports in {len(orphan_boxes)} box(es)", level="debug")
+
+    stale = [
+        (p.group_id, p.port_id, getattr(p.widget, "m_port_id", None))
+        for p in canvas.port_list
+        if getattr(p, "port_id", 0) >= 0
+        and p.widget is not None
+        and getattr(p.widget, "m_port_id", p.port_id) < 0
+    ]
+    if stale:
+        log_carla(f"finalizeShells: ports with stale widget ids: {stale[:10]}", level="warn")
+
     ghosts = [p.port_id for p in canvas.port_list if getattr(p, "port_id", 0) < 0]
     if ghosts:
         log_carla(f"finalizeShells: unbound placeholder ports remain: {ghosts}", level="warn")
     elif removed:
         log_carla(f"removeUnboundPorts: removed {removed} placeholder port(s)", level="info")
+
+
+def removePortWidget(widget):
+    """Remove a single port item and its bookkeeping, even if it is orphaned."""
+    if widget is None:
+        return
+    parent = None
+    try:
+        parent = widget.parentItem()
+    except RuntimeError:
+        pass
+    port_dict = getattr(widget, "_port_dict", None)
+    port_id = getattr(widget, "m_port_id", None)
+    try:
+        canvas.scene.removeItem(widget)
+    except RuntimeError:
+        pass
+    if parent is not None and port_id is not None:
+        if port_id in getattr(parent, "m_port_list_ids", []):
+            parent.removePortFromGroup(port_id)
+    if port_dict is not None and port_dict in canvas.port_list:
+        canvas.port_list.remove(port_dict)
 
 
 def addShellConnection(src_name, src_port_name, dst_name, dst_port_name):
