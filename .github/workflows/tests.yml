@@ -23,6 +23,9 @@ jobs:
       - name: Clara instance identity and protocol (Python)
         run: python3 source/tests/test_clara_instance.py
 
+      - name: Replace-in-place port matcher (Python)
+        run: python3 source/tests/test_rewire.py
+
       - name: JSON project document round-trip (C++)
         run: bash scripts/test_json_document.sh
 

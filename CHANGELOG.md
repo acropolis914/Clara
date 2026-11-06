@@ -28,6 +28,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Features
 
+#### 2026-11-06 — Replace plugin with rewire
+
+- **feat(patchbay/rack)**: “Replace…” now opens a Rewire dialog instead of swapping the plugin blindly. It lists the old node's wired ports, auto-matches by name → channel/index → event/CV role, and lets each row be remapped or dropped before applying. Cables are preserved by direction: an old output reconnects to the same peer input, an old input keeps its peer output.
+- **feat(rewire)**: when the replacement plugin is already loaded elsewhere, its live ports are used for an exact preview (no extra load). Otherwise the dialog shows roles (`Audio Out #1`, `Event In`) resolved after the plugin loads. Outputs cannot be double-mapped; unmatched cables are reported as dropped.
+- **test(rewire)**: pure matcher tests cover name/channel/event matching, direction/kind refusal, role resolution and duplicate-output rejection.
+
 #### 2026-11-06 — Per-plugin "never bridge" overrides
 
 - **feat(bridge)**: `CanvasPositions` now stores `no_bridge_plugins`. On load those indices get `AVOID_BRIDGE` and lose `USE_BRIDGE` even if an older map still lists them; the learned map subtracts them on save. Used to unbridge the four LSP `mixer_x8` nodes (18 → 14 bridge processes). Total memory stayed roughly flat (~3.7 GB) because the plugin data moved in-process; the win is fewer processes, not less sample RAM.

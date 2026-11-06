@@ -3014,6 +3014,245 @@ class HostWindow(QMainWindow):
             return False
         return True
 
+    # --------------------------------------------------------------------------------------------------------
+    # Replace + rewire
+
+    def _groupForPlugin(self, pluginId):
+        group = patchcanvas.canvas.group_plugin_map.get(pluginId)
+        if group is not None:
+            return group
+        for group in patchcanvas.canvas.group_list:
+            if group.plugin_id == pluginId:
+                return group
+        return None
+
+    def _groupPorts(self, groupId):
+        return [
+            port for port in patchcanvas.canvas.port_list
+            if port.group_id == groupId and getattr(port, "widget", None) is not None
+        ]
+
+    def _oldPortConnections(self, groupId):
+        connections = []
+        for conn in patchcanvas.canvas.connection_list:
+            if conn.group_out_id == groupId or conn.group_in_id == groupId:
+                connections.append(
+                    (conn.group_out_id, conn.port_out_id, conn.group_in_id, conn.port_in_id)
+                )
+        return connections
+
+    def _portCableCount(self, groupId, portId):
+        count = 0
+        for conn in patchcanvas.canvas.connection_list:
+            if conn.group_out_id == groupId and conn.port_out_id == portId:
+                count += 1
+            elif conn.group_in_id == groupId and conn.port_in_id == portId:
+                count += 1
+        return count
+
+    def _findExistingPluginPorts(self, ptype, filename, label, uniqueId, excludeId):
+        """Use a live instance's ports for an exact preview, when one exists."""
+        for index, pitem in enumerate(self.fPluginList):
+            if pitem is None or index == excludeId:
+                continue
+            try:
+                info = self.host.get_plugin_info(index)
+            except Exception:
+                continue
+            if not info or info.get("type") != ptype:
+                continue
+            same = False
+            if uniqueId and info.get("uniqueId") == uniqueId:
+                same = True
+            elif filename and info.get("filename") == filename:
+                same = not label or info.get("label") == label
+            elif label and info.get("label") == label:
+                same = True
+            if not same:
+                continue
+            group = self._groupForPlugin(index)
+            if group is None:
+                continue
+            ports = self._groupPorts(group.group_id)
+            if ports:
+                return ports
+        return None
+
+    def showReplaceWithRewire(self, pluginId):
+        from rewire import actual_target, match_ports, normalize_port, role_target
+        from rewire_dialog import RewireDialog
+
+        if not self.host.is_engine_running():
+            return False
+        if getattr(self, "fIsProjectLoading", False):
+            return False
+        old_group = self._groupForPlugin(pluginId)
+        if old_group is None:
+            return False
+        old_ports = [normalize_port(port) for port in self._groupPorts(old_group.group_id)]
+        if not old_ports:
+            return False
+
+        data = self.showAddPluginDialog()
+        if data is None:
+            return False
+        btype, ptype, filename, label, uniqueId, extraPtr = data
+
+        new_ports = self._findExistingPluginPorts(ptype, filename, label, uniqueId, pluginId)
+        exact = new_ports is not None
+        if exact:
+            new_ports = [normalize_port(port) for port in new_ports]
+            targets = []
+            seen = set()
+            for port in new_ports:
+                target = actual_target(port)
+                key = (target["mode"], target["kind"], target["name"].casefold())
+                if key not in seen:
+                    seen.add(key)
+                    targets.append(target)
+        else:
+            targets = []
+            seen = set()
+            for port in old_ports:
+                target = role_target(port)
+                if target["role"] not in seen:
+                    seen.add(target["role"])
+                    targets.append(target)
+
+        rows = match_ports(old_ports, new_ports if exact else None)
+        cable_counts = {
+            port["key"]: self._portCableCount(old_group.group_id, port["key"])
+            for port in old_ports
+        }
+
+        dialog = RewireDialog(
+            self,
+            old_group.group_name,
+            label or os.path.basename(filename or "") or "plugin",
+            rows,
+            cable_counts,
+            targets,
+            exact,
+        )
+        if not dialog.exec_():
+            return False
+
+        plan = dialog.selected_plan()
+        old_connections = self._oldPortConnections(old_group.group_id)
+        old_gid = old_group.group_id
+        try:
+            pos = old_group.widgets[0].pos()
+        except Exception:
+            pos = None
+
+        if not self.host.replace_plugin(pluginId):
+            CustomMessageBox(
+                self, QMessageBox.Critical, self.tr("Error"), self.tr("Failed to replace plugin"),
+                self.host.get_last_error(), QMessageBox.Ok, QMessageBox.Ok,
+            )
+            return False
+
+        if pos is not None:
+            patchcanvas.setInitialPos(pos.x(), pos.y())
+
+        ok = self.host.add_plugin(
+            btype, ptype, filename, None, label, uniqueId, extraPtr, PLUGIN_OPTIONS_NULL
+        )
+        if not ok:
+            self.host.replace_plugin(self.host.get_max_plugin_number())
+            CustomMessageBox(
+                self, QMessageBox.Critical, self.tr("Error"), self.tr("Failed to load plugin"),
+                self.host.get_last_error(), QMessageBox.Ok, QMessageBox.Ok,
+            )
+            return False
+
+        self._rewireState = {
+            "pluginId": pluginId,
+            "old_gid": old_gid,
+            "plan": plan,
+            "connections": old_connections,
+            "label": label or os.path.basename(filename or "") or "plugin",
+            "deadline": time.monotonic() + 20.0,
+            "started": time.monotonic(),
+            "last_count": -1,
+        }
+        QTimer.singleShot(200, self._pollRewire)
+        return True
+
+    def _pollRewire(self):
+        state = getattr(self, "_rewireState", None)
+        if state is None:
+            return
+        group = self._groupForPlugin(state["pluginId"])
+        ports = self._groupPorts(group.group_id) if group is not None else []
+        count = len(ports)
+        now = time.monotonic()
+        added_at = state.get("plugin_added_at")
+        ready = added_at is not None and now - added_at >= 0.3
+        if not ready and added_at is None and now - state["started"] > 2.5:
+            ready = True
+        if ready and count > 0 and count == state.get("last_count", -1):
+            self._finishRewire(group, ports)
+            return
+        state["last_count"] = count
+        if now > state["deadline"] or (count == 0 and now - state["started"] > 3.0):
+            self._finishRewire(group, ports)
+            return
+        QTimer.singleShot(150, self._pollRewire)
+
+    def _finishRewire(self, group, new_ports):
+        from rewire import normalize_port, resolve_target
+
+        state = getattr(self, "_rewireState", None)
+        self._rewireState = None
+        if state is None or group is None:
+            return
+
+        new_ports = [normalize_port(port) for port in new_ports]
+        by_port = {row["old"]["key"]: row for row in state["plan"]}
+        kept = dropped = failed = 0
+
+        for out_g, out_p, in_g, in_p in state["connections"]:
+            if out_g == state["old_gid"]:
+                old_port, side = out_p, "out"
+            elif in_g == state["old_gid"]:
+                old_port, side = in_p, "in"
+            else:
+                continue
+            row = by_port.get(old_port)
+            if row is None or not row.get("target"):
+                dropped += 1
+                continue
+            new_port = resolve_target(row["target"], new_ports)
+            if new_port is None:
+                dropped += 1
+                continue
+            if side == "out":
+                args = (group.group_id, new_port["key"], in_g, in_p)
+            else:
+                args = (out_g, out_p, group.group_id, new_port["key"])
+            if args[0] == args[2] and args[1] == args[3]:
+                continue
+            if self.host.patchbay_connect(self.fExternalPatchbay, *args):
+                kept += 1
+            else:
+                failed += 1
+
+        try:
+            patchcanvas.canvas.scene.clearSelection()
+            if group.widgets and group.widgets[0] is not None:
+                group.widgets[0].setSelected(True)
+        except Exception:
+            pass
+
+        self.markProjectModified()
+        message = "Replaced with %s: kept %i cable(s), dropped %i, failed %i" % (
+            state["label"], kept, dropped, failed)
+        log_carla(message)
+        if hasattr(self.ui, "statusbar"):
+            self.ui.statusbar.showMessage(message, 8000)
+        self.updateMiniCanvasLater()
+
     def loadPluginFromInfo(self, info):
         self._lastLoadedFromDialog = True
         if not self.host.is_engine_running():
@@ -3221,6 +3460,9 @@ class HostWindow(QMainWindow):
 
     @pyqtSlot(int, int, str)
     def slot_handlePluginAddedCallback(self, pluginId, pluginType, pluginName):
+        state = getattr(self, "_rewireState", None)
+        if state is not None and pluginId == state.get("pluginId"):
+            state["plugin_added_at"] = time.monotonic()
         log_carla(
             f"carla_host: slot_handlePluginAddedCallback id={pluginId}, type={pluginType}, name='{pluginName}'",
             level="debug"

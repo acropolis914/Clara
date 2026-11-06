@@ -1134,6 +1134,10 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         self.label_name.show()
 
     def showReplaceDialog(self):
+        if hasattr(gCarla.gui, "showReplaceWithRewire"):
+            gCarla.gui.showReplaceWithRewire(self.fPluginId)
+            return
+
         data = gCarla.gui.showAddPluginDialog()
 
         if data is None:
@@ -1146,8 +1150,6 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
             return
 
         ok = self.host.add_plugin(btype, ptype, filename, None, label, uniqueId, extraPtr, PLUGIN_OPTIONS_NULL)
-
-        self.host.replace_plugin(self.host.get_max_plugin_number())
 
         if not ok:
             CustomMessageBox(self, QMessageBox.Critical, self.tr("Error"), self.tr("Failed to load plugin"), self.host.get_last_error(), QMessageBox.Ok, QMessageBox.Ok)
