@@ -96,6 +96,13 @@ def test_repeated_assertions_are_collapsed():
     log.log_raw_string(msg)
     assert "repeats suppressed" in log.history[-1].message
 
+
+
+def test_sfizz_clear_failure_is_debug():
+    log = CarlaLogger()
+    log.log_raw_string("[sfizz] Loading failed")
+    assert log.history[-1].level == LOG_LEVEL_DEBUG
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

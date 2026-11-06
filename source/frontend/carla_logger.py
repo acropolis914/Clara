@@ -442,6 +442,12 @@ class CarlaLogger(QObject):
                 tag = "PLUGIN"
             elif "ENGINE" in upper_text:
                 tag = "ENGINE"
+
+        # sfizz clears the previous instrument with an empty string before restoring;
+        # the core logs "Loading failed" for that intentional clear.
+        if tag == "SFIZZ" and clean_text == "Loading failed":
+            level = LOG_LEVEL_DEBUG
+
         self.log(level, tag, clean_text)
 
     def _capture_fd(self, fd):

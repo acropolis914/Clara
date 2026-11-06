@@ -28,6 +28,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — sfizz path investigation; samples tree no longer needed
+
+- **fix(sfizz)**: upstream sfizz already canonicalizes the SFZ path (PR #303) and normalizes Windows separators, so the Salamander `48khz24bit` sample-tree symlink is unnecessary. The compat shim now recreates only the mapped SFZ/tuning links; verified with `/tmp/sfizz` containing no sample tree and sfizz loading with 0 errors.
+- **fix(logging)**: the `[sfizz] Loading failed` line is the LV2 wrapper intentionally clearing the previous instrument before restore; it is DEBUG now, so real parse/state errors stay visible.
+- **docs(todo)**: record the remaining symlink dependency as Carla-side mapPath/upstream sfizz-ui #16, not an sfizz loader bug.
+
 #### 2026-11-07 — sfizz compatibility shim
 
 - **fix(sfizz)**: before loading a project, recreate the temp layout the saved sfizz state expects (`/tmp/sfizz/sfizz` links for the user/SFZ tuning files, plus the Salamander `48khz24bit` sample tree). Clearing `/tmp` no longer makes every sfizz instance fail its path restore. Adds `test_sfizz_compat.py`.

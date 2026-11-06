@@ -4,6 +4,9 @@
 
 ---
 
+## 🔌 Plugin Compatibility
+- [ ] `[Diff: 2]` **FIX**: sfizz LV2 state still depends on Carla's mapped symlinks because the bridge process maps paths under `/tmp`. Upstream `sfztools/sfizz-ui#16` proposes a raw absolute-path fallback/fuzzy search; alternatively make Carla's bridge use the project folder for `mapPath` so the links live with the project.
+
 ## 🐛 Bugs
 - [ ] `[Diff: 2]` **FIX**: theming is slow, and the rack background is hardcoded (`source/frontend/patchbay_view.py`). Profile theme application and source the rack/frame background from the active theme instead of the inline `bg_hex` styles.
 
