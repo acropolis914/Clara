@@ -15,6 +15,8 @@ import tempfile
 
 
 def ensure_sfizz_compat(root=None, home=None, lv2_dir=None):
+    if os.environ.get("CLARA_DISABLE_SFIZZ_COMPAT"):
+        return []
     root = root or os.path.join(tempfile.gettempdir(), "sfizz")
     home = home or os.path.expanduser("~")
     lv2_dir = lv2_dir or "/usr/lib/lv2/sfizz.lv2/Contents/Resources"

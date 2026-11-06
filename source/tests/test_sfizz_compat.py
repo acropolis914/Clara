@@ -32,6 +32,15 @@ def test_recreates_sfizz_layout():
         assert ensure_sfizz_compat(root=root, home=home, lv2_dir=lv2) == []
 
 
+
+
+def test_env_switch_disables_compat():
+    os.environ["CLARA_DISABLE_SFIZZ_COMPAT"] = "1"
+    try:
+        assert ensure_sfizz_compat() == []
+    finally:
+        del os.environ["CLARA_DISABLE_SFIZZ_COMPAT"]
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
