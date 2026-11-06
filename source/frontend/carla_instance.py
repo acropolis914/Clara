@@ -366,10 +366,30 @@ def _send(socket_path, request):
     return reply
 
 
-def run_msg_cli(argv, socket_path):
+def run_msg_cli(argv, socket_path, prog="claramsg"):
     _ensure_app()
-    parser = argparse.ArgumentParser(prog="clara msg", add_help=True)
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        add_help=True,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Control a running Clara instance over its local socket.",
+        epilog=(
+            "examples:\n"
+            "  %(prog)s status\n"
+            "  %(prog)s events -n 20\n"
+            "  %(prog)s list nodes --tree\n"
+            "  %(prog)s replace 31 --with-node 33 --dry-run\n"
+            "  %(prog)s replace 31 --with-plugin 8 --apply\n"
+            "  %(prog)s screenshot --dialog\n\n"
+            "ids:\n"
+            "  node id is the first column of `list nodes`;\n"
+            "  plugin id is the plugin_id from `list nodes -j`.\n"
+            "  --apply skips the dialog and waits; --dry-run only prints the mapping.\n"
+            "  destructive dialog clicks need --force."
+        ),
+    )
     sub = parser.add_subparsers(dest="cmd")
+    sub.add_parser("help", help="show this help")
     sub.add_parser("show", help="raise the running window")
     sub.add_parser("status", help="process and project status")
     list_parser = sub.add_parser("list", help="inspect the canvas")
@@ -411,9 +431,9 @@ def run_msg_cli(argv, socket_path):
     replace_parser.add_argument("-j", "--json", action="store_true")
 
     args = parser.parse_args(argv)
-    if not args.cmd:
+    if not args.cmd or args.cmd == "help":
         parser.print_help()
-        return 2
+        return 0
 
     if args.cmd == "show":
         ok, message = forward_to_primary(socket_path)

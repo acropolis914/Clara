@@ -50,6 +50,31 @@ if __name__ == '__main__':
     import resources_rc
 
     # ------------------------------------------------------------------------------------------------------------------
+    # Help for the Clara control client, before the host argument parser eats --help
+
+    from clara_instance_core import first_positional
+
+    _client_argv = [
+        arg for arg in sys.argv[1:]
+        if not arg.startswith("--with-appname=") and not arg.startswith("--with-libprefix=")
+    ]
+    _client_name = os.path.basename(sys.argv[0] or "")
+    for _arg in sys.argv:
+        if _arg.startswith("--with-appname="):
+            _client_name = os.path.basename(_arg.split("=", 1)[1])
+    _first = first_positional(_client_argv)
+    if _client_name == "claramsg" or _first == "msg":
+        _wants_help = any(arg in ("-h", "--help", "help") for arg in _client_argv)
+        _has_command = any(not arg.startswith("-") and arg not in ("msg", "help") for arg in _client_argv)
+        if _wants_help or (_client_name == "claramsg" and not _has_command):
+            if _first == "msg":
+                _msg_args = _client_argv[_client_argv.index("msg") + 1:]
+            else:
+                _msg_args = _client_argv
+            from carla_instance import run_msg_cli
+            sys.exit(run_msg_cli(_msg_args, "", prog="claramsg" if _client_name == "claramsg" else "clara msg"))
+
+    # ------------------------------------------------------------------------------------------------------------------
     # Read CLI args
     from carla_logger import logger
     logger.parse_cli_args()
@@ -74,7 +99,7 @@ if __name__ == '__main__':
     if os.path.basename(initName or "") == "claramsg":
         _args = [arg for arg in sys.argv[1:]
                  if not arg.startswith("--with-appname") and not arg.startswith("--with-libprefix")]
-        sys.exit(run_msg_cli(_args, _paths["socket"]))
+        sys.exit(run_msg_cli(_args, _paths["socket"], prog="claramsg"))
 
     # ------------------------------------------------------------------------------------------------------------------
     # `clara msg ...` control client (Clara only, not available in Carla)
@@ -84,7 +109,7 @@ if __name__ == '__main__':
             _early_error("`msg` is a Clara feature and is not available in Carla. Use `clara msg ...`.")
             sys.exit(2)
         _index = sys.argv.index("msg") + 1
-        sys.exit(run_msg_cli(sys.argv[_index:], _paths["socket"]))
+        sys.exit(run_msg_cli(sys.argv[_index:], _paths["socket"], prog="clara msg"))
 
     # ------------------------------------------------------------------------------------------------------------------
     # Single instance: the lock is the source of truth, the socket is the transport.

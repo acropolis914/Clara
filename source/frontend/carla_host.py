@@ -1688,6 +1688,56 @@ class HostWindow(QMainWindow):
                 if folder:
                     os.makedirs(folder, exist_ok=True)
             pixmap = target.grab()
+            if target is self:
+                view = getattr(self.ui, "graphicsView", None)
+                if view is not None and view.isVisible():
+                    try:
+                        from qt_compat import QImage, QPainter, QPoint, QRect, QRectF, Qt
+                        size = view.viewport().size()
+                        dpr = view.devicePixelRatioF() or 1.0
+                        image_format = getattr(QImage, "Format_ARGB32_Premultiplied", None)
+                        if image_format is None:
+                            image_format = QImage.Format.Format_ARGB32_Premultiplied
+                        image = QImage(int(size.width() * dpr), int(size.height() * dpr),
+                                       image_format)
+                        image.setDevicePixelRatio(dpr)
+                        scene = view.scene()
+                        brush = scene.backgroundBrush() if scene is not None else None
+                        if brush is not None and brush.style() != Qt.NoBrush:
+                            image.fill(brush.color())
+                        else:
+                            image.fill(view.palette().window().color())
+                        painter = QPainter(image)
+                        try:
+                            # Render the scene, not the GL framebuffer: grab() and
+                            # grabFramebuffer() miss the GL viewport, but the scene
+                            # renderer paints the same nodes and cables.
+                            view.render(painter, QRectF(0.0, 0.0, float(size.width()), float(size.height())), view.viewport().rect())
+                        finally:
+                            painter.end()
+                        pos = view.viewport().mapTo(self, QPoint(0, 0))
+                        log_carla(
+                            f"msgScreenshot: view_visible={view.isVisible()} "
+                            f"viewport={size.width()}x{size.height()} "
+                            f"scene_items={len(scene.items()) if scene is not None else 0} "
+                            f"image={image.width()}x{image.height()} null={image.isNull()} pos={pos.x()},{pos.y()}",
+                            level="debug",
+                        )
+                        painter = QPainter(pixmap)
+                        painter.drawImage(pos, image)
+                        painter.end()
+                        overlays = [getattr(getattr(self, "canvasFilter", None), "toolBar", None),
+                                    getattr(getattr(self, "canvasFilter", None), "contextToolBar", None),
+                                    getattr(view, "fSearchList", None)]
+                        for overlay in overlays:
+                            if overlay is None or not overlay.isVisible():
+                                continue
+                            p = overlay.mapTo(self, QPoint(0, 0))
+                            painter = QPainter(pixmap)
+                            painter.drawPixmap(p, overlay.grab())
+                            painter.end()
+                    except Exception as exc:
+                        log_carla(f"msgScreenshot: canvas composite failed: {exc}", level="warn")
             if pixmap is None or not pixmap.save(path, "PNG"):
                 return {"ok": False, "error": "could not save screenshot"}
             try:
@@ -3528,6 +3578,7 @@ class HostWindow(QMainWindow):
             "deadline": time.monotonic() + 60.0,
             "started": time.monotonic(),
             "last_count": -1,
+            "adopted": False,
         }
         QTimer.singleShot(200, self._pollRewire)
         return {"ok": True, "started": True, "plugin": pluginId}
@@ -3576,6 +3627,12 @@ class HostWindow(QMainWindow):
         if state is None:
             return
         group = self._groupForPlugin(state["pluginId"])
+        if (group is not None and group.group_id != state["old_gid"]
+                and not state.get("adopted")):
+            # The engine creates a new client; move it into the old node's place
+            # immediately instead of showing both nodes while ports arrive.
+            self._adoptRewiredNode(state["old_gid"], group)
+            state["adopted"] = True
         ports = self._groupPorts(group.group_id) if group is not None else []
         count = len(ports)
         now = time.monotonic()
@@ -4763,7 +4820,8 @@ class HostWindow(QMainWindow):
         if clientId in self.fFilteredPatchbayClients:
             self.fFilteredPatchbayClients.discard(clientId)
             return
-        patchcanvas.removeGroup(clientId)
+        if any(group.group_id == clientId for group in patchcanvas.canvas.group_list):
+            patchcanvas.removeGroup(clientId)
         self.updateMiniCanvasLater()
 
     @pyqtSlot(int, str)

@@ -56,6 +56,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **feat(cli)**: `clara msg status|show|list nodes|connections|containers` (`-j` JSON, `--tree`, `--full`). It is Clara-only: `carla msg` is rejected with a pointer to `clara msg`. One `canvasSnapshot()` in the host feeds both this CLI and future UI dumps, so there is no second model.
 - **test(instance)**: pure identity/protocol checks run in CI; a separate Qt job covers the lock race (8 concurrent processes, one winner), server/client framing and legacy `SHOW`.
 
+#### 2026-11-06 — claramsg help and canvas polish
+
+- **feat(cli)**: `claramsg --help`, `claramsg help`, `claramsg <command> --help` and `clara msg --help` now print the control-client help (commands, id rules, examples, `--apply`/`--dry-run`/`--force`) instead of the Carla host help. Running with no arguments prints help and exits 0.
+- **fix(patchbay)**: the replacement client is adopted into the old node's position/container as soon as it appears, instead of after all ports arrive, removing the double-node/shrink jank. Stale client-removed callbacks are ignored.
+- **fix(canvas)**: the floating navigation and context toolbars cannot be dragged while a project is loading.
+- **fix(screenshot)**: screenshots now render the patchbay scene into the window grab, so the canvas is included next to the rack. Fixed Qt 6 `QImage.Format` and `QRectF` usage for the composite.
+
 ### Fixed
 
 #### 2026-11-06 — Audit fixes (data loss, rewire safety, control channel)

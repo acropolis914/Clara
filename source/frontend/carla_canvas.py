@@ -263,6 +263,11 @@ def get_glyph_visual_offset(glyph, font, size):
     return offset
 
 
+def _canvas_locked():
+    gui = getattr(gCarla, "gui", None)
+    return bool(gui is not None and getattr(gui, "fIsProjectLoading", False))
+
+
 class CanvasToolButton(QPushButton):
     """Button that visually centers asymmetrical font and unicode glyph icons."""
 
@@ -835,6 +840,9 @@ class CanvasToolBarOverlay(QFrame):
         self.btnHand.setChecked(mode == 2)
 
     def mousePressEvent(self, event):
+        if _canvas_locked():
+            event.accept()
+            return
         if event.button() == Qt.LeftButton:
             self._dragPos = (
                 _get_event_global_pos(event) - self.frameGeometry().topLeft()
@@ -844,6 +852,9 @@ class CanvasToolBarOverlay(QFrame):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        if _canvas_locked():
+            event.accept()
+            return
         if self._dragPos is not None and event.buttons() & Qt.LeftButton:
             vp = self.parentWidget()
             if vp:
@@ -1639,6 +1650,9 @@ class CanvasContextToolBarOverlay(QFrame):
             print("Error jumping to rack:", e)
 
     def mousePressEvent(self, event):
+        if _canvas_locked():
+            event.accept()
+            return
         if event.button() == Qt.LeftButton:
             self._dragPos = (
                 _get_event_global_pos(event) - self.frameGeometry().topLeft()
@@ -1648,6 +1662,9 @@ class CanvasContextToolBarOverlay(QFrame):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        if _canvas_locked():
+            event.accept()
+            return
         if self._dragPos is not None and event.buttons() & Qt.LeftButton:
             vp = self.parentWidget()
             if vp:
