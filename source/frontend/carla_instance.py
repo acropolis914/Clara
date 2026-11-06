@@ -366,28 +366,150 @@ def _send(socket_path, request):
     return reply
 
 
+_HELP_TEMPLATE = """{prog} - control a running Clara instance
+
+Run `{prog} --examples` for a full list of copy-paste examples.
+
+USAGE
+  {prog} COMMAND [options]
+  {prog} --examples
+
+OVERVIEW
+  {prog} talks to the running Clara window over a per-session local socket.
+  It never starts a second GUI. Clara must be running in the same session.
+  The socket is user-only (0600); nothing goes over the network.
+
+COMMANDS
+  status
+      pid, version, mode, project path, plugin count and uptime.
+
+  show
+      Raise the running window.
+
+  events [-n N] [--tag TAG] [--level LEVEL] [-j]
+      Recent log/event history. Default count 50, max 2000.
+      --tag      APP, SESSION, PATCHBAY, PLUGIN, CANVAS, SCANNER, ...
+      --level    DEBUG, INFO, WARNING, ERROR (DEBUG is hidden by default)
+      -j         JSON array
+
+  list <nodes|connections|containers|all> [-j] [--tree] [--full]
+      Inspect the canvas.
+      nodes       id, kind, name, size, container, port count
+      connections cable list as src node:port -> dst node:port
+      containers  id, title, layout, member names
+      --tree      nest nodes under their containers
+      --full      include port names
+      -j          JSON
+
+  open <path>
+      Open a project in the running window. Refuses if there are unsaved
+      changes; save first. If the new load fails, the previous project is
+      restored.
+
+  screenshot [--dialog] [--path PATH]
+      Save a PNG of the window (the patchbay is included) or the active
+      dialog. The default is a private 0600 temp file. Explicit paths may
+      not be symlinks or special files.
+
+  dialogs [-j]
+      List visible dialogs and their button texts.
+
+  dialog accept|cancel|click <text> [--force]
+      Act on the active dialog. `click` matches visible button text.
+      Destructive texts (discard/delete/remove/erase/overwrite/format/reset/
+      quit) are refused without --force.
+
+  replace <node> [--with-plugin <plugin-id> | --with-node <node-id>]
+                [--apply | --dry-run] [--no-wait] [-j]
+      Replace a node and rewire its cables.
+      <node>              node id (first column of `list nodes`)
+      --with-plugin ID    use a loaded plugin by plugin id
+      --with-node ID      use a loaded node by node id
+      no target           opens the plugin browser, then the Rewire dialog
+      --dry-run           print the mapping and cable counts; change nothing
+      --apply             skip the dialog, use the automatic mapping, wait
+      --no-wait           with --apply, return immediately
+      Node position, container and color are kept; the old node is removed.
+      There is no undo. Save before replacing.
+
+  help
+      This help.
+
+IDS
+  node id    first column of `list nodes` (the canvas/client id)
+  plugin id  plugin_id in `list nodes -j` (the engine slot)
+  Ids change after a restart; re-run `list nodes`.
+
+OUTPUT AND EXIT CODES
+  Tables by default; -j/--json where supported.
+  0 success, 1 failure/not running/unsaved changes, 2 bad usage.
+
+NOTES
+  - `carla msg` is rejected; use `clara msg` or `claramsg`.
+  - `events` hides DEBUG by default; use `--level debug`.
+  - `open` never discards unsaved edits; the GUI asks Save/Discard/Cancel.
+  - `replace --apply` waits up to 75 s; `--dry-run` is always safe.
+  - screenshots render the patchbay scene, so the GL canvas is included.
+"""
+
+_EXAMPLES_TEMPLATE = """{prog} - examples
+
+STATUS AND LOGS
+  {prog} status
+  {prog} events -n 20
+  {prog} events --tag PATCHBAY -n 30
+  {prog} events --level debug -n 200
+  {prog} events -j | jq .
+
+CANVAS
+  {prog} list nodes
+  {prog} list nodes --tree
+  {prog} list connections
+  {prog} list containers -j
+  {prog} list all -j
+
+DIALOGS AND SCREENSHOTS
+  {prog} dialogs
+  {prog} screenshot
+  {prog} screenshot --dialog
+  {prog} dialog accept
+  {prog} dialog cancel
+  {prog} dialog click "Replace"
+  {prog} dialog click "Discard" --force
+
+PROJECTS
+  {prog} open /home/acroarch/Documents/Carla/BusesAndOuts.carjp
+  {prog} show
+
+REPLACE
+  {prog} replace 31 --with-node 33 --dry-run
+  {prog} replace 31 --with-plugin 8 --dry-run
+  {prog} replace 31 --with-node 33
+  {prog} replace 31 --with-node 33 --apply
+  {prog} replace 31 --with-node 33 --apply --no-wait
+
+TIPS
+  - `list nodes -j` gives node ids and plugin_id values.
+  - Save before replacing; there is no undo.
+  - --dry-run changes nothing.
+  - --apply waits for the result; --no-wait returns immediately.
+"""
+
+
+def print_help(prog="claramsg"):
+    print(_HELP_TEMPLATE.format(prog=prog))
+
+
+def print_examples(prog="claramsg"):
+    print(_EXAMPLES_TEMPLATE.format(prog=prog))
+
+
 def run_msg_cli(argv, socket_path, prog="claramsg"):
-    _ensure_app()
-    parser = argparse.ArgumentParser(
-        prog=prog,
-        add_help=True,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Control a running Clara instance over its local socket.",
-        epilog=(
-            "examples:\n"
-            "  %(prog)s status\n"
-            "  %(prog)s events -n 20\n"
-            "  %(prog)s list nodes --tree\n"
-            "  %(prog)s replace 31 --with-node 33 --dry-run\n"
-            "  %(prog)s replace 31 --with-plugin 8 --apply\n"
-            "  %(prog)s screenshot --dialog\n\n"
-            "ids:\n"
-            "  node id is the first column of `list nodes`;\n"
-            "  plugin id is the plugin_id from `list nodes -j`.\n"
-            "  --apply skips the dialog and waits; --dry-run only prints the mapping.\n"
-            "  destructive dialog clicks need --force."
-        ),
-    )
+    parser = argparse.ArgumentParser(prog=prog, add_help=False)
+    parser.add_argument("-h", "--help", action="store_true", dest="show_help",
+                        help="show this help")
+    parser.add_argument("--examples", action="store_true",
+                        help="show copy-paste examples")
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("help", help="show this help")
     sub.add_parser("show", help="raise the running window")
@@ -425,15 +547,20 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
                                 help="plugin id of the replacement")
     replace_parser.add_argument("--with-node", dest="other_node", type=int, default=None,
                                 help="node id of the replacement")
-    replace_parser.add_argument("--apply", dest="auto", action="store_true", help="apply the auto-mapping without the dialog")
+    replace_parser.add_argument("--apply", dest="auto", action="store_true",
+                                help="apply the auto-mapping without the dialog")
     replace_parser.add_argument("--dry-run", action="store_true")
     replace_parser.add_argument("--no-wait", action="store_true")
     replace_parser.add_argument("-j", "--json", action="store_true")
 
     args = parser.parse_args(argv)
-    if not args.cmd or args.cmd == "help":
-        parser.print_help()
+    if args.examples:
+        print_examples(prog)
         return 0
+    if args.show_help or args.cmd == "help" or not args.cmd:
+        print_help(prog)
+        return 0
+    _ensure_app()
 
     if args.cmd == "show":
         ok, message = forward_to_primary(socket_path)
