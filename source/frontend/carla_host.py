@@ -1602,6 +1602,112 @@ class HostWindow(QMainWindow):
             "uptime": int(time.time() - _CLARA_PROCESS_START),
         }
 
+    def _resolveNodePluginId(self, value):
+        """Accept a visible node id (group) or a plugin id; return the plugin id."""
+        for group in patchcanvas.canvas.group_list:
+            if group.group_id == value and group.plugin_id >= 0:
+                return group.plugin_id
+        return value
+
+    def msgEvents(self, count=50, tag=None, level=None):
+        try:
+            count = max(1, min(int(count), 2000))
+        except (TypeError, ValueError):
+            count = 50
+        history = list(logger.history)
+        if tag:
+            tag = str(tag).upper()
+            history = [entry for entry in history if tag in entry.tag]
+        if level:
+            level = str(level).upper()
+            history = [entry for entry in history
+                       if LEVEL_NAMES.get(entry.level, "INFO").upper() == level]
+        else:
+            history = [entry for entry in history
+                       if LEVEL_NAMES.get(entry.level, "INFO").upper() != "DEBUG"]
+        history = history[-count:]
+        return [
+            {
+                "time": entry.timestamp.strftime("%H:%M:%S"),
+                "level": LEVEL_NAMES.get(entry.level, "INFO"),
+                "tag": entry.tag,
+                "message": entry.message,
+            }
+            for entry in history
+        ]
+
+    def msgScreenshot(self, path=None, dialog=False):
+        try:
+            from qt_compat import QApplication
+            target = self
+            if dialog:
+                target = QApplication.activeModalWidget() or QApplication.activeWindow() or self
+            if path is None:
+                import tempfile
+                path = os.path.join(tempfile.gettempdir(), "clara-screenshot.png")
+            path = os.path.abspath(os.path.expanduser(str(path)))
+            folder = os.path.dirname(path)
+            if folder:
+                os.makedirs(folder, exist_ok=True)
+            pixmap = target.grab()
+            if pixmap is None or not pixmap.save(path, "PNG"):
+                return {"ok": False, "error": "could not save screenshot"}
+            return {"ok": True, "path": path, "width": pixmap.width(), "height": pixmap.height()}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def msgDialogs(self):
+        try:
+            from qt_compat import QApplication, QDialog, QPushButton
+            result = []
+            for widget in QApplication.topLevelWidgets():
+                if not isinstance(widget, QDialog) or not widget.isVisible():
+                    continue
+                buttons = []
+                try:
+                    for button in widget.findChildren(QPushButton):
+                        if button.isVisible() and button.text():
+                            buttons.append(button.text())
+                except Exception:
+                    pass
+                result.append({
+                    "title": widget.windowTitle(),
+                    "modal": bool(widget.isModal()),
+                    "buttons": buttons,
+                })
+            return {"ok": True, "dialogs": result}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def msgDialogAction(self, action, text=None):
+        try:
+            from qt_compat import QApplication, QDialog, QPushButton
+            target = QApplication.activeModalWidget() or QApplication.activeWindow()
+            if not isinstance(target, QDialog):
+                return {"ok": False, "error": "no active dialog"}
+            title = target.windowTitle()
+            if action == "accept":
+                target.accept()
+                log_carla("claramsg: accepted dialog '%s'" % title)
+                return {"ok": True, "accepted": title}
+            if action == "cancel":
+                target.reject()
+                log_carla("claramsg: cancelled dialog '%s'" % title)
+                return {"ok": True, "cancelled": title}
+            if action == "click":
+                if not text:
+                    return {"ok": False, "error": "click needs a button text"}
+                wanted = str(text).casefold()
+                for button in target.findChildren(QPushButton):
+                    if button.isVisible() and wanted in (button.text() or "").casefold():
+                        QTimer.singleShot(0, button.click)
+                        log_carla("claramsg: clicked '%s' on dialog '%s'" % (button.text(), title))
+                        return {"ok": True, "clicked": button.text(), "title": title}
+                return {"ok": False, "error": "no matching button"}
+            return {"ok": False, "error": "unknown dialog action: %s" % action}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
     def handleMsgRequest(self, request):
         """Read-only control channel; mutating commands go through the same host slots."""
         cmd = request.get("cmd")
@@ -1615,6 +1721,44 @@ class HostWindow(QMainWindow):
                 return {"v": 1, "ok": False, "error": {"code": "not_found", "message": "project not found: %s" % path}}
             self.queueControlOpen(path)
             return {"v": 1, "ok": True}
+        if cmd == "events":
+            return {"v": 1, "ok": True, "data": {"events": self.msgEvents(
+                request.get("count", 50), request.get("tag"), request.get("level"))}}
+        if cmd == "screenshot":
+            result = self.msgScreenshot(request.get("path"), bool(request.get("dialog")))
+            if not result.get("ok"):
+                return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
+            return {"v": 1, "ok": True, "data": result}
+        if cmd == "dialogs":
+            result = self.msgDialogs()
+            if not result.get("ok"):
+                return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
+            return {"v": 1, "ok": True, "data": result}
+        if cmd == "dialog":
+            result = self.msgDialogAction(request.get("action"), request.get("text"))
+            if not result.get("ok"):
+                return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
+            return {"v": 1, "ok": True, "data": result}
+        if cmd == "replace":
+            node = request.get("node")
+            other = request.get("with")
+            if not isinstance(node, int) or (other is not None and not isinstance(other, int)):
+                return {"v": 1, "ok": False, "error": {"code": "bad_request", "message": "node and with must be ids"}}
+            node = self._resolveNodePluginId(node)
+            if other is not None:
+                other = self._resolveNodePluginId(other)
+            auto = bool(request.get("auto"))
+            dry_run = bool(request.get("dry_run"))
+            if auto or dry_run:
+                result = self.showReplaceWithRewire(
+                    node, auto=auto, with_plugin_id=other, dry_run=dry_run)
+                if not result.get("ok"):
+                    return {"v": 1, "ok": False, "error": {"code": "failed", "message": result.get("error", "failed")}}
+                return {"v": 1, "ok": True, "data": result}
+            QTimer.singleShot(0, lambda n=node, o=other: self.showReplaceWithRewire(n, with_plugin_id=o))
+            return {"v": 1, "ok": True, "data": {"opened": True}}
+        if cmd == "rewire_status":
+            return {"v": 1, "ok": True, "data": getattr(self, "_rewireResult", {"done": True, "idle": True})}
         return {"v": 1, "ok": False, "error": {"code": "unsupported", "message": "unknown command: %s" % cmd}}
 
     def loadProjectNow(self, source_override=None):
@@ -3078,45 +3222,59 @@ class HostWindow(QMainWindow):
                 return ports
         return None
 
-    def showReplaceWithRewire(self, pluginId):
+    def _buildRewirePlan(self, pluginId, with_plugin_id=None):
         from rewire import actual_target, match_ports, normalize_port, role_target
-        from rewire_dialog import RewireDialog
 
-        if not self.host.is_engine_running():
-            return False
-        if getattr(self, "fIsProjectLoading", False):
-            return False
+        if not self.host.is_engine_running() or getattr(self, "fIsProjectLoading", False):
+            return None
         old_group = self._groupForPlugin(pluginId)
         if old_group is None:
-            return False
+            return None
         old_ports = [normalize_port(port) for port in self._groupPorts(old_group.group_id)]
         if not old_ports:
-            return False
+            return None
 
-        self._replaceTargetId = pluginId
-        self._replaceRequestInfo = None
-        try:
-            data = self.showAddPluginDialog()
-        finally:
-            self._replaceTargetId = None
-        if data is None:
-            info = self._replaceRequestInfo
-            self._replaceRequestInfo = None
-            if info is None:
-                return False
-            btype = info.get("build")
-            ptype = info.get("type")
-            filename = info.get("filename")
-            label = info.get("label")
-            uniqueId = info.get("uniqueId")
-            extraPtr = None
+        new_ports = None
+        if with_plugin_id is not None:
+            try:
+                info = self.host.get_plugin_info(with_plugin_id)
+            except Exception:
+                info = None
+            if not info:
+                return None
+            group = self._groupForPlugin(with_plugin_id)
+            if group is None:
+                return None
+            new_ports = [normalize_port(port) for port in self._groupPorts(group.group_id)]
+            from carla_backend import BINARY_NATIVE
+            data = (
+                info.get("build") or BINARY_NATIVE, info.get("type"), info.get("filename"),
+                info.get("label"), info.get("uniqueId"), None,
+            )
         else:
-            btype, ptype, filename, label, uniqueId, extraPtr = data
+            self._replaceTargetId = pluginId
+            self._replaceRequestInfo = None
+            try:
+                data = self.showAddPluginDialog()
+            finally:
+                self._replaceTargetId = None
+            if data is None:
+                info = self._replaceRequestInfo
+                self._replaceRequestInfo = None
+                if info is None:
+                    return None
+                data = (
+                    info.get("build"), info.get("type"), info.get("filename"),
+                    info.get("label"), info.get("uniqueId"), None,
+                )
+            btype, ptype, filename, label, uniqueId, _extra = data
+            candidate = self._findExistingPluginPorts(ptype, filename, label, uniqueId, pluginId)
+            if candidate is not None:
+                new_ports = [normalize_port(port) for port in candidate]
 
-        new_ports = self._findExistingPluginPorts(ptype, filename, label, uniqueId, pluginId)
+        btype, ptype, filename, label, uniqueId, extraPtr = data
         exact = new_ports is not None
         if exact:
-            new_ports = [normalize_port(port) for port in new_ports]
             targets = []
             seen = set()
             for port in new_ports:
@@ -3134,25 +3292,68 @@ class HostWindow(QMainWindow):
                     seen.add(target["role"])
                     targets.append(target)
 
-        rows = match_ports(old_ports, new_ports if exact else None)
-        cable_counts = {
-            port["key"]: self._portCableCount(old_group.group_id, port["key"])
-            for port in old_ports
+        return {
+            "old_group": old_group,
+            "old_ports": old_ports,
+            "rows": match_ports(old_ports, new_ports if exact else None),
+            "cable_counts": {
+                port["key"]: self._portCableCount(old_group.group_id, port["key"])
+                for port in old_ports
+            },
+            "targets": targets,
+            "exact": exact,
+            "data": (btype, ptype, filename, label, uniqueId, extraPtr),
+            "label": label or os.path.basename(filename or "") or "plugin",
         }
 
-        dialog = RewireDialog(
-            self,
-            old_group.group_name,
-            label or os.path.basename(filename or "") or "plugin",
-            rows,
-            cable_counts,
-            targets,
-            exact,
-        )
-        if not dialog.exec_():
-            return False
+    def showReplaceWithRewire(self, pluginId, auto=False, with_plugin_id=None, dry_run=False):
+        from rewire import validate_rows
+        from rewire_dialog import RewireDialog
 
-        plan = dialog.selected_plan()
+        plan_info = self._buildRewirePlan(pluginId, with_plugin_id=with_plugin_id)
+        if plan_info is None:
+            return {"ok": False, "error": "cannot build a rewire plan for this plugin"}
+
+        rows = plan_info["rows"]
+        cable_counts = plan_info["cable_counts"]
+
+        if dry_run:
+            kept = sum(1 for row in rows if row.get("target"))
+            cables_kept = sum(cable_counts.get(row["old"]["key"], 0) for row in rows if row.get("target"))
+            cables_dropped = sum(cable_counts.get(row["old"]["key"], 0) for row in rows if not row.get("target"))
+            return {
+                "ok": True, "dry_run": True, "exact": plan_info["exact"],
+                "kept": kept, "ports": len(rows),
+                "cables_kept": cables_kept, "cables_dropped": cables_dropped,
+                "rows": [
+                    {
+                        "old": row["old"]["name"],
+                        "target": (row.get("target") or {}).get("label"),
+                        "reason": row.get("reason"),
+                    }
+                    for row in rows
+                ],
+            }
+
+        if not auto:
+            dialog = RewireDialog(
+                self, plan_info["old_group"].group_name, plan_info["label"],
+                rows, cable_counts, plan_info["targets"], plan_info["exact"],
+            )
+            if not dialog.exec_():
+                return {"ok": False, "cancelled": True}
+            rows = dialog.selected_plan()
+
+        error = validate_rows(rows)
+        if error is not None:
+            return {"ok": False, "error": error}
+        return self._applyRewire(plan_info, rows)
+
+    def _applyRewire(self, plan_info, rows):
+        old_group = plan_info["old_group"]
+        pluginId = old_group.plugin_id
+        btype, ptype, filename, label, uniqueId, extraPtr = plan_info["data"]
+
         old_connections = self._oldPortConnections(old_group.group_id)
         old_gid = old_group.group_id
         try:
@@ -3160,39 +3361,74 @@ class HostWindow(QMainWindow):
         except Exception:
             pos = None
 
+        self._rewireResult = {"done": False, "plugin": pluginId, "label": plan_info["label"]}
+
         if not self.host.replace_plugin(pluginId):
+            self._rewireResult = {"done": True, "error": "replace failed", "plugin": pluginId}
             CustomMessageBox(
                 self, QMessageBox.Critical, self.tr("Error"), self.tr("Failed to replace plugin"),
                 self.host.get_last_error(), QMessageBox.Ok, QMessageBox.Ok,
             )
-            return False
+            return {"ok": False, "error": self.host.get_last_error()}
 
         if pos is not None:
             patchcanvas.setInitialPos(pos.x(), pos.y())
 
-        ok = self.host.add_plugin(
-            btype, ptype, filename, None, label, uniqueId, extraPtr, PLUGIN_OPTIONS_NULL
-        )
+        try:
+            ok = self.host.add_plugin(
+                btype, ptype, filename, None, label, uniqueId, extraPtr, PLUGIN_OPTIONS_NULL
+            )
+        except Exception as exc:
+            log_carla("rewire: add_plugin raised: %s" % exc, level="warn")
+            ok = False
         if not ok:
             self.host.replace_plugin(self.host.get_max_plugin_number())
+            self._rewireResult = {"done": True, "error": "plugin load failed", "plugin": pluginId}
             CustomMessageBox(
                 self, QMessageBox.Critical, self.tr("Error"), self.tr("Failed to load plugin"),
                 self.host.get_last_error(), QMessageBox.Ok, QMessageBox.Ok,
             )
-            return False
+            return {"ok": False, "error": self.host.get_last_error()}
 
         self._rewireState = {
             "pluginId": pluginId,
             "old_gid": old_gid,
-            "plan": plan,
+            "plan": rows,
             "connections": old_connections,
-            "label": label or os.path.basename(filename or "") or "plugin",
+            "label": plan_info["label"],
             "deadline": time.monotonic() + 20.0,
             "started": time.monotonic(),
             "last_count": -1,
         }
         QTimer.singleShot(200, self._pollRewire)
-        return True
+        return {"ok": True, "started": True, "plugin": pluginId}
+
+    def _adoptRewiredNode(self, old_gid, new_group):
+        """The engine creates a new patchbay client on replace; carry the old node's
+        placement/color over and remove the empty old group."""
+        old_group = next((g for g in patchcanvas.canvas.group_list if g.group_id == old_gid), None)
+        if old_group is None or new_group is None or new_group.group_id == old_gid:
+            return
+        old_box = old_group.widgets[0] if old_group.widgets else None
+        new_box = new_group.widgets[0] if new_group.widgets else None
+        if old_box is None or new_box is None:
+            return
+        try:
+            if getattr(old_box, "m_custom_color", None):
+                new_box.setCustomColor(old_box.m_custom_color.name(), notify=False)
+            if getattr(old_box, "m_hide_unconnected_ports", False):
+                new_box.setHideUnconnectedPorts(True)
+            new_box.setPos(old_box.pos())
+            for container in patchcanvas.canvas.container_list:
+                if container.containsBox(old_box):
+                    container.removeItem(old_box, to_standby=False)
+                    container.addItem(new_box)
+                    break
+        except RuntimeError:
+            pass
+        plugin_id = new_group.plugin_id
+        patchcanvas.removeGroup(old_gid)
+        patchcanvas.canvas.group_plugin_map[plugin_id] = new_group
 
     def _pollRewire(self):
         state = getattr(self, "_rewireState", None)
@@ -3253,6 +3489,9 @@ class HostWindow(QMainWindow):
             else:
                 failed += 1
 
+        if group.group_id != state["old_gid"]:
+            self._adoptRewiredNode(state["old_gid"], group)
+
         try:
             patchcanvas.canvas.scene.clearSelection()
             if group.widgets and group.widgets[0] is not None:
@@ -3260,9 +3499,14 @@ class HostWindow(QMainWindow):
         except Exception:
             pass
 
+        label = group.group_name or state["label"]
+        self._rewireResult = {
+            "done": True, "kept": kept, "dropped": dropped, "failed": failed,
+            "label": label, "plugin": state["pluginId"],
+        }
         self.markProjectModified()
         message = "Replaced with %s: kept %i cable(s), dropped %i, failed %i" % (
-            state["label"], kept, dropped, failed)
+            label, kept, dropped, failed)
         log_carla(message)
         if hasattr(self.ui, "statusbar"):
             self.ui.statusbar.showMessage(message, 8000)

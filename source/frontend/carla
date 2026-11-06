@@ -69,6 +69,14 @@ if __name__ == '__main__':
     _paths = instance_paths()
 
     # ------------------------------------------------------------------------------------------------------------------
+    # `claramsg ...` control client (same as `clara msg ...`)
+
+    if os.path.basename(initName or "") == "claramsg":
+        _args = [arg for arg in sys.argv[1:]
+                 if not arg.startswith("--with-appname") and not arg.startswith("--with-libprefix")]
+        sys.exit(run_msg_cli(_args, _paths["socket"]))
+
+    # ------------------------------------------------------------------------------------------------------------------
     # `clara msg ...` control client (Clara only, not available in Carla)
 
     if first_positional(sys.argv[1:]) == "msg":

@@ -28,6 +28,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Features
 
+#### 2026-11-06 — claramsg automation
+
+- **feat(cli)**: add the `claramsg` entry point (same client as `clara msg`) and automation commands: `events` (filterable log history), `screenshot` (window or active dialog PNG), `dialogs` and `dialog accept|cancel|click` (drive visible dialogs), and `replace <node> --with-plugin <node> [--apply|--dry-run]`.
+- **feat(rewire)**: replace accepts an already-loaded plugin as the target, so automation skips the browser. `--apply` runs the matcher without the dialog and waits for the result; `--dry-run` reports the mapping only. The engine creates a new patchbay client on replace, so the old node's position, color, hide state and container membership are adopted and the empty old group is removed.
+- **test(rewire)**: matcher tests cover name/channel/event matching, role resolution, direction/kind refusal and duplicate-output rejection.
+
 #### 2026-11-06 — Replace plugin with rewire
 
 - **feat(patchbay/rack)**: “Replace…” now opens a Rewire dialog instead of swapping the plugin blindly. It lists the old node's wired ports, auto-matches by name → channel/index → event/CV role, and lets each row be remapped or dropped before applying. Cables are preserved by direction: an old output reconnects to the same peer input, an old input keeps its peer output.

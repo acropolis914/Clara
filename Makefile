@@ -549,6 +549,7 @@ ifneq ($(CPPMODE),true)
 		data/carla-settings \
 		$(DESTDIR)$(BINDIR)
 	ln -sf carla $(DESTDIR)$(BINDIR)/clara
+	ln -sf carla $(DESTDIR)$(BINDIR)/claramsg
 
 	# Adjust PREFIX value in script files (gui)
 	sed $(SED_ARGS) 's?X-PREFIX-X?$(PREFIX)?' \

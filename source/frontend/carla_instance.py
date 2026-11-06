@@ -337,6 +337,35 @@ def _print_containers_table(data):
         ))
 
 
+def _emit_error(message):
+    """Client errors bypass the logger's stderr capture."""
+    try:
+        from carla_logger import logger
+        fd = getattr(logger, "_orig_stderr_fd", None)
+        if fd is not None:
+            os.write(fd, (str(message) + "\n").encode("utf-8", "replace"))
+            return
+    except Exception:
+        pass
+    print(message, file=sys.__stderr__)
+
+
+def _send(socket_path, request):
+    raw = MsgClient.request(socket_path, encode_request(request))
+    if raw is None:
+        _emit_error("Clara is not running.")
+        return None
+    try:
+        reply = json.loads(raw.decode("utf-8", "replace"))
+    except ValueError:
+        _emit_error("invalid reply from Clara")
+        return None
+    if not reply.get("ok"):
+        _emit_error((reply.get("error") or {}).get("message", "request failed"))
+        return None
+    return reply
+
+
 def run_msg_cli(argv, socket_path):
     _ensure_app()
     parser = argparse.ArgumentParser(prog="clara msg", add_help=True)
@@ -349,6 +378,31 @@ def run_msg_cli(argv, socket_path):
     list_parser.add_argument("--tree", action="store_true", help="nest nodes under containers")
     list_parser.add_argument("--full", action="store_true", help="include port details")
 
+    events_parser = sub.add_parser("events", help="recent log/event history")
+    events_parser.add_argument("-n", "--count", type=int, default=50)
+    events_parser.add_argument("--tag", default=None)
+    events_parser.add_argument("--level", default=None)
+    events_parser.add_argument("-j", "--json", action="store_true")
+
+    shot_parser = sub.add_parser("screenshot", help="save a PNG of the window or active dialog")
+    shot_parser.add_argument("--dialog", action="store_true")
+    shot_parser.add_argument("--path", default=None)
+
+    dialogs_parser = sub.add_parser("dialogs", help="list visible dialogs")
+    dialogs_parser.add_argument("-j", "--json", action="store_true")
+
+    dialog_parser = sub.add_parser("dialog", help="act on the active dialog")
+    dialog_parser.add_argument("action", choices=("accept", "cancel", "click"))
+    dialog_parser.add_argument("text", nargs="?")
+
+    replace_parser = sub.add_parser("replace", help="replace a plugin, optionally auto-rewire")
+    replace_parser.add_argument("node", type=int)
+    replace_parser.add_argument("--with-plugin", dest="other", type=int, default=None)
+    replace_parser.add_argument("--apply", dest="auto", action="store_true", help="apply the auto-mapping without the dialog")
+    replace_parser.add_argument("--dry-run", action="store_true")
+    replace_parser.add_argument("--no-wait", action="store_true")
+    replace_parser.add_argument("-j", "--json", action="store_true")
+
     args = parser.parse_args(argv)
     if not args.cmd:
         parser.print_help()
@@ -357,20 +411,114 @@ def run_msg_cli(argv, socket_path):
     if args.cmd == "show":
         ok, message = forward_to_primary(socket_path)
         if not ok:
-            print("Clara is not running: %s" % message, file=sys.stderr)
+            _emit_error("Clara is not running: %s" % message)
             return 1
         print("OK")
+        return 0
+
+    if args.cmd == "events":
+        reply = _send(socket_path, build_request(
+            "events", count=args.count, tag=args.tag, level=args.level))
+        if reply is None:
+            return 1
+        events = (reply.get("data") or {}).get("events") or []
+        if args.json:
+            print(json.dumps(events, indent=2))
+        else:
+            for entry in events:
+                print("%s [%-5s] [%s] %s" % (
+                    entry.get("time", ""), entry.get("level", ""),
+                    entry.get("tag", ""), entry.get("message", "")))
+        return 0
+
+    if args.cmd == "screenshot":
+        payload = build_request("screenshot", dialog=bool(args.dialog))
+        if args.path:
+            payload["path"] = args.path
+        reply = _send(socket_path, payload)
+        if reply is None:
+            return 1
+        print((reply.get("data") or {}).get("path", ""))
+        return 0
+
+    if args.cmd == "dialogs":
+        reply = _send(socket_path, build_request("dialogs"))
+        if reply is None:
+            return 1
+        dialogs = (reply.get("data") or {}).get("dialogs") or []
+        if args.json:
+            print(json.dumps(dialogs, indent=2))
+        else:
+            if not dialogs:
+                print("no visible dialogs")
+            for dialog in dialogs:
+                print("%s%s" % (
+                    dialog.get("title", "(untitled)"),
+                    " [modal]" if dialog.get("modal") else ""))
+                if dialog.get("buttons"):
+                    print("  buttons: " + ", ".join(dialog["buttons"]))
+        return 0
+
+    if args.cmd == "dialog":
+        payload = build_request("dialog", action=args.action, text=args.text or "")
+        reply = _send(socket_path, payload)
+        if reply is None:
+            return 1
+        print(json.dumps(reply.get("data") or {}, indent=2))
+        return 0
+
+    if args.cmd == "replace":
+        payload = build_request("replace")
+        payload["node"] = args.node
+        if args.other is not None:
+            payload["with"] = args.other
+        payload["auto"] = bool(args.auto)
+        payload["dry_run"] = bool(args.dry_run)
+        reply = _send(socket_path, payload)
+        if reply is None:
+            return 1
+        data = reply.get("data") or {}
+        if args.json:
+            print(json.dumps(data, indent=2))
+        elif args.dry_run:
+            print("dry run: kept %s/%s ports, %s cables preserved, %s dropped" % (
+                data.get("kept"), data.get("ports"),
+                data.get("cables_kept"), data.get("cables_dropped")))
+            for row in data.get("rows") or []:
+                print("  %-24s -> %-24s (%s)" % (
+                    row.get("old"), row.get("target") or "DROP", row.get("reason")))
+        elif args.auto and not args.no_wait:
+            deadline = time.monotonic() + 30.0
+            while time.monotonic() < deadline:
+                status = _send(socket_path, build_request("rewire_status"))
+                state = (status or {}).get("data") or {}
+                if state.get("done"):
+                    if state.get("idle"):
+                        print("no rewire job")
+                        return 1
+                    if state.get("error"):
+                        _emit_error("rewire failed: " + str(state.get("error")))
+                        return 1
+                    print("replaced with %s: kept %s cable(s), dropped %s, failed %s" % (
+                        state.get("label", ""), state.get("kept", 0),
+                        state.get("dropped", 0), state.get("failed", 0)))
+                    return 0
+                time.sleep(0.15)
+            _emit_error("rewire did not finish in 30s")
+            return 1
+        else:
+            print(json.dumps(data, indent=2) if data else "ok")
         return 0
 
     if args.cmd == "status":
         payload = build_request("status")
         raw = MsgClient.request(socket_path, encode_request(payload))
         if raw is None:
-            print("Clara is not running.", file=sys.stderr)
+            _emit_error("Clara is not running.")
             return 1
         reply = json.loads(raw.decode("utf-8", "replace"))
         if not reply.get("ok"):
-            print((reply.get("error") or {}).get("message", "failed"), file=sys.stderr)
+            _emit_error((reply.get("error") or {}).get("message", "failed"))
             return 1
         data = reply.get("data") or {}
         for key in ("pid", "version", "mode", "project", "plugins", "uptime"):
@@ -380,11 +528,11 @@ def run_msg_cli(argv, socket_path):
     payload = build_request("list", what=args.what, full=bool(args.full))
     raw = MsgClient.request(socket_path, encode_request(payload))
     if raw is None:
-        print("Clara is not running.", file=sys.stderr)
+        _emit_error("Clara is not running.")
         return 1
     reply = json.loads(raw.decode("utf-8", "replace"))
     if not reply.get("ok"):
-        print((reply.get("error") or {}).get("message", "failed"), file=sys.stderr)
+        _emit_error((reply.get("error") or {}).get("message", "failed"))
         return 1
     data = reply.get("data") or {}
 
