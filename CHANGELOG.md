@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — App menus and host internals extracted
+
+- **refactor(host)**: About/Disk/Transport menu actions moved to `app_menus.py`; logs, timers, misc helpers and internal utilities moved to `host_internal.py`. `host_app.py` is now 3,377 lines (under the 3,500 target). Also fixed a latent `haveLRDF`/`ladspa_rdf` NameError by importing the existing parser with a guard.
+
 #### 2026-11-06 — Canvas input extracted
 
 - **refactor(host)**: canvas scrollbar state and keyboard shortcuts moved to `canvas_input.py` (`CanvasInputMixin`). `host_app.py` is 4,073 lines. Added to both install lists.
