@@ -382,6 +382,9 @@ COMMANDS
   show
       Raise the running window.
 
+  save
+      Save the open project in place. Fails when no project is open.
+
   events [-n N] [--tag TAG] [--level LEVEL] [-j]
       Recent log/event history. Default count 50, max 2000.
       --tag      APP, SESSION, PATCHBAY, PLUGIN, CANVAS, SCANNER, ...
@@ -492,7 +495,7 @@ TIPS
 """
 
 
-_COMMANDS = ("status", "show", "events", "list", "open", "screenshot",
+_COMMANDS = ("status", "save", "show", "events", "list", "open", "screenshot",
              "dialogs", "dialog", "replace", "help", "examples")
 
 
@@ -548,6 +551,7 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     sub.add_parser("examples", help="show copy-paste examples")
     sub.add_parser("show", help="raise the running window")
     sub.add_parser("status", help="process and project status")
+    sub.add_parser("save", help="save the open project")
     list_parser = sub.add_parser("list", help="inspect the canvas")
     list_parser.add_argument("what", choices=("nodes", "connections", "containers", "all"))
     list_parser.add_argument("-j", "--json", action="store_true", help="raw JSON")
@@ -708,6 +712,13 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
             return 1
         else:
             print(json.dumps(data, indent=2) if data else "ok")
+        return 0
+
+    if args.cmd == "save":
+        reply = _send(socket_path, build_request("save"))
+        if reply is None:
+            return 1
+        print("saved", (reply.get("data") or {}).get("path", ""))
         return 0
 
     if args.cmd == "status":

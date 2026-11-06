@@ -182,6 +182,17 @@ class ControlMixin:
         cmd = request.get("cmd")
         if cmd == "status":
             return {"v": 1, "ok": True, "data": self.instanceStatus()}
+        if cmd == "save":
+            if not getattr(self, "fProjectFilename", ""):
+                return {"v": 1, "ok": False, "error": {"code": "no_project", "message": "no project is open"}}
+            try:
+                self.saveProjectNow()
+            except Exception as exc:
+                return {"v": 1, "ok": False, "error": {"code": "failed", "message": f"save failed: {exc}"}}
+            if getattr(self, "fHasUnsavedChanges", False):
+                return {"v": 1, "ok": False, "error": {"code": "failed", "message": "save failed"}}
+            return {"v": 1, "ok": True, "data": {"path": self.fProjectFilename}}
+
         if cmd == "list":
             return {"v": 1, "ok": True, "data": self.canvasSnapshot(include_ports=bool(request.get("full")))}
         if cmd == "open":
