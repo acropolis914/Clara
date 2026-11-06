@@ -3522,7 +3522,7 @@ class HostWindow(QMainWindow):
             "plan": rows,
             "connections": old_connections,
             "label": plan_info["label"],
-            "deadline": time.monotonic() + 20.0,
+            "deadline": time.monotonic() + 60.0,
             "started": time.monotonic(),
             "last_count": -1,
         }
@@ -3598,7 +3598,7 @@ class HostWindow(QMainWindow):
         QTimer.singleShot(150, self._pollRewire)
 
     def _finishRewire(self, group, new_ports):
-        from rewire import attach_catalog_roles, index_ports, normalize_port, resolve_target
+        from rewire import attach_catalog_roles, build_rewire_connections, index_ports, normalize_port
 
         state = getattr(self, "_rewireState", None)
         self._rewireState = None
@@ -3611,30 +3611,10 @@ class HostWindow(QMainWindow):
             new_info = None
         new_ports = index_ports([normalize_port(port) for port in new_ports])
         attach_catalog_roles(new_ports, new_info.get("label") if new_info else None)
-        by_port = {row["old"]["key"]: row for row in state["plan"]}
-        kept = dropped = failed = 0
-
-        for out_g, out_p, in_g, in_p in state["connections"]:
-            if out_g == state["old_gid"]:
-                old_port, side = out_p, "out"
-            elif in_g == state["old_gid"]:
-                old_port, side = in_p, "in"
-            else:
-                continue
-            row = by_port.get(old_port)
-            if row is None or not row.get("target"):
-                dropped += 1
-                continue
-            new_port = resolve_target(row["target"], new_ports)
-            if new_port is None:
-                dropped += 1
-                continue
-            if side == "out":
-                args = (group.group_id, new_port["key"], in_g, in_p)
-            else:
-                args = (out_g, out_p, group.group_id, new_port["key"])
-            if args[0] == args[2] and args[1] == args[3]:
-                continue
+        connections, dropped = build_rewire_connections(
+            state["plan"], state["old_gid"], state["connections"], new_ports, group.group_id)
+        kept = failed = 0
+        for args in connections:
             if self.host.patchbay_connect(self.fExternalPatchbay, *args):
                 kept += 1
             else:

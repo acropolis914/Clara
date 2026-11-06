@@ -2064,6 +2064,16 @@ class InlineLoadingBanner(QWidget):
         row.addWidget(self.lbl_percent)
         layout.addLayout(row)
 
+        self.lbl_readonly = QLabel(
+            "READ-ONLY · patchbay and rack are locked until loading finishes", self)
+        self.lbl_readonly.setStyleSheet(
+            "color: #f9e2af; font-size: 10px; font-weight: bold;")
+        self.lbl_readonly.setWordWrap(True)
+        self.lbl_readonly.setToolTip(
+            "Pan and zoom stay available, but nodes, plugins and cables cannot be "
+            "edited until the project has finished loading.")
+        layout.addWidget(self.lbl_readonly)
+
         self.progressBar = QProgressBar(self)
         self.progressBar.setRange(0, 100)
         self.progressBar.setValue(8)

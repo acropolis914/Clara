@@ -62,11 +62,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **fix(session)**: opening a project through the control channel now refuses (CLI) or prompts Save/Discard/Cancel (GUI) when there are unsaved edits. If the new load fails, the previous project is loaded again instead of leaving an empty session.
 - **fix(bridge)**: `no_bridge_plugins` is stored as stable plugin names (legacy indices still load) and indices are remapped when a plugin is removed, so the setting follows the plugin instead of the slot.
-- **fix(rewire)**: replacement honors the custom-UI bridge policy, refuses a target with no audio/MIDI/CV ports, waits up to 20 s for slow plugin ports instead of cutting at 3 s, and adopts split nodes. On a failed add the engine keeps the old plugin; that is now checked and logged.
-- **fix(cli)**: `--with-plugin` is a plugin id and the new `--with-node` takes a node id; `claramsg open` is available; dirty opens fail with a clear message; the result wait is 45 s; `dialog click` refuses destructive button text without `--force`.
+- **fix(rewire)**: replacement honors the custom-UI bridge policy, refuses a target with no audio/MIDI/CV ports, waits up to 60 s for slow plugin ports instead of cutting at 3 s, and adopts split nodes. On a failed add the engine keeps the old plugin; that is now checked and logged.
+- **fix(cli)**: `--with-plugin` is a plugin id and the new `--with-node` takes a node id; `claramsg open` is available; dirty opens fail with a clear message; the result wait is 75 s; `dialog click` refuses destructive button text without `--force`.
 - **fix(security)**: the default screenshot is a private 0600 temp file and explicit paths refuse symlinks/special files.
 - **fix(canvas)**: the delayed shell finalize is tied to a load generation, so a previous load can no longer drop a newer load's shells.
 - **fix(tools)**: the LV2 scraper refuses a >20% catalog shrink without `--force`, catalog load errors are logged, and the AppImage gets a `claramsg` launcher. Catalog roles now match by port name when it is unique, with position as fallback.
+- **feat(ui)**: the inline loading banner shows a READ-ONLY indicator while the project loads; the rack is disabled and the patchbay stays pannable but not editable until loading finishes.
 
 #### 2026-11-06 — Bridges must die with the host
 

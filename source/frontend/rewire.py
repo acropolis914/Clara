@@ -359,13 +359,21 @@ def resolve_target(target, new_ports):
     new_ports = index_ports(new_ports)
     role_key = target.get("role_key")
     if role_key:
+        if "name" in target:
+            target_mode = target.get("mode", MODE_IN)
+            target_kind = target.get("kind", KIND_OTHER)
+        else:
+            target_mode, target_kind, _target_index = target.get("role") or (MODE_IN, KIND_OTHER, 0)
         if role_key == "event":
             # Multiple event ports share the role; use the recorded index.
             index = (target.get("role") or (None, None, 0))[2]
             for new in new_ports:
-                if new["kind"] == KIND_MIDI and new["mode"] == target.get("mode", MODE_IN) and new["index"] == index:
+                if (new["kind"] == KIND_MIDI and new["mode"] == target_mode
+                        and new["index"] == index):
                     return new
         for new in new_ports:
+            if new["mode"] != target_mode or new["kind"] != target_kind:
+                continue
             if port_role(new) == role_key:
                 return new
         if role_key.startswith("sc:"):
@@ -384,6 +392,41 @@ def resolve_target(target, new_ports):
             if new["mode"] == mode and new["kind"] == kind and new["index"] == index:
                 return new
     return None
+
+
+def build_rewire_connections(plan, old_gid, connections, new_ports, new_gid):
+    """Return ([(out_gid, out_port, in_gid, in_port)], dropped_count).
+
+    Old outputs reconnect to the same peer inputs; old inputs keep the same
+    peer outputs. Rows without a target or a resolvable new port are dropped.
+    """
+    by_port = {row["old"]["key"]: row for row in plan}
+    new_ports = index_ports(new_ports)
+    result = []
+    dropped = 0
+    for out_g, out_p, in_g, in_p in connections:
+        if out_g == old_gid:
+            old_port, side = out_p, "out"
+        elif in_g == old_gid:
+            old_port, side = in_p, "in"
+        else:
+            continue
+        row = by_port.get(old_port)
+        if row is None or not row.get("target"):
+            dropped += 1
+            continue
+        new_port = resolve_target(row["target"], new_ports)
+        if new_port is None:
+            dropped += 1
+            continue
+        if side == "out":
+            args = (new_gid, new_port["key"], in_g, in_p)
+        else:
+            args = (out_g, out_p, new_gid, new_port["key"])
+        if args[0] == args[2] and args[1] == args[3]:
+            continue
+        result.append(args)
+    return result, dropped
 
 
 def is_compatible(old, target):
@@ -407,7 +450,8 @@ def validate_rows(rows):
             key = ("port", target.get("mode"), target.get("kind"),
                    target.get("name", "").casefold(), target.get("index"))
         else:
-            key = ("role", target.get("role_key"), (target.get("role") or (None, None, 0))[2])
+            role = target.get("role") or (None, None, 0)
+            key = ("role", target.get("role_key"), role[0], role[1], role[2])
         if old["mode"] == MODE_OUT:
             other = used_outputs.get(key)
             if other is not None:

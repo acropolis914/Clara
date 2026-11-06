@@ -16,6 +16,7 @@ from rewire import (
     MODE_OUT,
     actual_target,
     attach_catalog_roles,
+    build_rewire_connections,
     index_ports,
     match_ports,
     normalize_port,
@@ -169,6 +170,22 @@ def test_mixer_catalog_roles_are_unique():
     assert roles[0] == "ch:0" and roles[-1] == "ch:17"
 
 
+def test_build_rewire_connections_directions():
+    old_gid, peer_gid, new_gid = 100, 200, 300
+    old = [port("In L", MODE_IN, KIND_AUDIO, 1), port("Out L", MODE_OUT, KIND_AUDIO, 2)]
+    new = [port("In L", MODE_IN, KIND_AUDIO, 11), port("Out L", MODE_OUT, KIND_AUDIO, 12)]
+    plan = match_ports(old, new)
+    connections = [
+        (old_gid, 2, peer_gid, 21),   # old output -> peer input
+        (peer_gid, 20, old_gid, 1),   # peer output -> old input
+        (old_gid, 99, peer_gid, 22),  # unknown old port
+    ]
+    result, dropped = build_rewire_connections(plan, old_gid, connections, new, new_gid)
+    assert dropped == 1
+    assert (new_gid, 12, peer_gid, 21) in result
+    assert (peer_gid, 20, new_gid, 11) in result
+
+
 def test_duplicate_output_target_is_rejected():
     old = [port("a", MODE_OUT, KIND_AUDIO, 1), port("b", MODE_OUT, KIND_AUDIO, 2)]
     target = actual_target(port("Out", MODE_OUT, KIND_AUDIO, 10))
@@ -198,6 +215,7 @@ def main():
     test_repeated_names_use_position()
     test_catalog_names_override_order()
     test_mixer_catalog_roles_are_unique()
+    test_build_rewire_connections_directions()
     test_duplicate_output_target_is_rejected()
     test_normalize_canvas_port()
     print("rewire: all checks passed")

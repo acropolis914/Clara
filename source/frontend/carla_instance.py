@@ -507,7 +507,7 @@ def run_msg_cli(argv, socket_path):
                 print("  %-24s -> %-24s (%s)" % (
                     row.get("old"), row.get("target") or "DROP", row.get("reason")))
         elif args.auto and not args.no_wait:
-            deadline = time.monotonic() + 45.0
+            deadline = time.monotonic() + 75.0
             while time.monotonic() < deadline:
                 status = _send(socket_path, build_request("rewire_status"))
                 state = (status or {}).get("data") or {}
