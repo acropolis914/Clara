@@ -128,6 +128,7 @@ class CarlaLogger(QObject):
         self.max_history = 5000
         self._last_msg = None
         self._repeat_count = 0
+        self._assertion_seen = {}
         # Terminal output is capped so a backend log flood cannot peg the CPU
         # rendering rich text nobody can read fast enough.
         self._console_max_per_sec = 60
@@ -194,6 +195,17 @@ class CarlaLogger(QObject):
         return False
 
     def log(self, level, tag, message):
+        if isinstance(message, str) and "assertion failure" in message.lower():
+            # Repeating assertions (autosave, engine teardown) add no new information.
+            now = time.monotonic()
+            key = (tag, message)
+            last, count = self._assertion_seen.get(key, (0.0, 0))
+            if now - last < 300.0:
+                self._assertion_seen[key] = (last, count + 1)
+                return
+            if count:
+                message = f"{message} (+{count} repeats suppressed)"
+            self._assertion_seen[key] = (now, 0)
         msg_key = (tag, message)
         if msg_key == self._last_msg:
             self._repeat_count += 1
@@ -371,7 +383,15 @@ class CarlaLogger(QObject):
             "LOG PATH:",
             "CHECKING DESKTOPFILE AT:",
             "MAPPING ABSOLUTEPATH",
+            "MAPPING ABSTRACTPATH",
             "CREATING SYMLINK FOR",
+            "NUMBER OF MASTERS:",
+            "NUMBER OF GROUPS:",
+            "NUMBER OF REGIONS:",
+            "FILE CHANGED TO:",
+            "AUDIOMASTERAUTOMATE CALLED FROM UNKNOWN SOURCE",
+            "WILL USE LV2 X11 UI FOR",
+            "PREVIOUSLY SAVED CLIENT",
         )
         is_yabridge_line = bool(re.search(r'\[[\w\.-]+-[A-Za-z0-9]{8}\]', clean_text))
         if "ASSERTION FAILURE" in upper_text:
@@ -401,10 +421,13 @@ class CarlaLogger(QObject):
             elif ansi_level is not None:
                 level = ansi_level
 
-        # Look for [carla] prefix (e.g. from backend assertions / logging)
+        # Look for [carla] prefix (e.g. from backend assertions / logging);
+        # interleaved stdout can also put it in the middle of a line.
         if clean_text.startswith("[carla]"):
             tag = "BACKEND"
             clean_text = clean_text[7:].strip()
+        if "[carla]" in clean_text:
+            clean_text = clean_text.replace("[carla] ", "").replace("[carla]", "").strip()
         else:
             # Look for general [TAG] pattern at the start
             m = re.match(r"^\[([A-Za-z0-9_\-]+)\]\s*(.*)$", clean_text)

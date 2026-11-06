@@ -339,48 +339,29 @@ class HostInternalMixin:
 
     def _promptSIGINT(self):
         # Ctrl+C came from a terminal, so ask right there instead of popping up
-        # a GUI dialog. This blocks the UI while waiting for an answer, which is
-        # fine because the user is interacting with the terminal anyway. Pressing
-        # Enter (the default) quits Clara.
+        # a GUI dialog. Write to the saved terminal fd: fd 1 is captured by the
+        # logger, and routing this through it would print the prompt as log lines.
         has_tray = getattr(self, "fSystemTrayIcon", None) is not None
         answer = ""
 
         try:
-            from rich.console import Console
-            from rich.prompt import Prompt
-            from rich.text import Text
-
-            body = Text()
-            body.append("Ctrl+C received from the terminal.\n", style="bold yellow")
-            body.append("Quit Clara now?", style="bold white")
-            body.append("\n\n")
-            body.append("[Enter]", style="bold bright_magenta")
-            body.append("  Quit now", style="dim")
-            body.append("  (default)\n", style="bold dim")
+            from carla_logger import logger
+            out = getattr(logger, "_terminal_out", None) or sys.__stdout__
+            out.write("\n")
+            out.write("Ctrl+C received from the terminal.\n")
+            out.write("Quit Clara now?\n")
+            out.write("  [Enter] Quit now (default)\n")
             if has_tray:
-                body.append("[T]", style="bold bright_cyan")
-                body.append("      Keep running in the system tray\n", style="dim")
-
-            Console().print(body)
-
-            answer = Prompt.ask("[bold yellow]Choice[/]", default="",
-                                show_default=False).strip().lower()
+                out.write("  [T]     Keep running in the system tray\n")
+            out.write("Choice [Enter/T]: " if has_tray else "Choice [Enter]: ")
+            out.flush()
         except Exception:
-            try:
-                print("")
-                print("Ctrl+C received from the terminal.")
-                print("Quit Clara now?")
-                print("  [Enter] Quit now (default)")
-                if has_tray:
-                    print("  [T]     Keep running in the system tray")
-                sys.stdout.write("Choice [Enter/T]: " if has_tray else "Choice [Enter]: ")
-                sys.stdout.flush()
-            except Exception:
-                pass
-            try:
-                answer = input().strip().lower()
-            except Exception:
-                answer = ""
+            pass
+
+        try:
+            answer = input().strip().lower()
+        except Exception:
+            answer = ""
 
         if has_tray and answer.startswith("t"):
             print("Keeping Clara running in the system tray; detached from terminal.")

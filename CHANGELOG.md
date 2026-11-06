@@ -28,6 +28,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Clean terminal prompt and repeated assertions
+
+- **fix(ui)**: the Ctrl+C quit prompt now writes to the saved terminal fd, not captured stdout, so it no longer appears as `INFO ENTER`/`INFO T` log lines.
+- **fix(logging)**: sfizz `Mapping abstractPath`, region/master counts, `File changed to`, `Will use LV2 X11 UI`, `audioMasterAutomate` and `Previously saved client` are DEBUG. `[carla]` is removed even when interleaved mid-line. Identical assertion failures are collapsed to one per 5 minutes with a suppressed count.
+
 #### 2026-11-07 — Backend stdout joins the log
 
 - **fix(logging)**: the GUI host now captures backend/bridge stdout (fd 1) as well as stderr, so raw `[carla]` lines are formatted and classified instead of leaking to the terminal. `Mapping absolutePath` and `Creating symlink` are DEBUG noise. The `CanvasBox.removePort(...) unable to find port` teardown message is DEBUG too.

@@ -69,6 +69,33 @@ def test_sfizz_mapping_is_debug():
     assert entry.level == LOG_LEVEL_DEBUG, LEVEL_NAMES.get(entry.level)
     assert entry.message.startswith("Mapping absolutePath")
 
+
+
+def test_sfizz_abstract_path_is_debug():
+    log = CarlaLogger()
+    log.log_raw_string("[carla] Mapping abstractPath 'DefaultInstrument.sfz' relative to targetDir '/tmp/sfizz/sfizz'")
+    entry = log.history[-1]
+    assert entry.level == LOG_LEVEL_DEBUG, LEVEL_NAMES.get(entry.level)
+    assert "[carla]" not in entry.message
+
+
+def test_carla_prefix_in_the_middle_is_removed():
+    log = CarlaLogger()
+    log.log_raw_string("Mapping abso[carla] carla_lv2_midnam_update")
+    assert "[carla]" not in log.history[-1].message
+
+
+def test_repeated_assertions_are_collapsed():
+    log = CarlaLogger()
+    msg = 'Carla assertion failure: "size > 0" in file x.cpp, line 1'
+    log.log_raw_string(msg)
+    log.log_raw_string(msg)
+    assert len(log.history) == 1
+    last, count = next(iter(log._assertion_seen.values()))
+    log._assertion_seen[next(iter(log._assertion_seen))] = (0.0, count)
+    log.log_raw_string(msg)
+    assert "repeats suppressed" in log.history[-1].message
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
