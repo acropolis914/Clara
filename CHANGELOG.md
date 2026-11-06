@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — File menu and recent projects extracted
+
+- **refactor(host)**: recent-project bookkeeping/startup restore and the File menu actions moved to `project_menu.py` (`ProjectMenuMixin`). `host_app.py` is 4,657 lines. Added to both install lists.
+
 #### 2026-11-06 — Settings UI extracted from the host
 
 - **refactor(host)**: the settings persistence, dialog launch and Settings/View menu actions moved out of `host_app.py` into `settings_panel.py` (`SettingsMixin`). `HostWindow` inherits it; `setEngineSettings` is imported lazily to avoid a cycle. `host_app.py` is now 4,936 lines. Added to both install lists.
