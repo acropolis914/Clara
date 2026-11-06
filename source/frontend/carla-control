@@ -5,7 +5,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Imports (Custom Stuff)
 
-from carla_host_control import (
+from osc_control import (
     ENGINE_PROCESS_MODE_BRIDGE,
     CarlaApplication,
     CarlaHostOSC,

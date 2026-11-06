@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 Clara contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# Replace + rewire flow, split out of carla_host.py.
+# Replace + rewire flow, split out of host_app.py.
 # HostWindow inherits this mixin; the methods still use self for host state.
 
 import os

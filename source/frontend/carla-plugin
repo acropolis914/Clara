@@ -18,7 +18,7 @@ elif qt_config == 6:
 # Imports (Custom Stuff)
 
 from carla_backend_qt import CarlaHostQtPlugin
-from carla_host import *
+from host_app import *
 from externalui import ExternalUI
 
 # ------------------------------------------------------------------------------------------------------------

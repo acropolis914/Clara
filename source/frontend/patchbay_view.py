@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 Clara contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# Patchbay canvas setup, menu actions and callbacks, split out of carla_host.py.
+# Patchbay canvas setup, menu actions and callbacks, split out of host_app.py.
 # HostWindow inherits this mixin.
 
 from carla_app import QSafeSettings
@@ -832,7 +832,7 @@ class CanvasMixin:
         self, clientId, clientIcon, pluginId, clientName
     ):
         log_carla(
-            f"carla_host: slot_handlePatchbayClientAddedCallback clientId={clientId}, clientIcon={clientIcon}, pluginId={pluginId}, clientName='{clientName}'",
+            f"host_app: slot_handlePatchbayClientAddedCallback clientId={clientId}, clientIcon={clientIcon}, pluginId={pluginId}, clientName='{clientName}'",
             level="debug"
         )
         if self._isHiddenPatchbayClientName(clientName):
@@ -975,7 +975,7 @@ class CanvasMixin:
         self, clientId, portId, portFlags, portGroupId, portName
     ):
         log_carla(
-            f"carla_host: slot_handlePatchbayPortAddedCallback clientId={clientId}, portId={portId}, name='{portName}'",
+            f"host_app: slot_handlePatchbayPortAddedCallback clientId={clientId}, portId={portId}, name='{portName}'",
             level="debug"
         )
         if clientId in self.fFilteredPatchbayClients:

@@ -4048,7 +4048,7 @@ class PluginSlot_Sliders(PluginSlot_Minimal):
 
 if __name__ == '__main__':
     from carla_app import CarlaApplication
-    from carla_host import initHost, loadHostSettings
+    from host_app import initHost, loadHostSettings
 
 
     app = CarlaApplication("Carla-Skins")

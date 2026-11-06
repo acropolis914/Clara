@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 Clara contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# MiniCanvas controls and placement, split out of carla_host.py.
+# MiniCanvas controls and placement, split out of host_app.py.
 # HostWindow inherits this mixin.
 
 from carla_app import QSafeSettings

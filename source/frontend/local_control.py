@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # Local control-channel handlers (claramsg) and control-driven project open,
-# split out of carla_host.py. HostWindow inherits this mixin.
+# split out of host_app.py. HostWindow inherits this mixin.
 
 import os
 

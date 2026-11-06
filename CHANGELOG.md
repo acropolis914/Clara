@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — Host module and OSC control renamed
+
+- **refactor(naming)**: `carla_host.py` → `host_app.py` and `carla_host_control.py` → `osc_control.py`. Updated the `carla`, `carla-control`, `carla-rack`, `carla-jack-*`, `carla-plugin`, `carla-patchbay` and `carla-rest-frontend` entry scripts, the lazy imports in settings/widgets/skin, tests and both install lists. The generated `ui_carla_host.py` keeps its name.
+
 #### 2026-11-06 — Semantic, carla-free module names
 
 - **refactor(naming)**: renamed the hand-written split modules to names that say what they do: `carla_host_events.py` → `window_events.py`, `carla_host_minicanvas.py` → `minimap.py`, `carla_host_canvas.py` → `patchbay_view.py`, `carla_control.py` → `local_control.py`, `carla_rewire_flow.py` → `rewire_flow.py`. Imports, tests and both install lists follow. Generated `ui_*.py` files are untouched.

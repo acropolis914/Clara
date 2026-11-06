@@ -12,7 +12,7 @@ from carla_app import (
     CarlaApplication,
 )
 
-from carla_host import (
+from host_app import (
     HostWindow,
     initHost,
     loadHostSettings,

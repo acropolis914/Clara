@@ -3223,7 +3223,7 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         if state is not None and pluginId == state.get("pluginId"):
             state["plugin_added_at"] = time.monotonic()
         log_carla(
-            f"carla_host: slot_handlePluginAddedCallback id={pluginId}, type={pluginType}, name='{pluginName}'",
+            f"host_app: slot_handlePluginAddedCallback id={pluginId}, type={pluginType}, name='{pluginName}'",
             level="debug"
         )
 

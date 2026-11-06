@@ -1146,7 +1146,7 @@ def getPaths(libPrefix = None):
 
 # ------------------------------------------------------------------------------------------------------------
 # Signal handler
-# TODO move to carla_host.py or something
+# TODO move to host_app.py or something
 
 def signalHandler(sig, frame):
     if sig == SIGINT:

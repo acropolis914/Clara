@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # Window events, timers, system tray, style and update checks, split out of
-# carla_host.py. HostWindow inherits this mixin.
+# host_app.py. HostWindow inherits this mixin.
 
 import os
 

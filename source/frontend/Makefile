@@ -90,8 +90,8 @@ RES = \
 	$(BINDIR)/resources/carla_app.py \
 	$(BINDIR)/resources/carla_backend.py \
 	$(BINDIR)/resources/carla_backend_qt.py \
-	$(BINDIR)/resources/carla_host.py \
-	$(BINDIR)/resources/carla_host_control.py \
+	$(BINDIR)/resources/host_app.py \
+	$(BINDIR)/resources/osc_control.py \
 	$(BINDIR)/resources/local_control.py \
 	$(BINDIR)/resources/rewire_flow.py \
 	$(BINDIR)/resources/window_events.py \

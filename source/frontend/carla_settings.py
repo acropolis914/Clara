@@ -2081,7 +2081,7 @@ class CarlaSettingsW(QDialog):
 
 if __name__ == "__main__":
     from carla_app import CarlaApplication
-    from carla_host import initHost as _initHost, loadHostSettings as _loadHostSettings
+    from host_app import initHost as _initHost, loadHostSettings as _loadHostSettings
 
     # pylint: disable=ungrouped-imports
     from carla_shared import handleInitialCommandLineArguments

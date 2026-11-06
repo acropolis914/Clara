@@ -18,7 +18,7 @@ elif qt_config == 6:
 import ui_carla_osc_connect
 
 from carla_backend_qt import CarlaHostQtPlugin
-from carla_host import *
+from host_app import *
 
 # ------------------------------------------------------------------------------------------------------------
 # Imports (liblo)

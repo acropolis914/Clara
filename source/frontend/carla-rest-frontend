@@ -20,7 +20,7 @@
 # Imports (Custom Stuff)
 
 from carla_backend_qtweb import CarlaHostQtWeb
-from carla_host import (
+from host_app import (
     CarlaApplication,
     HostWindow,
     setUpSignals,

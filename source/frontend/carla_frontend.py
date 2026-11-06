@@ -12,7 +12,7 @@
 # for plugin discovery.
 #
 # The class below keeps the same public API as the old ctypes wrapper so that
-# carla_host.py does not need to change.
+# host_app.py does not need to change.
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Imports (ctypes)

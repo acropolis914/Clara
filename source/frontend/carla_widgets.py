@@ -2134,7 +2134,7 @@ class InlineLoadingBanner(QWidget):
 
 if __name__ == '__main__':
     from carla_app import CarlaApplication
-    from carla_host import initHost as _initHost, loadHostSettings as _loadHostSettings
+    from host_app import initHost as _initHost, loadHostSettings as _loadHostSettings
 
     _app  = CarlaApplication()
     _host = _initHost("Widgets", None, False, False, False)
