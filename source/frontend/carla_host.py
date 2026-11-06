@@ -3343,6 +3343,7 @@ class HostWindow(QMainWindow):
             if group is None:
                 return None
             new_label = info.get("label")
+            new_display = info.get("name") or new_label
             new_ports = index_ports([normalize_port(port) for port in self._groupPorts(group.group_id)])
             attach_catalog_roles(new_ports, new_label)
             from carla_backend import BINARY_NATIVE
@@ -3368,6 +3369,8 @@ class HostWindow(QMainWindow):
                 )
             btype, ptype, filename, label, uniqueId, _extra = data
             new_label = label
+            _captured = locals().get("info")
+            new_display = (_captured.get("name") if isinstance(_captured, dict) else None) or label
             candidate = self._findExistingPluginPorts(ptype, filename, label, uniqueId, pluginId)
             if candidate is not None:
                 new_ports = index_ports([normalize_port(port) for port in candidate])
@@ -3423,7 +3426,7 @@ class HostWindow(QMainWindow):
             "exact": exact,
             "options": bridge_options,
             "data": (btype, ptype, filename, label, uniqueId, extraPtr),
-            "label": label or os.path.basename(filename or "") or "plugin",
+            "label": new_display or os.path.basename(filename or "") or "plugin",
         }
 
     def showReplaceWithRewire(self, pluginId, auto=False, with_plugin_id=None, dry_run=False):

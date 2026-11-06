@@ -6,6 +6,7 @@
 
 from qt_compat import (
     QAbstractItemView,
+    QTimer,
     QComboBox,
     QDialog,
     QHBoxLayout,
@@ -144,6 +145,8 @@ class RewireDialog(QDialog):
                 last_group = group
             self._add_port_row(row)
         self._update_summary()
+        self.table.scrollToTop()
+        QTimer.singleShot(0, self.table.scrollToTop)
 
     def _add_group_row(self, group):
         row_index = self.table.rowCount()

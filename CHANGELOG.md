@@ -68,6 +68,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(canvas)**: the delayed shell finalize is tied to a load generation, so a previous load can no longer drop a newer load's shells.
 - **fix(tools)**: the LV2 scraper refuses a >20% catalog shrink without `--force`, catalog load errors are logged, and the AppImage gets a `claramsg` launcher. Catalog roles now match by port name when it is unique, with position as fallback.
 - **feat(ui)**: the inline loading banner shows a READ-ONLY indicator while the project loads; the rack is disabled and the patchbay stays pannable but not editable until loading finishes.
+- **fix(rewire/ui)**: the Rewire dialog title shows the plugin display name instead of the LV2 URI, and the table opens at the top instead of scrolled to the last port.
 
 #### 2026-11-06 — Bridges must die with the host
 
