@@ -26,6 +26,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **style(cli)**: the startup banner and the terminal SIGINT prompt print their styled text directly instead of inside a rich `Panel`; the content and colors are unchanged.
 
+### Changed
+
+#### 2026-11-06 — Rewire flow extracted and tested
+
+- **refactor(host)**: the control-channel handlers (`msgEvents`, `msgScreenshot`, `msgDialogs`, `msgDialogAction`, `handleMsgRequest`) and control-driven project open moved to `carla_control.py` (`ControlMixin`); the replace/rewire flow moved to `carla_rewire_flow.py` (`RewireFlowMixin`). `HostWindow` inherits both, so no call sites changed. `carla_host.py` is 700 lines shorter; both new files are added to the install lists.
+- **test(rewire)**: new `test_rewire_flow.py` drives the offscreen host flow with fake canvas groups: adoption keeps position, color, hide state, split and container membership; the poll adopts as soon as the new client appears; finishing rewires the cables and sweeps the ghost.
+- **fix(rewire)**: a leftover group for the replaced client (multi-client JACK can leave a zero-port client behind with no removal callback) is dropped after the rewire, with a 2 s follow-up sweep for late unregistration.
+
 ### Features
 
 #### 2026-11-06 — Scraped LV2 port-role catalog
