@@ -31,6 +31,7 @@ from qt_compat import (
     QAction,
     QApplication,
     QCheckBox,
+    QComboBox,
     QColor,
     QDialog,
     QFileInfo,

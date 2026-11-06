@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Restore plugin-browser Qt imports
+
+- **fix(pluginlist)**: `QComboBox` was dropped when the PyQt conditionals moved to `qt_compat`, crashing the patchbay context menu's Replace action with `NameError`. Restored it and added the two `carla_backend_qtweb` names the static import check found missing.
+
 #### 2026-11-07 — Shells wait for late clients
 
 - **fix(patchbay)**: shell finalize no longer fires a fixed 1.2 s after load. It waits until client-added callbacks have been quiet for 2 s (up to ~20 s), so a reload whose clients arrive later still binds every skeleton. Verified: reload binds 25/25, drops 0.

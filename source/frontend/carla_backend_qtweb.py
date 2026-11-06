@@ -26,6 +26,7 @@ from websocket import WebSocket, WebSocketConnectionClosedException
 # Imports (Custom)
 
 from carla_backend_qt import *
+from carla_backend import ENGINE_CALLBACK_QUIT, PyCarlaTransportInfo
 
 import os
 from time import sleep
