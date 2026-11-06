@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Loading banner takes over
+
+- **fix(loading)**: when a recent-project/autosave prompt already owns `fLoadingDialog`, starting the actual load now closes it and shows the inline loading banner instead of silently reusing the prompt. Banner construction failures are logged instead of swallowed.
+
 #### 2026-11-07 — Readable log lines
 
 - **style(logging)**: console and file lines are now `HH:MM:SS  LEVEL     TAG        message` with aligned columns; DEBUG messages render dim. `claramsg events` uses the same columns. Connection/disconnect/stereo/scan messages use `→` and drop stale prefixes; the giant periodic `SIGNALFLOW` dump is opt-in via `CLARA_DEBUG_SIGNALFLOW=1`.

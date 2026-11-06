@@ -1913,7 +1913,17 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             self.ui.listWidget.setUpdatesEnabled(True)
             self.ui.listWidget.blockSignals(True)
 
-        if not hasattr(self, "fLoadingDialog") or self.fLoadingDialog is None:
+        current = getattr(self, "fLoadingDialog", None)
+        if current is not None and not isinstance(current, InlineLoadingBanner):
+            # A recent-project/autosave prompt owned the slot; the banner takes over
+            # now that a load is actually running.
+            try:
+                current.close()
+                current.deleteLater()
+            except Exception:
+                pass
+            self.fLoadingDialog = None
+        if getattr(self, "fLoadingDialog", None) is None:
             try:
                 fn = filename or getattr(self, "fProjectFilename", "")
                 self.fLoadingDialog = InlineLoadingBanner(self.ui.centralwidget, fn)
@@ -1922,7 +1932,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
                     layout.insertWidget(0, self.fLoadingDialog)
                 self.fLoadingDialog.show()
                 QApplication.processEvents()
-            except Exception:
+            except Exception as exc:
+                logger.warning("SESSION", f"InlineLoadingBanner failed: {exc}")
                 self.fLoadingDialog = None
 
     def _dismissLoadingDialog(self):
