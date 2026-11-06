@@ -103,6 +103,13 @@ def test_sfizz_clear_failure_is_debug():
     log.log_raw_string("[sfizz] Loading failed")
     assert log.history[-1].level == LOG_LEVEL_DEBUG
 
+
+
+def test_lilv_duplicate_bundle_warning_is_debug():
+    log = CarlaLogger()
+    log.log_raw_string("lilv_world_add_plugin(): warning: ... found in file:///home/a/.lv2/sfizz.lv2/")
+    assert log.history[-1].level == LOG_LEVEL_DEBUG
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

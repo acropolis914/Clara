@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Hide expected duplicate-bundle warning
+
+- **fix(logging)**: lilv's `lilv_world_add_plugin()` warning when a user-local bundle shadows the system bundle is DEBUG. It is expected when testing the patched sfizz, not a load failure.
+
 #### 2026-11-07 — sfizz path investigation; samples tree no longer needed
 
 - **fix(sfizz)**: upstream sfizz already canonicalizes the SFZ path (PR #303) and normalizes Windows separators, so the Salamander `48khz24bit` sample-tree symlink is unnecessary. The compat shim now recreates only the mapped SFZ/tuning links; verified with `/tmp/sfizz` containing no sample tree and sfizz loading with 0 errors.

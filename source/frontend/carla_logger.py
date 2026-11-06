@@ -448,6 +448,11 @@ class CarlaLogger(QObject):
         if tag == "SFIZZ" and clean_text == "Loading failed":
             level = LOG_LEVEL_DEBUG
 
+        # A user-local bundle shadowing the system one is expected; lilv warns twice.
+        if ("LILV_WORLD_ADD_PLUGIN" in upper_text
+                or ("FILE:///" in clean_text and "(IGNORED)" in upper_text)):
+            level = LOG_LEVEL_DEBUG
+
         self.log(level, tag, clean_text)
 
     def _capture_fd(self, fd):
