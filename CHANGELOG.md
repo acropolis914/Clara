@@ -28,6 +28,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — sfizz compatibility shim
+
+- **fix(sfizz)**: before loading a project, recreate the temp layout the saved sfizz state expects (`/tmp/sfizz/sfizz` links for the user/SFZ tuning files, plus the Salamander `48khz24bit` sample tree). Clearing `/tmp` no longer makes every sfizz instance fail its path restore. Adds `test_sfizz_compat.py`.
+- **TODO(FIX)**: theming is slow and the rack background is hardcoded in `patchbay_view.py`; tracked in `TODO.md`.
+
 #### 2026-11-07 — Clean terminal prompt and repeated assertions
 
 - **fix(ui)**: the Ctrl+C quit prompt now writes to the saved terminal fd, not captured stdout, so it no longer appears as `INFO ENTER`/`INFO T` log lines.

@@ -1763,6 +1763,11 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         log_history_start = len(logger.history)
 
         try:
+            try:
+                from sfizz_compat import ensure_sfizz_compat
+                ensure_sfizz_compat()
+            except Exception as exc:
+                logger.debug("PLUGIN", f"sfizz compat failed: {exc}")
             logger.debug("SESSION", f"Calling self.host.load_project('{actual_load_filename}')")
             load_ok = self.host.load_project(actual_load_filename)
             if load_ok:

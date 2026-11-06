@@ -598,6 +598,8 @@ class CanvasMixin:
                     """)
                     self.ui.frame.setFrameShape(QFrame.NoFrame)
                     self.ui.frame.setStyleSheet(f"QFrame#frame {{ background-color: {bg_hex}; border: none; }}")
+                    # TODO(FIX): theming is slow and this rack background is hardcoded;
+                    # source it from the active theme and profile the apply path.
                     self.ui.rack.setStyleSheet(f"QWidget#rack {{ background-color: {bg_hex}; border: none; }}")
                     self.ui.patchbay.setStyleSheet(f"QWidget#patchbay {{ background-color: {bg_hex}; border: none; }}")
                     self.ui.graphicsView.setStyleSheet("QGraphicsView { border: none; outline: none; }")

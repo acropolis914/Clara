@@ -5,6 +5,8 @@
 ---
 
 ## 🐛 Bugs
+- [ ] `[Diff: 2]` **FIX**: theming is slow, and the rack background is hardcoded (`source/frontend/patchbay_view.py`). Profile theme application and source the rack/frame background from the active theme instead of the inline `bg_hex` styles.
+
 - [x] `[Diff: 1]` Fix: Rack item remove button still does not delete or show confirmation dialog (reopened: calf skin vs other skins / context menu / delete key)
 - [x] `[Diff: 1]` Fix: Left-click drag on empty canvas does not pan the UI
 - [x] `[Diff: 1]` Fix: Patchbay canvas node power button (`⏻`) does not toggle plugin processing state reliably
