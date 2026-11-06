@@ -8,6 +8,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 import time
 
@@ -496,12 +497,40 @@ TIPS
 """
 
 
+_COMMANDS = ("status", "show", "events", "list", "open", "screenshot",
+             "dialogs", "dialog", "replace", "help", "examples")
+
+
+def _use_color():
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("TERM") == "dumb":
+        return False
+    try:
+        return sys.stdout.isatty()
+    except Exception:
+        return False
+
+
+def _paint(text, prog):
+    """Colour headings, command names, flags and the tool name."""
+    bold, reset = "\x1b[1m", "\x1b[0m"
+    cyan, green, blue, magenta = "\x1b[36m", "\x1b[32m", "\x1b[34m", "\x1b[35m"
+    text = re.sub(r"(?m)^([A-Z][A-Z0-9 &/]+)$", bold + cyan + r"\1" + reset, text)
+    text = re.sub(r"(?m)^  (" + "|".join(_COMMANDS) + r")(?=[ \n])",
+                  lambda m: "  " + bold + green + m.group(1) + reset, text)
+    text = re.sub(r"(?<![\w-])(--[a-z][\w-]*)", blue + r"\1" + reset, text)
+    return re.sub(r"\b" + re.escape(prog) + r"\b", bold + magenta + prog + reset, text)
+
+
 def print_help(prog="claramsg"):
-    print(_HELP_TEMPLATE.format(prog=prog))
+    text = _HELP_TEMPLATE.format(prog=prog)
+    print(_paint(text, prog) if _use_color() else text)
 
 
 def print_examples(prog="claramsg"):
-    print(_EXAMPLES_TEMPLATE.format(prog=prog))
+    text = _EXAMPLES_TEMPLATE.format(prog=prog)
+    print(_paint(text, prog) if _use_color() else text)
 
 
 def run_msg_cli(argv, socket_path, prog="claramsg"):
@@ -512,6 +541,7 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
                         help="show copy-paste examples")
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("help", help="show this help")
+    sub.add_parser("examples", help="show copy-paste examples")
     sub.add_parser("show", help="raise the running window")
     sub.add_parser("status", help="process and project status")
     list_parser = sub.add_parser("list", help="inspect the canvas")
@@ -554,7 +584,7 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     replace_parser.add_argument("-j", "--json", action="store_true")
 
     args = parser.parse_args(argv)
-    if args.examples:
+    if args.examples or args.cmd == "examples":
         print_examples(prog)
         return 0
     if args.show_help or args.cmd == "help" or not args.cmd:
