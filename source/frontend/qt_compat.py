@@ -38,7 +38,10 @@ if qt_config == 5:
         QAbstractAnimation,
         QEasingCurve,
         QVariantAnimation,
+        QLockFile,
+        QStandardPaths,
     )
+    from PyQt5.QtNetwork import QLocalServer, QLocalSocket
 
     # QtGui
     from PyQt5.QtGui import (
@@ -182,7 +185,10 @@ elif qt_config == 6:
         QAbstractAnimation,
         QEasingCurve,
         QVariantAnimation,
+        QLockFile,
+        QStandardPaths,
     )
+    from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
     # QtGui
     from PyQt6.QtGui import (

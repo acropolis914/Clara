@@ -6,9 +6,7 @@
 # Imports (Custom Stuff)
 
 import os
-import socket
 import sys
-import tempfile
 
 from carla_app import (
     CarlaApplication,
@@ -21,106 +19,29 @@ from carla_host import (
 )
 
 from carla_shared import (
+    CLARA_VERSION_STRING,
+    getInitialProjectFile,
+    gCarla,
     handleInitialCommandLineArguments,
     setUpSignals,
 )
 
-from qt_compat import (
-    QObject,
-    pyqtSignal,
-)
-
-try:
-    from PyQt6.QtCore import QSocketNotifier
-except ImportError:
-    from PyQt5.QtCore import QSocketNotifier
+from qt_compat import QTimer
 
 # ----------------------------------------------------------------------------------------------------------------------
-# Single-instance helpers (standalone Carla only)
+# Early diagnostics (stderr is captured by the logger by the time we need these)
 
-def _carla_instance_socket_path():
-    # Dev builds can run next to an installed Carla by pointing this at another path
-    override = os.environ.get("CARLA_SINGLE_INSTANCE_SOCKET")
-    if override:
-        return override
-    base = os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()
-    return os.path.join(base, "carla-standalone.sock")
-
-class CarlaSingleInstance(QObject):
-    showRequested = pyqtSignal()
-
-    def __init__(self, path, parent=None):
-        super(CarlaSingleInstance, self).__init__(parent)
-        self.path = path
-        self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.server.setblocking(False)
-
-        try:
-            self.server.bind(path)
-        except OSError:
-            # Stale socket from a crashed previous run: remove it and bind again.
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
-            self.server.bind(path)
-
-        self.server.listen(8)
-        self.notifier = QSocketNotifier(self.server.fileno(), QSocketNotifier.Type.Read, self)
-        self.notifier.activated.connect(self._onReady)
-
-    def _onReady(self, _fd=None):
-        while True:
-            try:
-                conn, _ = self.server.accept()
-            except (BlockingIOError, OSError):
-                break
-            try:
-                try:
-                    conn.recv(1024)
-                except OSError:
-                    pass
-                try:
-                    conn.sendall(b"OK")
-                except OSError:
-                    pass
-            finally:
-                conn.close()
-            self.showRequested.emit()
-
-    def close(self):
-        try:
-            self.notifier.setEnabled(False)
-        except Exception:
-            pass
-        try:
-            self.server.close()
-        except Exception:
-            pass
-        try:
-            os.unlink(self.path)
-        except OSError:
-            pass
-
-def _notify_running_carla_instance(path):
+def _early_error(message):
     try:
-        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(1.0)
-        client.connect(path)
-        client.sendall(b"SHOW")
-        try:
-            client.recv(1024)
-        except OSError:
-            pass
-        client.close()
-        return True
-    except (OSError, socket.error):
-        # No live instance: remove a stale socket if present.
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
-        return False
+        from carla_logger import logger
+        fd = getattr(logger, "_orig_stderr_fd", None)
+        if fd is not None:
+            os.write(fd, (message + "\n").encode("utf-8", "replace"))
+            return
+    except Exception:
+        pass
+    print(message, file=sys.__stderr__)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Main
@@ -136,18 +57,111 @@ if __name__ == '__main__':
 
     initName, libPrefix = handleInitialCommandLineArguments(__file__ if "__file__" in dir() else None)
 
+    from clara_instance_core import first_positional, instance_paths, is_clara_invocation, legacy_socket_path
+    from carla_instance import (
+        InstanceLock,
+        MsgServer,
+        forward_to_primary,
+        run_msg_cli,
+        socket_is_live,
+    )
+
+    _paths = instance_paths()
+
     # ------------------------------------------------------------------------------------------------------------------
-    # Single-instance handling (standalone Carla only): if another instance is
-    # already running, ask it to show itself and exit instead of starting another.
-    _socket_path = _carla_instance_socket_path()
-    if _notify_running_carla_instance(_socket_path):
-        print("Carla is already running; activating the existing instance.")
-        sys.exit(0)
+    # `clara msg ...` control client (Clara only, not available in Carla)
+
+    if first_positional(sys.argv[1:]) == "msg":
+        if not is_clara_invocation(initName):
+            _early_error("`msg` is a Clara feature and is not available in Carla. Use `clara msg ...`.")
+            sys.exit(2)
+        _index = sys.argv.index("msg") + 1
+        sys.exit(run_msg_cli(sys.argv[_index:], _paths["socket"]))
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Single instance: the lock is the source of truth, the socket is the transport.
+    # The lock does not need Qt, so check it before building any application object.
+    # Headless / control processes do not take the GUI lock.
+
+    _lock = None
+    _server = None
+    _project_arg = getInitialProjectFile()
+
+    if not gCarla.nogui:
+        _lock = InstanceLock(_paths["lock"])
+        if not _lock.acquire():
+            _ok, _message = forward_to_primary(_paths["socket"], _project_arg)
+            if _ok:
+                print("Clara is already running; sent the request to the existing instance.")
+                sys.exit(0)
+            _pid = _lock.owner_pid()
+            _early_error("Clara is already running (pid %s) but is not responding: %s" % (_pid, _message))
+            sys.exit(1)
 
     # ------------------------------------------------------------------------------------------------------------------
     # App initialization
 
     app = CarlaApplication("Carla2", libPrefix)
+
+    # Migration: an older build without a lock may still own a socket path.
+    if _lock is not None:
+        _legacy = legacy_socket_path()
+        if socket_is_live(_paths["socket"]) or (_legacy != _paths["socket"] and socket_is_live(_legacy)):
+            _lock.release()
+            print("Clara is already running (older instance); activating it.")
+            sys.exit(0)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Control channel: listen before the host/GUI start, so a second launch never races startup.
+
+    _msg_state = {"gui": None, "pending_open": None, "show": False}
+
+    def _msg_early_handler(request):
+        cmd = request.get("cmd")
+        if cmd == "status":
+            return {"v": 1, "ok": True, "data": {
+                "pid": os.getpid(), "version": CLARA_VERSION_STRING, "mode": "starting",
+                "project": _project_arg or "", "plugins": 0, "uptime": 0,
+            }}
+        if cmd == "open":
+            path = request.get("path")
+            if not path or not os.path.isfile(path):
+                return {"v": 1, "ok": False, "error": {"code": "not_found", "message": "project not found: %s" % path}}
+            _msg_state["pending_open"] = os.path.abspath(path)
+            QTimer.singleShot(0, _apply_pending_open)
+            return {"v": 1, "ok": True}
+        if cmd == "list":
+            return {"v": 1, "ok": False, "error": {"code": "starting", "message": "Clara is still starting"}}
+        return {"v": 1, "ok": False, "error": {"code": "unsupported", "message": "unknown command: %s" % cmd}}
+
+    def _apply_pending_open():
+        gui = _msg_state["gui"]
+        if gui is None:
+            QTimer.singleShot(250, _apply_pending_open)
+            return
+        path = _msg_state["pending_open"]
+        if not path:
+            return
+        _msg_state["pending_open"] = None
+        gui.queueControlOpen(path)
+
+    def _show_or_queue():
+        gui = _msg_state["gui"]
+        if gui is None:
+            _msg_state["show"] = True
+            return
+        if hasattr(gui, "_restoreFromSystemTray"):
+            gui._restoreFromSystemTray()
+        else:
+            gui.showIfNeeded()
+
+    if _lock is not None:
+        _server = MsgServer(_paths["socket"], _msg_early_handler)
+        if not _server.start(remove_stale=True):
+            logger.warning("APP", "Could not listen on %s: %s" % (_paths["socket"], _server.server.errorString()))
+        _server.showRequested.connect(_show_or_queue)
+        logger.debug("APP", "instance key=%s lock=%s socket=%s pid=%i" % (
+            _paths["key"], _paths["lock"], _paths["socket"], os.getpid()))
 
     # ------------------------------------------------------------------------------------------------------------------
     # Set-up custom signal handling
@@ -165,15 +179,15 @@ if __name__ == '__main__':
 
     gui = HostWindow(host, True)
 
-    # ------------------------------------------------------------------------------------------------------------------
-    # Single instance socket server
-
-    _single_instance = CarlaSingleInstance(_socket_path, gui)
-    if hasattr(gui, "_restoreFromSystemTray"):
-        _single_instance.showRequested.connect(gui._restoreFromSystemTray)
-    else:
-        _single_instance.showRequested.connect(gui.showIfNeeded)
-    gui.fSingleInstance = _single_instance
+    if _server is not None:
+        _server.handler = gui.handleMsgRequest
+        gui.fSingleInstance = _server
+        _msg_state["gui"] = gui
+        if _msg_state["show"]:
+            _msg_state["show"] = False
+            _show_or_queue()
+        if _msg_state["pending_open"]:
+            QTimer.singleShot(0, _apply_pending_open)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Show GUI
@@ -189,32 +203,8 @@ if __name__ == '__main__':
     # Cleanup
 
     try:
-        _single_instance.close()
-    except Exception:
-        pass
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Set-up custom signal handling
-
-    setUpSignals()
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Init host backend
-
-    host = initHost(initName, libPrefix, False, False, True)
-    loadHostSettings(host)
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Create GUI
-
-    gui = HostWindow(host, True)
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Show GUI
-
-    gui.showIfNeeded()
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # App-Loop
-
-    app.exit_exec()
+        if _server is not None:
+            _server.close()
+    finally:
+        if _lock is not None:
+            _lock.release()

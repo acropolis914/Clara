@@ -26,6 +26,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **style(cli)**: the startup banner and the terminal SIGINT prompt print their styled text directly instead of inside a rich `Panel`; the content and colors are unchanged.
 
+### Features
+
+#### 2026-11-06 — Single instance lock and control channel
+
+- **feat(instance)**: replace the fixed-path raw socket with a per-session `QLockFile` lock plus a `QLocalServer` channel. The lock is taken before Qt starts and the channel listens before the host/GUI, so a second launch forwards `SHOW` or `OPEN <project>` to the running window instead of starting another. `--no-gui` / control processes do not take the GUI lock. Old fixed-path instances are detected once for migration.
+- **feat(cli)**: `clara msg status|show|list nodes|connections|containers` (`-j` JSON, `--tree`, `--full`). It is Clara-only: `carla msg` is rejected with a pointer to `clara msg`. One `canvasSnapshot()` in the host feeds both this CLI and future UI dumps, so there is no second model.
+- **test(instance)**: pure identity/protocol checks run in CI; a separate Qt job covers the lock race (8 concurrent processes, one winner), server/client framing and legacy `SHOW`.
+
+### Fixed
+
+#### 2026-11-06 — Bridges must die with the host
+
+- **fix(bridge)**: both bridge binaries now set `PR_SET_PDEATHSIG` (Linux) and exit if already reparented. Without this, killing or crashing Clara left `carla-bridge-native` processes alive forever; a sample player held 2.5 GB of swapped memory after the host was gone. Orphaned bridges from earlier runs were also cleaned up manually.
+
 ### Fixed
 
 #### 2026-11-06 — Seamless patchbay load

@@ -20,5 +20,27 @@ jobs:
       - name: pw-record sampler checks (Python)
         run: python3 source/tests/test_pwrecord.py
 
+      - name: Clara instance identity and protocol (Python)
+        run: python3 source/tests/test_clara_instance.py
+
       - name: JSON project document round-trip (C++)
         run: bash scripts/test_json_document.sh
+
+  instance-qt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyQt6
+        run: python3 -m pip install --quiet PyQt6
+
+      - name: Instance lock and control channel (Qt)
+        run: QT_QPA_PLATFORM=offscreen python3 source/tests/test_instance_qt.py

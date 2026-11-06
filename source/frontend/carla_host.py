@@ -8,6 +8,7 @@
 
 import json
 import os
+import time
 import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -42,6 +43,8 @@ from carla_canvas import (
 from project_storage import storage_manager
 from project_session import ProjectSessionManager
 from carla_logger import logger, KNOWN_TAGS, LEVEL_NAMES
+
+_CLARA_PROCESS_START = time.time()
 
 # ------------------------------------------------------------------------------------------------------------
 # Imports (PyQt)
@@ -1494,6 +1497,121 @@ class HostWindow(QMainWindow):
 
         patchcanvas.snapshotShellSizes()
 
+    def canvasSnapshot(self, include_ports=False):
+        """One read-only view of the canvas, shared by the UI dump and the msg channel."""
+        pc = patchcanvas.canvas
+        port_names = {}
+        ports_by_group = {}
+        for port in pc.port_list:
+            port_names[(port.group_id, port.port_id)] = port.port_name
+            ports_by_group.setdefault(port.group_id, []).append(port.port_name)
+
+        container_by_box = {}
+        containers = []
+        for container in getattr(pc, "container_list", []):
+            try:
+                members = []
+                for box in getattr(container, "m_items", []):
+                    container_by_box[id(box)] = (container.m_id, container.m_title)
+                    name = getattr(box, "m_group_name", "")
+                    if name:
+                        members.append(name)
+                containers.append({
+                    "id": container.m_id,
+                    "title": container.m_title,
+                    "layout": container.m_layout_mode,
+                    "x": round(container.x()),
+                    "y": round(container.y()),
+                    "w": round(container.m_width),
+                    "h": round(container.m_height),
+                    "members": members,
+                })
+            except RuntimeError:
+                continue
+
+        nodes = []
+        for group in pc.group_list:
+            try:
+                widget = group.widgets[0] if group.widgets else None
+                if widget is None:
+                    continue
+                container = container_by_box.get(id(widget))
+                node = {
+                    "id": group.group_id,
+                    "name": group.group_name,
+                    "kind": "plugin" if group.plugin_id >= 0 else "client",
+                    "plugin_id": group.plugin_id,
+                    "x": round(widget.x()),
+                    "y": round(widget.y()),
+                    "w": round(widget.p_width),
+                    "h": round(widget.p_height),
+                    "split": bool(group.split),
+                    "ports": len(ports_by_group.get(group.group_id, [])),
+                    "container_id": container[0] if container else None,
+                    "container": container[1] if container else None,
+                }
+                if include_ports:
+                    node["port_list"] = list(ports_by_group.get(group.group_id, []))
+                nodes.append(node)
+            except RuntimeError:
+                continue
+
+        group_names = {group.group_id: group.group_name for group in pc.group_list}
+        connections = []
+        for conn in pc.connection_list:
+            connections.append({
+                "id": conn.connection_id,
+                "src": {
+                    "node": conn.group_out_id,
+                    "node_name": group_names.get(conn.group_out_id, ""),
+                    "port": port_names.get((conn.group_out_id, conn.port_out_id), ""),
+                },
+                "dst": {
+                    "node": conn.group_in_id,
+                    "node_name": group_names.get(conn.group_in_id, ""),
+                    "port": port_names.get((conn.group_in_id, conn.port_in_id), ""),
+                },
+            })
+
+        return {
+            "project": {
+                "path": self.fProjectFilename or "",
+                "dirty": bool(getattr(self, "fHasUnsavedChanges", False)),
+            },
+            "nodes": nodes,
+            "containers": containers,
+            "connections": connections,
+        }
+
+    def instanceStatus(self):
+        try:
+            version = CLARA_VERSION_STRING
+        except Exception:
+            version = ""
+        return {
+            "pid": os.getpid(),
+            "version": version,
+            "mode": "nogui" if gCarla.nogui else "gui",
+            "project": self.fProjectFilename or "",
+            "plugins": int(getattr(self, "fPluginCount", 0)),
+            "uptime": int(time.time() - _CLARA_PROCESS_START),
+        }
+
+    def handleMsgRequest(self, request):
+        """Read-only control channel; mutating commands go through the same host slots."""
+        cmd = request.get("cmd")
+        if cmd == "status":
+            return {"v": 1, "ok": True, "data": self.instanceStatus()}
+        if cmd == "list":
+            return {"v": 1, "ok": True, "data": self.canvasSnapshot(include_ports=bool(request.get("full")))}
+        if cmd == "open":
+            path = request.get("path")
+            if not path or not os.path.isfile(path):
+                return {"v": 1, "ok": False, "error": {"code": "not_found", "message": "project not found: %s" % path}}
+            self.queueControlOpen(path)
+            return {"v": 1, "ok": True}
+        return {"v": 1, "ok": False, "error": {"code": "unsupported", "message": "unknown command: %s" % cmd}}
+
     def loadProjectNow(self, source_override=None):
         if not self.fProjectFilename:
             qCritical("ERROR: loading project without filename set")
@@ -1677,6 +1795,49 @@ class HostWindow(QMainWindow):
                 widget.refreshState()
 
         return True
+
+    def queueControlOpen(self, filename):
+        """Accept an open request even while loading; apply it once the engine is free."""
+        path = os.path.abspath(filename)
+        current = os.path.abspath(self.fProjectFilename or "")
+        if path == current:
+            # Same project: the running window already has it; just raise it.
+            if hasattr(self, "_restoreFromSystemTray"):
+                self._restoreFromSystemTray()
+            else:
+                self.showIfNeeded()
+            return True
+        self._pendingControlOpen = path
+        QTimer.singleShot(500, self._applyControlOpen)
+        return True
+
+    def _applyControlOpen(self):
+        path = getattr(self, "_pendingControlOpen", None)
+        if not path:
+            return
+        if getattr(self, "fIsProjectLoading", False):
+            QTimer.singleShot(500, self._applyControlOpen)
+            return
+        self._pendingControlOpen = None
+        self.openProjectFromControl(path)
+
+    def openProjectFromControl(self, filename):
+        """Same sequence as File -> Open: unload first, then load, so the engine never
+        ends up with two projects' plugins at once."""
+        try:
+            if getattr(self, "fIsProjectLoading", False):
+                return False
+            filename = os.path.abspath(filename)
+            if not os.path.isfile(filename):
+                return False
+            if self.fPluginCount > 0:
+                self.pluginRemoveAll()
+            self.fProjectFilename = filename
+            self.setProperWindowTitle()
+            return bool(self.loadProjectNow(source_override=filename))
+        except Exception as exc:
+            logger.warning("APP", f"openProjectFromControl failed: {exc}")
+            return False
 
     def loadProjectLater(self, filename, source_override=None):
         self.fProjectFilename = QFileInfo(filename).absoluteFilePath()
