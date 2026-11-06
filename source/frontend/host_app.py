@@ -45,7 +45,7 @@ from local_control import ControlMixin
 from window_events import EventsMixin
 from minimap import MiniCanvasMixin
 from patchbay_view import CanvasMixin
-from settings_ui import SettingsMixin
+from settings_panel import SettingsMixin
 from project_storage import resolve_no_bridge_entries, storage_manager
 from project_session import ProjectSessionManager
 from carla_logger import logger, KNOWN_TAGS, LEVEL_NAMES

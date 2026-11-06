@@ -30,7 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 #### 2026-11-06 — Settings UI extracted from the host
 
-- **refactor(host)**: the settings persistence, dialog launch and Settings/View menu actions moved out of `host_app.py` into `settings_ui.py` (`SettingsMixin`). `HostWindow` inherits it; `setEngineSettings` is imported lazily to avoid a cycle. `host_app.py` is now 4,936 lines. Added to both install lists.
+- **refactor(host)**: the settings persistence, dialog launch and Settings/View menu actions moved out of `host_app.py` into `settings_panel.py` (`SettingsMixin`). `HostWindow` inherits it; `setEngineSettings` is imported lazily to avoid a cycle. `host_app.py` is now 4,936 lines. Added to both install lists.
 
 #### 2026-11-06 — Host module and OSC control renamed
 
