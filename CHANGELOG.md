@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-06 — Settings UI extracted from the host
+
+- **refactor(host)**: the settings persistence, dialog launch and Settings/View menu actions moved out of `host_app.py` into `settings_ui.py` (`SettingsMixin`). `HostWindow` inherits it; `setEngineSettings` is imported lazily to avoid a cycle. `host_app.py` is now 4,936 lines. Added to both install lists.
+
 #### 2026-11-06 — Host module and OSC control renamed
 
 - **refactor(naming)**: `carla_host.py` → `host_app.py` and `carla_host_control.py` → `osc_control.py`. Updated the `carla`, `carla-control`, `carla-rack`, `carla-jack-*`, `carla-plugin`, `carla-patchbay` and `carla-rest-frontend` entry scripts, the lazy imports in settings/widgets/skin, tests and both install lists. The generated `ui_carla_host.py` keeps its name.

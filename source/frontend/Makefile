@@ -97,6 +97,7 @@ RES = \
 	$(BINDIR)/resources/window_events.py \
 	$(BINDIR)/resources/minimap.py \
 	$(BINDIR)/resources/patchbay_view.py \
+	$(BINDIR)/resources/settings_ui.py \
 	$(BINDIR)/resources/carla_settings.py \
 	$(BINDIR)/resources/carla_skin.py \
 	$(BINDIR)/resources/carla_shared.py \
