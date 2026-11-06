@@ -99,6 +99,7 @@ RES = \
 	$(BINDIR)/resources/patchbay_view.py \
 	$(BINDIR)/resources/settings_panel.py \
 	$(BINDIR)/resources/project_menu.py \
+	$(BINDIR)/resources/plugins_menu.py \
 	$(BINDIR)/resources/carla_settings.py \
 	$(BINDIR)/resources/carla_skin.py \
 	$(BINDIR)/resources/carla_shared.py \
