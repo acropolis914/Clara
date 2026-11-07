@@ -34,7 +34,8 @@ class ScalableDial(CommonDial):
     def __init__(self, parent, index=0):
         CommonDial.__init__(self, parent, index)
 
-        self.fImage = QSvgWidget(":/scalable/dial_03.svg")
+        self.fImage = QSvgWidget(self)
+        self.fImage.load(":/scalable/dial_03.svg")
         self.fImageNum = "01"
 
         if self.fImage.sizeHint().width() > self.fImage.sizeHint().height():
@@ -118,7 +119,7 @@ class ScalableDial(CommonDial):
                 self.fImage = QPixmap()
         else:
             if not isinstance(self.fImage, QSvgWidget):
-                self.fImage = QSvgWidget()
+                self.fImage = QSvgWidget(self)
 
         self.fImage.load(img)
 

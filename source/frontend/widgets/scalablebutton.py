@@ -40,9 +40,9 @@ class ScalableButton(QPushButton):
         self._loadImages(normal, down, hover)
 
     def setSvgs(self, normal, down, hover):
-        self.fImageNormal = QSvgWidget()
-        self.fImageDown   = QSvgWidget()
-        self.fImageHover  = QSvgWidget()
+        self.fImageNormal = QSvgWidget(self)
+        self.fImageDown   = QSvgWidget(self)
+        self.fImageHover  = QSvgWidget(self)
         self._loadImages(normal, down, hover)
 
     def _loadImages(self, normal, down, hover):

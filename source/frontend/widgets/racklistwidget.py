@@ -102,10 +102,11 @@ class RackListItem(QListWidgetItem):
         self.fParent.customClearSelection()
         self.fParent.setItemWidget(self, None)
 
-        widget.fEditDialog.close()
-        widget.fEditDialog.setParent(None)
-        widget.fEditDialog.deleteLater()
-        widget.fEditDialog = None
+        if widget.fEditDialog is not None:
+            widget.fEditDialog.close()
+            widget.fEditDialog.setParent(None)
+            widget.fEditDialog.deleteLater()
+            widget.fEditDialog = None
 
         widget.close()
         widget.setParent(None)
@@ -116,7 +117,7 @@ class RackListItem(QListWidgetItem):
         if self.fWidget is None:
             return None
 
-        return self.fWidget.fEditDialog
+        return self.fWidget._ensureEditDialog()
 
     def getPluginId(self):
         return self.fPluginId

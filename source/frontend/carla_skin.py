@@ -415,7 +415,7 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         self.fAdjustViewableKnobCountScheduled = False
         self.fIdleTimerId = 0
 
-        self.fEditDialog = PluginEdit(self, host, self.fPluginId)
+        self.fEditDialog = None
 
         self.b_enable = None
         self.b_gui    = None
@@ -869,11 +869,13 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
 
     def setPluginId(self, idx):
         self.fPluginId = idx
-        self.fEditDialog.setPluginId(idx)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setPluginId(idx)
 
     def setName(self, name):
         self.fPluginInfo['name'] = name
-        self.fEditDialog.setName(name)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setName(name)
 
         if self.label_name is not None:
             self.label_name.setText(name)
@@ -899,7 +901,8 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
             self.host.set_active(self.fPluginId, active)
 
         if active:
-            self.fEditDialog.clearNotes()
+            if self.fEditDialog is not None:
+                self.fEditDialog.clearNotes()
             self.midiActivityChanged(False)
 
         if self.b_enable is not None:
@@ -940,32 +943,39 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         elif parameterId == PARAMETER_CTRL_CHANNEL:
             self.host.set_ctrl_channel(self.fPluginId, value)
 
-        self.fEditDialog.setParameterValue(parameterId, value)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setParameterValue(parameterId, value)
 
     def setParameterValue(self, parameterId, value, sendCallback):
         if parameterId == PARAMETER_ACTIVE:
             return self.setActive(bool(value), True, False)
 
-        self.fEditDialog.setParameterValue(parameterId, value)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setParameterValue(parameterId, value)
 
         if sendCallback:
             self.fParameterIconTimer = ICON_STATE_ON
             self.editDialogParameterValueChanged(self.fPluginId, parameterId, value)
 
     def setParameterDefault(self, parameterId, value):
-        self.fEditDialog.setParameterDefault(parameterId, value)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setParameterDefault(parameterId, value)
 
     def setParameterMappedControlIndex(self, parameterId, control):
-        self.fEditDialog.setParameterMappedControlIndex(parameterId, control)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setParameterMappedControlIndex(parameterId, control)
 
     def setParameterMappedRange(self, parameterId, minimum, maximum):
-        self.fEditDialog.setParameterMappedRange(parameterId, minimum, maximum)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setParameterMappedRange(parameterId, minimum, maximum)
 
     def setParameterMidiChannel(self, parameterId, channel):
-        self.fEditDialog.setParameterMidiChannel(parameterId, channel)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setParameterMidiChannel(parameterId, channel)
 
     def setProgram(self, index, sendCallback):
-        self.fEditDialog.setProgram(index)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setProgram(index)
 
         if sendCallback:
             self.fParameterIconTimer = ICON_STATE_ON
@@ -974,7 +984,8 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         self.updateParameterValues()
 
     def setMidiProgram(self, index, sendCallback):
-        self.fEditDialog.setMidiProgram(index)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setMidiProgram(index)
 
         if sendCallback:
             self.fParameterIconTimer = ICON_STATE_ON
@@ -983,7 +994,8 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         self.updateParameterValues()
 
     def setOption(self, option, yesNo):
-        self.fEditDialog.setOption(option, yesNo)
+        if self.fEditDialog is not None:
+            self.fEditDialog.setOption(option, yesNo)
 
     def showCustomUI(self):
         self.host.show_custom_ui(self.fPluginId, True)
@@ -997,9 +1009,15 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         if self.b_gui is not None:
             self.b_gui.setChecked(False)
 
+    def _ensureEditDialog(self):
+        if self.fEditDialog is None:
+            self.fEditDialog = PluginEdit(self, self.host, self.fPluginId)
+        return self.fEditDialog
+
     def showEditDialog(self):
-        self.fEditDialog.show()
-        self.fEditDialog.activateWindow()
+        dialog = self._ensureEditDialog()
+        dialog.show()
+        dialog.activateWindow()
 
         if self.b_edit is not None:
             self.b_edit.setChecked(True)
@@ -1300,7 +1318,7 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
                 self.led_audio_out.setChecked(ledState)
 
     def idleSlow(self):
-        if not self.isVisible() and not self.fEditDialog.isVisible():
+        if not self.isVisible() and (self.fEditDialog is None or not self.fEditDialog.isVisible()):
             return
 
         if self.fParameterIconTimer == ICON_STATE_ON:
@@ -1314,7 +1332,8 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
             self.parameterActivityChanged(False)
             self.fParameterIconTimer = ICON_STATE_NULL
 
-        self.fEditDialog.idleSlow()
+        if self.fEditDialog is not None:
+            self.fEditDialog.idleSlow()
 
     def drawOutline(self, painter):
         painter.save()
@@ -1697,7 +1716,10 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
 
     @pyqtSlot(bool)
     def slot_showEditDialog(self, show):
-        self.fEditDialog.setVisible(show)
+        if show:
+            self._ensureEditDialog()
+        if self.fEditDialog is not None:
+            self.fEditDialog.setVisible(show)
 
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):

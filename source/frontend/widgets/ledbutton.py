@@ -37,7 +37,7 @@ class LEDButton(QPushButton):
         self.fLastColor = self.UNSET
         self.fColor     = self.UNSET
 
-        self.fImage = QSvgWidget()
+        self.fImage = QSvgWidget(self)
         self.fImage.load(":/scalable/led_off.svg")
         self.fRect = QRectF(self.fImage.rect())
 
@@ -167,7 +167,7 @@ class LEDButton(QPushButton):
                 self.fImage = QPixmap()
         else:
             if not isinstance(self.fImage, QSvgWidget):
-                self.fImage = QSvgWidget()
+                self.fImage = QSvgWidget(self)
 
         self.fImage.load(img)
         self.update()

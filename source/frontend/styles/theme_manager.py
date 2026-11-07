@@ -220,6 +220,9 @@ class ThemeManager:
         self._applied_qss = None
         self._style_is_fusion = False
         self._rack_rebuild_token = 0
+        self._pending_qss = None
+        self._preview_modal = None
+        self._deferred_refresh_token = 0
 
     @classmethod
     def instance(cls):
@@ -278,6 +281,51 @@ class ThemeManager:
                     if os.path.splitext(os.path.basename(path))[0].lower() == theme_name.lower().replace(" ", "_"):
                         return path
         return None
+
+    def _apply_full_style(self, qss: str):
+        """Apply the QSS to the chrome without repolishing the rack subtree.
+        The rack slots rebuild from the new tokens separately."""
+        from carla_shared import gCarla
+        app = QApplication.instance()
+        gui = getattr(gCarla, "gui", None)
+        list_widget = getattr(getattr(gui, "ui", None), "listWidget", None) if gui else None
+        layout = getattr(getattr(gui, "ui", None), "horizontalLayout_10", None) if gui else None
+
+        index = -1
+        if list_widget is not None and layout is not None:
+            index = layout.indexOf(list_widget)
+            list_widget.hide()
+            list_widget.setParent(None)
+
+        app.setStyleSheet(qss)
+        self._applied_qss = qss
+
+        if list_widget is not None and layout is not None:
+            if index >= 0:
+                layout.insertWidget(index, list_widget)
+            else:
+                layout.addWidget(list_widget)
+            list_widget.show()
+
+    def _refresh_after_modal(self, token: int):
+        from qt_compat import QApplication, QTimer
+        if token != self._deferred_refresh_token:
+            return
+        app = QApplication.instance()
+        if app is not None and app.activeModalWidget() is not None:
+            QTimer.singleShot(300, lambda: self._refresh_after_modal(token))
+            return
+        qss = self._pending_qss
+        self._pending_qss = None
+        if qss:
+            self._apply_full_style(qss)
+        if self._preview_modal is not None:
+            try:
+                self._preview_modal.setStyleSheet("")
+            except RuntimeError:
+                pass
+            self._preview_modal = None
+        self._notify_theme_changed()
 
     def _notify_theme_changed(self):
         """Live update patchcanvas, canvasbox, rack list, and banners without application restart."""
@@ -440,9 +488,21 @@ class ThemeManager:
         if tokens is not None:
             app.setPalette(build_palette(tokens))
 
-        if theme_qss and theme_qss != self._applied_qss:
-            app.setStyleSheet(theme_qss)
-            self._applied_qss = theme_qss
+        if not theme_qss:
+            return
+
+        modal = app.activeModalWidget()
+        if modal is not None:
+            # Preview the theme in the settings dialog immediately, then update
+            # the rest of the window once the dialog closes.
+            modal.setStyleSheet(theme_qss)
+            self._pending_qss = theme_qss
+            self._preview_modal = modal
+            self._deferred_refresh_token += 1
+            self._refresh_after_modal(self._deferred_refresh_token)
+            return
+
+        self._apply_full_style(theme_qss)
         self._notify_theme_changed()
 
 

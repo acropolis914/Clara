@@ -28,6 +28,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Theme changes propagate without freezing
+
+- **fix(theming)**: an applied stylesheet caches `palette(...)` colors, so a palette swap alone did not repaint themed widgets. The stylesheet is now reapplied after the settings dialog closes (the dialog itself previews with its own copy), so theme colors actually reach the whole UI.
+- **perf(widgets)**: plugin edit dialogs are created lazily. Eager creation built 25 hidden `PluginEdit` windows (~11k widgets); the tree drops from ~18.8k to ~7.2k widgets and a full QSS reapply from ~5.5s to ~3.1s.
+- **perf(theme)**: the reapply detaches the rack list first, cutting the chrome-only repolish to ~1.2s, then rack slots restyle at one slot per event-loop turn. Selecting a theme no longer blocks on the full 25-slot rebuild.
+- **fix(svg)**: scalable dial/button SVG images are parented to their owner instead of becoming ~1k top-level widgets.
+
 #### 2026-11-07 — Instant theme switching and themed rack surface
 
 - **perf(theming)**: the global QSS now uses Qt palette roles instead of compiled color literals. A theme change swaps `QApplication` palette (~4 ms on a 25-plugin project) instead of calling `setStyle()` plus `setStyleSheet()`, which repolished every widget twice (~12 s total).
