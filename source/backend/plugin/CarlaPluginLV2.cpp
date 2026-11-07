@@ -1605,6 +1605,25 @@ public:
         CARLA_SAFE_ASSERT_RETURN(value != nullptr,);
         carla_debug("CarlaPluginLV2::setCustomData(\"%s\", \"%s\", \"%s\", %s)", type, key, value, bool2str(sendGui));
 
+        // LV2 state keys arrive as project custom data after the bridge has
+        // already run state:restore. Apply the sfizz instrument/tuning path as
+        // a patch:Set, and still store the key for the LV2 state map.
+        if (std::strcmp(type, "http://lv2plug.in/ns/ext/atom#Path") == 0)
+        {
+            const char* property = nullptr;
+            if (std::strcmp(key, "http://sfztools.github.io/sfizz:sfzfile") == 0 ||
+                std::strcmp(key, "http://sfztools.github.io/sfizz:sfzfile_absolute") == 0)
+                property = "http://sfztools.github.io/sfizz:sfzfile";
+            else if (std::strcmp(key, "http://sfztools.github.io/sfizz:tuningfile") == 0 ||
+                     std::strcmp(key, "http://sfztools.github.io/sfizz:tuningfile_absolute") == 0)
+                property = "http://sfztools.github.io/sfizz:tuningfile";
+            if (property != nullptr && value[0] != '\0')
+            {
+                carla_stdout("LV2 state path to apply: '%s' = '%s'", property, value);
+                writeAtomPath(value, getCustomURID(property));
+            }
+        }
+
         if (std::strcmp(type, CUSTOM_DATA_TYPE_PATH) == 0)
         {
             if (std::strcmp(key, "file") != 0)

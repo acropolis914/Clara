@@ -923,7 +923,6 @@ public:
                         const BridgeTextReader bigValueFilePathTry(fShmNonRtClientControl);
 
                         CARLA_SAFE_ASSERT_BREAK(bigValueFilePathTry.text[0] != '\0');
-                        if (! plugin->isEnabled()) break;
 
                         water::String bigValueFilePath(bigValueFilePathTry.text);
 
@@ -944,14 +943,14 @@ public:
                     {
                         const BridgeTextReader value(fShmNonRtClientControl, valueSize);
 
-                        if (plugin->isEnabled())
-                            plugin->setCustomData(type.text, key.text, value.text, true);
+                        plugin->setCustomData(type.text, key.text, value.text, true);
+                        if (std::strstr(key.text, "sfizz:sfzfile") != nullptr)
+                            plugin->restoreLV2State(false);
                     }
                 }
                 else
                 {
-                    if (plugin->isEnabled())
-                        plugin->setCustomData(type.text, key.text, "", true);
+                    plugin->setCustomData(type.text, key.text, "", true);
                 }
 
                 break;

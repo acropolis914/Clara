@@ -28,6 +28,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Bridged LV2 custom data and sfizz state restore
+
+- **fix(bridge)**: bridged plugins now receive LV2 custom data even while the plugin is still disabled (the previous `isEnabled()` guard dropped it during project load).
+- **fix(lv2)**: sfizz state path keys are applied as a `patch:Set` and also stored in the custom-data map, then the bridge re-runs `restoreLV2State` after receiving `sfizz:sfzfile`. Project loads now restore the saved instrument instead of falling back to `DefaultInstrument`.
+
 #### 2026-11-07 — Hide expected duplicate-bundle warning
 
 - **fix(logging)**: lilv's `lilv_world_add_plugin()` warning when a user-local bundle shadows the system bundle is DEBUG. It is expected when testing the patched sfizz, not a load failure.
