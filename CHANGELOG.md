@@ -31,6 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 #### 2026-11-07 — Generic bridged LV2 state restore
 
 - **refactor(bridge)**: custom-data messages are applied even while the plugin is disabled, and `state:restore` now runs once after the whole custom-data batch instead of being interleaved with it. This works for every bridged LV2 plugin, not just sfizz; the sfizz-specific `patch:Set` workaround was removed.
+- **why**: non-bridged plugins fill the custom-data map and call `restoreLV2State()` in-process, so ordering is guaranteed. Bridged plugins send custom data and the restore request as separate shared-memory messages, so the bridge could see the restore first; the `isEnabled()` guard then dropped the data entirely during project load.
+- **verified**: sfizz restores the Salamander instrument, and the bridged LSP Mixer x8 Stereo (4 instances) and LSP Autogain Stereo now receive their project custom data and run `state:restore` with the full key set.
 
 #### 2026-11-07 — Bridged LV2 custom data and sfizz state restore
 

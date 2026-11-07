@@ -5,7 +5,9 @@
 ---
 
 ## 🔌 Plugin Compatibility
-- [ ] `[Diff: 2]` **FIX**: sfizz LV2 state still depends on Carla's mapped symlinks because the bridge process maps paths under `/tmp`. Upstream `sfztools/sfizz-ui#16` proposes a raw absolute-path fallback/fuzzy search; alternatively make Carla's bridge use the project folder for `mapPath` so the links live with the project.
+- [x] `[Diff: 2]` **FIX**: sfizz LV2 state no longer depends on Carla's `/tmp/sfizz` symlinks. The patched `sfizz-ui` branch stores raw absolute `sfzfile`/`tuningfile` paths and Carla's bridge restores the saved instrument directly. The compat shim and patched sfizz bundle stay until `sfztools/sfizz-ui#16` lands upstream.
+- [x] `[Diff: 2]` **FIX**: bridged LV2 plugins lost project custom data on load. The bridge could run `state:restore` before the custom-data batch, and the old `isEnabled()` guard dropped data while the plugin was still disabled. Custom data now always applies, then one `state:restore` runs after the whole batch; verified with sfizz, 4x LSP Mixer x8 Stereo and LSP Autogain Stereo.
+- [ ] `[Diff: 2]` **TEST**: add a regression fixture for bridged LV2 custom state using a non-sfizz plugin (for example LSP Mixer x8 Stereo), so the batch-before-restore ordering stays covered automatically.
 
 ## 🐛 Bugs
 - [ ] `[Diff: 2]` **FIX**: theming is slow, and the rack background is hardcoded (`source/frontend/patchbay_view.py`). Profile theme application and source the rack/frame background from the active theme instead of the inline `bg_hex` styles.
