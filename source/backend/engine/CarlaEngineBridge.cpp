@@ -134,6 +134,7 @@ public:
           fIsOffline(false),
           fFirstIdle(true),
           fBridgeVersion(0),
+          fPendingLV2StateRestore(false),
           fLastPingTime(UINT32_MAX)
     {
         carla_debug("CarlaEngineBridge::CarlaEngineBridge(\"%s\", \"%s\", \"%s\", \"%s\")", audioPoolBaseName, rtClientBaseName, nonRtClientBaseName, nonRtServerBaseName);
@@ -905,6 +906,9 @@ public:
             }
 
             case kPluginBridgeNonRtClientSetCustomData: {
+                if (plugin->getType() == PLUGIN_LV2)
+                    fPendingLV2StateRestore = true;
+
                 const uint32_t maxLocalValueLen = fBridgeVersion >= 10 ? 4096 : 16384;
 
                 // type
@@ -944,8 +948,6 @@ public:
                         const BridgeTextReader value(fShmNonRtClientControl, valueSize);
 
                         plugin->setCustomData(type.text, key.text, value.text, true);
-                        if (std::strstr(key.text, "sfizz:sfzfile") != nullptr)
-                            plugin->restoreLV2State(false);
                     }
                 }
                 else
@@ -1256,6 +1258,13 @@ public:
                 fFirstIdle = true;
                 break;
             }
+        }
+
+        // Apply one state restore after the whole custom-data batch is in.
+        if (fPendingLV2StateRestore && plugin->getType() == PLUGIN_LV2)
+        {
+            fPendingLV2StateRestore = false;
+            plugin->restoreLV2State(false);
         }
     }
 
@@ -1672,6 +1681,7 @@ private:
     bool fClosingDown;
     bool fIsOffline;
     bool fFirstIdle;
+    bool fPendingLV2StateRestore;
     uint32_t fBridgeVersion;
     uint32_t fLastPingTime;
 

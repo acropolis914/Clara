@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Generic bridged LV2 state restore
+
+- **refactor(bridge)**: custom-data messages are applied even while the plugin is disabled, and `state:restore` now runs once after the whole custom-data batch instead of being interleaved with it. This works for every bridged LV2 plugin, not just sfizz; the sfizz-specific `patch:Set` workaround was removed.
+
 #### 2026-11-07 — Bridged LV2 custom data and sfizz state restore
 
 - **fix(bridge)**: bridged plugins now receive LV2 custom data even while the plugin is still disabled (the previous `isEnabled()` guard dropped it during project load).
