@@ -163,7 +163,7 @@ class RackListItem(QListWidgetItem):
             return
         self.recreateWidget(True)
 
-    def recreateWidget(self, invertCompactOption = False, firstInit = False, newColor = None, newSkin = None):
+    def recreateWidget(self, invertCompactOption = False, firstInit = False, newColor = None, newSkin = None, reopenGui = True):
         if invertCompactOption:
             self.fOptions['compact'] = not self.fOptions['compact']
         if newColor is not None:
@@ -181,7 +181,7 @@ class RackListItem(QListWidgetItem):
         self.fWidget = createPluginSlot(self.fParent, self.host, self.fPluginId, self.fOptions)
         self.fWidget.setFixedHeight(self.fWidget.getFixedHeight())
 
-        if wasGuiShown and self.fWidget.b_gui is not None:
+        if reopenGui and wasGuiShown and self.fWidget.b_gui is not None:
             self.fWidget.b_gui.setChecked(True)
 
         self.setSizeHint(QSize(self.kMinimumWidth, self.fWidget.getFixedHeight()))

@@ -219,6 +219,7 @@ class ThemeManager:
         self._available_themes = None
         self._applied_qss = None
         self._style_is_fusion = False
+        self._rack_rebuild_token = 0
 
     @classmethod
     def instance(cls):
@@ -323,13 +324,47 @@ class ThemeManager:
             print(f"[THEME] Error live refreshing GUI views: {e}")
 
         # 3. Rack slots rebuild their per-widget styles from the new tokens.
+        # Rebuilding all 25 slots takes ~4s, so do one per event-loop turn to keep
+        # the UI responsive instead of freezing on the theme selection.
         try:
             from carla_shared import gCarla
             from qt_compat import QTimer
             if hasattr(gCarla, "gui") and gCarla.gui is not None:
                 items = [p for p in getattr(gCarla.gui, "fPluginList", []) if p is not None]
                 if items:
-                    QTimer.singleShot(0, lambda: [p.recreateWidget() for p in items])
+                    self._rack_rebuild_token += 1
+                    token = self._rack_rebuild_token
+                    queue = list(items)
+
+                    def _rebuild_next():
+                        if token != self._rack_rebuild_token or not queue:
+                            return
+                        p = queue.pop(0)
+                        list_widget = getattr(gCarla.gui.ui, "listWidget", None)
+                        if list_widget is not None:
+                            list_widget.setUpdatesEnabled(False)
+                        try:
+                            p.recreateWidget(reopenGui=False)
+                        except Exception as e:
+                            print(f"[THEME] Error rebuilding rack slot: {e}")
+                        finally:
+                            if list_widget is not None:
+                                list_widget.setUpdatesEnabled(True)
+                        if queue:
+                            QTimer.singleShot(16, _rebuild_next)
+
+                    def _start_when_idle():
+                        # While the settings dialog is open (exec_), keep the
+                        # preview responsive and restyle the rack after it closes.
+                        app = QApplication.instance()
+                        if token != self._rack_rebuild_token:
+                            return
+                        if app is not None and app.activeModalWidget() is not None:
+                            QTimer.singleShot(300, _start_when_idle)
+                            return
+                        QTimer.singleShot(0, _rebuild_next)
+
+                    QTimer.singleShot(0, _start_when_idle)
         except Exception as e:
             print(f"[THEME] Error live refreshing rack slots: {e}")
 

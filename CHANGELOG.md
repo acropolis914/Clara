@@ -32,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **perf(theming)**: the global QSS now uses Qt palette roles instead of compiled color literals. A theme change swaps `QApplication` palette (~4 ms on a 25-plugin project) instead of calling `setStyle()` plus `setStyleSheet()`, which repolished every widget twice (~12 s total).
 - **fix(rack)**: the rack list no longer paints its own background rectangle and inset outline, and the splitter handle no longer uses the Fusion default line. Both now follow the active theme/palette.
-- **fix(theming)**: rack slots rebuild from the active tokens after a theme change, so per-slot colors no longer stay at their construction-time theme.
+- **fix(theming)**: rack slots rebuild from the active tokens after a theme change, so per-slot colors no longer stay at their construction-time theme. The rebuild is one slot per event-loop turn and waits for the settings dialog to close, so selecting a theme no longer blocks the UI for the full rack restyle (~4s).
 - **test(theme)**: `source/tests/test_theme.py` rejects color literals in `base_primitives.qss` and checks token-to-palette role mapping.
 
 #### 2026-11-07 — Generic bridged LV2 state restore

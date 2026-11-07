@@ -10,7 +10,7 @@
 - [ ] `[Diff: 2]` **TEST**: add a regression fixture for bridged LV2 custom state using a non-sfizz plugin (for example LSP Mixer x8 Stereo), so the batch-before-restore ordering stays covered automatically.
 
 ## 🐛 Bugs
-- [x] `[Diff: 2]` **FIX**: theming was slow and the rack background/outline was hardcoded. The rack list no longer paints its own background or inset frame, the splitter no longer uses the Fusion default line, and the global QSS uses Qt palette roles. A live theme switch is now a palette swap (~4 ms on the 25-plugin project) instead of two full widget repolishes.
+- [x] `[Diff: 2]` **FIX**: theming was slow and the rack background/outline was hardcoded. The rack list no longer paints its own background or inset frame, the splitter no longer uses the Fusion default line, and the global QSS uses Qt palette roles. A live theme switch is now a palette swap (~4 ms on the 25-plugin project) instead of two full widget repolishes; rack slots restyle incrementally after the settings dialog closes.
 - [ ] `[Diff: 2]` **THEME AUDIT**: replace the remaining hardcoded hex fallbacks in `carla_skin.py`, `pluginlist/pluginlistdialog_py.py`, `project_dialogs.py`, `update_checker.py` and `canvas_context_toolbar.py` with theme tokens; add a lint check so new widget code cannot introduce color literals.
 
 - [x] `[Diff: 1]` Fix: Rack item remove button still does not delete or show confirmation dialog (reopened: calf skin vs other skins / context menu / delete key)
