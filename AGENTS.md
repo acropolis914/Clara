@@ -11,3 +11,7 @@
 ## ⚡ Direct Execution (Anti-Exploration Loop)
 - Limit codebase reading to targeted single lookups.
 - NEVER chain more than 2-3 exploratory reads without immediately modifying files or producing the implementation. Move straight to writing the code.
+
+## 🎨 Theming
+- All frontend colors come from the theme engine (`source/frontend/styles/`) or Qt palette roles. No hardcoded hex/rgb colors in widget code: use `theme_manager.engine.get_token(...)`, `get_active_skin_palette()`, or `palette(...)` roles in QSS.
+- `source/tests/test_theme.py` guards the global QSS; keep it green when adding widgets.

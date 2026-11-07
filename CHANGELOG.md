@@ -28,6 +28,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+#### 2026-11-07 — Instant theme switching and themed rack surface
+
+- **perf(theming)**: the global QSS now uses Qt palette roles instead of compiled color literals. A theme change swaps `QApplication` palette (~4 ms on a 25-plugin project) instead of calling `setStyle()` plus `setStyleSheet()`, which repolished every widget twice (~12 s total).
+- **fix(rack)**: the rack list no longer paints its own background rectangle and inset outline, and the splitter handle no longer uses the Fusion default line. Both now follow the active theme/palette.
+- **fix(theming)**: rack slots rebuild from the active tokens after a theme change, so per-slot colors no longer stay at their construction-time theme.
+- **test(theme)**: `source/tests/test_theme.py` rejects color literals in `base_primitives.qss` and checks token-to-palette role mapping.
+
 #### 2026-11-07 — Generic bridged LV2 state restore
 
 - **refactor(bridge)**: custom-data messages are applied even while the plugin is disabled, and `state:restore` now runs once after the whole custom-data batch instead of being interleaved with it. This works for every bridged LV2 plugin, not just sfizz; the sfizz-specific `patch:Set` workaround was removed.

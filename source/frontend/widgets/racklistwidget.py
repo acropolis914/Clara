@@ -14,7 +14,6 @@ from qt_compat import (
     Qt,
     QSize,
     QRect,
-    QEvent,
     QColor,
     QPainter,
     QPixmap,
@@ -245,10 +244,6 @@ class RackListWidget(QListWidget):
         self.fLastSelectedItem    = None
         self.fWasLastDragValid    = False
 
-        self.fPixmapL     = QPixmap(":/bitmaps/rack_interior_left.png")
-        self.fPixmapR     = QPixmap(":/bitmaps/rack_interior_right.png")
-        self.fPixmapWidth = self.fPixmapL.width()
-
         self.setMinimumWidth(RackListItem.kMinimumWidth)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         self.setSortingEnabled(False)
@@ -275,7 +270,6 @@ class RackListWidget(QListWidget):
         self.setSpacing(4)
         self.viewport().setAcceptDrops(True)
 
-        self._updateStyle()
 
         # Floating "+ Add Plugin" Action Button
         self.btn_floating_add = QPushButton(self)
@@ -579,39 +573,10 @@ class RackListWidget(QListWidget):
         if not self._smooth_timer.isActive():
             self._smooth_timer.start()
 
-    def changeEvent(self, event):
-        if event.type() in (QEvent.StyleChange, QEvent.PaletteChange):
-            self._updateStyle()
-        QListWidget.changeEvent(self, event)
-
     def paintEvent(self, event):
-        painter = QPainter(self.viewport())
-
-        width = self.width()
-        height = self.height()
-
-        from styles.theme_manager import theme_manager
-        if theme_manager.is_using_system():
-            pal = self.palette()
-            bg_col = pal.color(QPalette.Base)
-            painter.fillRect(0, 0, width, height, bg_col)
-            painter.setPen(pal.color(QPalette.Mid))
-            painter.setBrush(Qt.NoBrush)
-            painter.drawRect(self.fPixmapWidth, 0, width - self.fPixmapWidth * 2, height)
-        else:
-            settings = QSafeSettings("falkTX", "Carla2")
-            theme_name = settings.value(CARLA_KEY_CANVAS_THEME, CARLA_DEFAULT_CANVAS_THEME, str)
-            theme = Theme(theme_name)
-
-            bg_col = theme.canvas_bg if hasattr(theme, 'canvas_bg') else QColor("#222222")
-
-            painter.fillRect(0, 0, width, height, bg_col)
-
-            if hasattr(theme, 'box_bg_1'):
-                painter.setPen(theme.box_bg_1)
-                painter.setBrush(Qt.NoBrush)
-                painter.drawRect(self.fPixmapWidth, 0, width - self.fPixmapWidth * 2, height)
-
+        # The rack surface comes from the active theme QSS/palette. Do not paint
+        # a second background rectangle or inset outline here; it ignored the
+        # theme and required rebuilding the canvas Theme on every repaint.
         QListWidget.paintEvent(self, event)
 
     def selectionChanged(self, selected, deselected):
@@ -628,8 +593,5 @@ class RackListWidget(QListWidget):
         QListWidget.selectionChanged(self, selected, deselected)
 
     # --------------------------------------------------------------------------------------------------------
-
-    def _updateStyle(self):
-        pass
 
 # ------------------------------------------------------------------------------------------------------------

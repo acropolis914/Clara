@@ -6,6 +6,7 @@ Canvasbox theming is handled independently via patchcanvas/themes.json.
 """
 
 import math
+import re
 import os
 import glob
 
@@ -153,6 +154,55 @@ def find_closest_system_color(color, palette=None, threshold=0.75) -> QColor:
     return QColor(blend_r, blend_g, blend_b)
 
 
+def build_palette(tokens: dict) -> QPalette:
+    """Map theme tokens onto Qt palette roles so a theme switch is a palette
+    swap, not a full QSS repolish of every widget."""
+    def color(name: str) -> QColor:
+        value = tokens[name]
+        qcolor = QColor(value)
+        if not qcolor.isValid():
+            match = re.match(r"rgba?\(([^)]+)\)", value)
+            if match is not None:
+                parts = [part.strip() for part in match.group(1).split(",")]
+                if len(parts) >= 3:
+                    red, green, blue = (int(part) for part in parts[:3])
+                    alpha = 255
+                    if len(parts) > 3:
+                        raw_alpha = parts[3]
+                        alpha = int(float(raw_alpha) * 255) if "." in raw_alpha else int(raw_alpha)
+                    qcolor = QColor(red, green, blue, alpha)
+        if not qcolor.isValid():
+            raise ValueError(f"invalid theme color for {name}: {value!r}")
+        return qcolor
+
+    pal = QPalette()
+    pal.setColor(QPalette.Window,          color("bg-primary"))
+    pal.setColor(QPalette.WindowText,      color("text-primary"))
+    pal.setColor(QPalette.Base,            color("bg-surface"))
+    pal.setColor(QPalette.AlternateBase,   color("bg-hover"))
+    pal.setColor(QPalette.ToolTipBase,     color("bg-surface"))
+    pal.setColor(QPalette.ToolTipText,     color("text-primary"))
+    pal.setColor(QPalette.Text,            color("text-primary"))
+    pal.setColor(QPalette.Button,          color("bg-surface"))
+    pal.setColor(QPalette.ButtonText,      color("text-primary"))
+    pal.setColor(QPalette.BrightText,      color("text-primary"))
+    pal.setColor(QPalette.Highlight,       color("accent"))
+    pal.setColor(QPalette.HighlightedText, color("bg-primary"))
+    pal.setColor(QPalette.Mid,             color("border-dim"))
+    pal.setColor(QPalette.Midlight,        color("accent-tint-50"))
+    pal.setColor(QPalette.Dark,            color("border-subtle"))
+    pal.setColor(QPalette.Shadow,          color("accent-tint-20"))
+    pal.setColor(QPalette.Light,           color("orange"))
+    pal.setColor(QPalette.Link,            color("cyan"))
+    pal.setColor(QPalette.LinkVisited,     color("red"))
+    pal.setColor(QPalette.PlaceholderText, color("text-muted"))
+
+    muted = color("text-muted")
+    for role in (QPalette.WindowText, QPalette.Text, QPalette.ButtonText):
+        pal.setColor(QPalette.Disabled, role, muted)
+    return pal
+
+
 class ThemeManager:
     _instance = None
 
@@ -167,6 +217,8 @@ class ThemeManager:
         self._using_system = False
         self._original_style = None
         self._available_themes = None
+        self._applied_qss = None
+        self._style_is_fusion = False
 
     @classmethod
     def instance(cls):
@@ -270,6 +322,18 @@ class ThemeManager:
         except Exception as e:
             print(f"[THEME] Error live refreshing GUI views: {e}")
 
+        # 3. Rack slots rebuild their per-widget styles from the new tokens.
+        try:
+            from carla_shared import gCarla
+            from qt_compat import QTimer
+            if hasattr(gCarla, "gui") and gCarla.gui is not None:
+                items = [p for p in getattr(gCarla.gui, "fPluginList", []) if p is not None]
+                if items:
+                    QTimer.singleShot(0, lambda: [p.recreateWidget() for p in items])
+        except Exception as e:
+            print(f"[THEME] Error live refreshing rack slots: {e}")
+
+
     def apply_theme(
         self,
         theme_name: str = CARLA_DEFAULT_MAIN_APP_THEME,
@@ -288,34 +352,46 @@ class ThemeManager:
         if self._original_style is None and hasattr(app, "style"):
             curr_style = app.style()
             if curr_style:
-                self._original_style = curr_style.objectName()
+                self._original_style = curr_style.name()
 
         if use_system:
             # Revert to system styling then layer minimal scrollbars
-            app.setStyleSheet("")
-            if self._original_style:
+            if self._applied_qss:
+                app.setStyleSheet("")
+                self._applied_qss = None
+            if self._original_style and app.style().name().lower() != self._original_style.lower():
                 app.setStyle(self._original_style)
-            app.setStyleSheet(MINIMAL_SCROLLBAR_QSS)
+                self._style_is_fusion = False
+            app.setPalette(app.style().standardPalette())
+            if self._applied_qss != MINIMAL_SCROLLBAR_QSS:
+                app.setStyleSheet(MINIMAL_SCROLLBAR_QSS)
+                self._applied_qss = MINIMAL_SCROLLBAR_QSS
             self._notify_theme_changed()
             return
 
-        # Ensure a clean consistent baseline Qt widget layout
-        app.setStyle("Fusion")
+        # setStyle() destroys and recreates every widget style, which costs more
+        # than the stylesheet itself on a loaded rack. Only switch once.
+        if not self._style_is_fusion:
+            app.setStyle("Fusion")
+            self._style_is_fusion = True
 
-        # 1. Compile from centralized Base16/Base24 theme engine
+        # The QSS uses palette(...) roles for every color, so switching theme is
+        # a palette swap and the stylesheet itself is applied only once.
         from .registry import registry
 
         theme_def = registry.get_theme(theme_name, mode=mode)
         theme_qss = ""
+        tokens = None
         if theme_def:
             theme_qss = self.engine.compile_qss(theme_def, mode=mode)
+            tokens = self.engine.active_tokens
         else:
-            # 2. Fallback to legacy static .qss file
             qss_file = self._resolve_theme_file(theme_name)
             if not qss_file and theme_name != CARLA_DEFAULT_MAIN_APP_THEME:
                 theme_def = registry.get_theme(CARLA_DEFAULT_MAIN_APP_THEME, mode=mode)
                 if theme_def:
                     theme_qss = self.engine.compile_qss(theme_def, mode=mode)
+                    tokens = self.engine.active_tokens
                 else:
                     qss_file = self._resolve_theme_file(CARLA_DEFAULT_MAIN_APP_THEME)
 
@@ -326,8 +402,12 @@ class ThemeManager:
                 except Exception as e:
                     print(f"[THEME] Failed to load stylesheet {qss_file}: {e}")
 
-        if theme_qss:
+        if tokens is not None:
+            app.setPalette(build_palette(tokens))
+
+        if theme_qss and theme_qss != self._applied_qss:
             app.setStyleSheet(theme_qss)
+            self._applied_qss = theme_qss
         self._notify_theme_changed()
 
 

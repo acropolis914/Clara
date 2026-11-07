@@ -990,6 +990,7 @@ elif qt_config == 6:
     QPalette.LinkVisited = QPalette.ColorRole.LinkVisited
     QPalette.Mid = QPalette.ColorRole.Mid
     QPalette.Midlight = QPalette.ColorRole.Midlight
+    QPalette.PlaceholderText = QPalette.ColorRole.PlaceholderText
     QPalette.Shadow = QPalette.ColorRole.Shadow
     QPalette.Text = QPalette.ColorRole.Text
     QPalette.ToolTipBase = QPalette.ColorRole.ToolTipBase

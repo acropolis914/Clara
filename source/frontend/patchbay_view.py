@@ -571,59 +571,58 @@ class CanvasMixin:
                 # Only apply custom flush styling if not using system desktop theme
                 from styles.theme_manager import theme_manager
                 if not theme_manager.is_using_system():
-                    bg_hex = "#181825"
-                    if hasattr(patchcanvas, "theme") and hasattr(patchcanvas.theme, "canvas_bg"):
-                        bg_hex = patchcanvas.theme.canvas_bg.name()
+                    tokens = theme_manager.engine.active_tokens or {}
+                    accent = tokens.get("accent", "#89b4fa")
 
+                    # No rack/panel rectangle or outline: the theme background shows
+                    # through, and the splitter is only visible while hovered.
                     self.splitter.setStyleSheet(f"""
                         QSplitter {{
-                            background: {bg_hex};
+                            background: transparent;
                         }}
                         QSplitter::handle {{
-                            background-color: #313244;
-                            width: 1px;
+                            background: transparent;
+                            width: 2px;
                         }}
                         QSplitter::handle:hover {{
-                            background-color: #89b4fa;
-                            width: 3px;
+                            background-color: {accent};
+                            width: 2px;
                         }}
                     """)
-                    self.ui.tabWidget.setStyleSheet(f"""
-                        QTabWidget::pane {{
+                    self.ui.tabWidget.setStyleSheet("""
+                        QTabWidget::pane {
                             border: none;
-                            background-color: {bg_hex};
+                            background: transparent;
                             margin: 0px;
                             padding: 0px;
-                        }}
+                        }
                     """)
                     self.ui.frame.setFrameShape(QFrame.NoFrame)
-                    self.ui.frame.setStyleSheet(f"QFrame#frame {{ background-color: {bg_hex}; border: none; }}")
-                    # TODO(FIX): theming is slow and this rack background is hardcoded;
-                    # source it from the active theme and profile the apply path.
-                    self.ui.rack.setStyleSheet(f"QWidget#rack {{ background-color: {bg_hex}; border: none; }}")
-                    self.ui.patchbay.setStyleSheet(f"QWidget#patchbay {{ background-color: {bg_hex}; border: none; }}")
+                    self.ui.frame.setStyleSheet("")
+                    self.ui.rack.setStyleSheet("")
+                    self.ui.patchbay.setStyleSheet("")
                     self.ui.graphicsView.setStyleSheet("QGraphicsView { border: none; outline: none; }")
-                    self.ui.listWidget.setStyleSheet(f"""
-                        QListWidget {{
-                            background-color: {bg_hex};
+                    self.ui.listWidget.setStyleSheet("""
+                        QListWidget {
+                            background: transparent;
                             border: none;
                             outline: none;
                             padding: 4px;
-                        }}
-                        QListWidget::item {{
+                        }
+                        QListWidget::item {
                             background: transparent;
                             border: none;
                             margin-bottom: 5px;
-                        }}
-                        QListWidget::item:selected {{
+                        }
+                        QListWidget::item:selected {
                             background: transparent;
                             border: none;
-                        }}
+                        }
                     """)
                 else:
                     self.splitter.setStyleSheet("")
                     self.ui.tabWidget.setStyleSheet("")
-                    self.ui.frame.setFrameShape(QFrame.StyledPanel)
+                    self.ui.frame.setFrameShape(QFrame.NoFrame)
                     self.ui.frame.setStyleSheet("")
                     self.ui.rack.setStyleSheet("")
                     self.ui.patchbay.setStyleSheet("")
@@ -632,7 +631,7 @@ class CanvasMixin:
             else:
                 self.splitter.setStyleSheet("")
                 self.ui.tabWidget.setStyleSheet("")
-                self.ui.frame.setFrameShape(QFrame.StyledPanel)
+                self.ui.frame.setFrameShape(QFrame.NoFrame)
                 self.ui.frame.setStyleSheet("")
                 self.ui.rack.setStyleSheet("")
                 self.ui.patchbay.setStyleSheet("")
@@ -658,7 +657,7 @@ class CanvasMixin:
         else:
             self.splitter.setStyleSheet("")
             self.ui.tabWidget.setStyleSheet("")
-            self.ui.frame.setFrameShape(QFrame.StyledPanel)
+            self.ui.frame.setFrameShape(QFrame.NoFrame)
             self.ui.frame.setStyleSheet("")
             self.ui.rack.setStyleSheet("")
             self.ui.patchbay.setStyleSheet("")
