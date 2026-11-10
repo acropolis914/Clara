@@ -1511,6 +1511,12 @@ protected:
 
     void setState(const char* const data)
     {
+        if (data == nullptr || data[0] == '\0')
+        {
+            carla_stderr2("CarlaEngineNative::setState() - ignoring an empty state");
+            return;
+        }
+
         // remove all plugins from UI side
         for (uint i=0, count=pData->curPluginCount; i < count; ++i)
             CarlaEngine::callback(true, true, ENGINE_CALLBACK_PLUGIN_REMOVED, count-i-1, 0, 0, 0, 0.0f, nullptr);
@@ -1531,18 +1537,24 @@ protected:
 
         fOptionsForced = true;
         const water::String state(data);
-        fLastState = state;
 
-        XmlDocument xml(state);
-        const bool loaded = loadProjectInternal(xml, true);
+        // The stored chunk carries its own XML prolog and DOCTYPE. The parser
+        // used for strings rejects those, so start at the root element.
+        const int rootIndex = state.indexOfIgnoreCase("<CARLA-");
+        const water::String xmlText = (rootIndex > 0) ? state.substring(rootIndex) : state;
+
         const bool stateHadPlugins = std::strstr(data, "<Plugin>") != nullptr;
+        XmlDocument xml(xmlText);
+        const bool loaded = loadProjectInternal(xml, true);
+
+        // water::String::operator= swaps with its source, so only copy it after
+        // the parse is done or it empties the string we are about to use.
+        fLastState = state;
         fLastStateLoadFailed = ! loaded || (stateHadPlugins && pData->curPluginCount == 0);
 
         if (fLastStateLoadFailed)
             carla_stderr2("CarlaEngineNative::setState() - project did not load (%u plugins, %s parse), keeping the stored state; error: %s",
                           pData->curPluginCount, loaded ? "valid" : "invalid", getLastError());
-        if (fLastStateLoadFailed)
-            carla_stderr2("CarlaEngineNative::setState() - state starts with: %.100s", data);
         else
         {
             carla_debug("CarlaEngineNative::setState() - loaded %u plugins", pData->curPluginCount);

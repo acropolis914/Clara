@@ -508,7 +508,13 @@ bool CarlaStateSave::fillFromXmlElement(const XmlElement* const xmlElement)
                                 cText = cText.substring(1, len - 5);
                             }
 
-                            stateCustomData->value = xmlSafeStringCharDup(cText, false);
+                            // The XML parser already decoded the entities in the text.
+                            // Unescaping again corrupts nested project chunks: their
+                            // own escaping has to survive exactly one decode level.
+                            if (std::strcmp(stateCustomData->type, CUSTOM_DATA_TYPE_CHUNK) == 0)
+                                stateCustomData->value = carla_strdup(cText.toRawUTF8());
+                            else
+                                stateCustomData->value = xmlSafeStringCharDup(cText, false);
                         }
                     }
 

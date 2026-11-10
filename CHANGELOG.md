@@ -70,6 +70,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(settings)**: the canvas settings were never copied into the live canvas options, so shadow spread/distance/opacity and the drag toggle appeared to do nothing. They now apply immediately.
 - **feat(msg)**: `claramsg settings` drives the settings dialog: `open`, `pages`, `page <name>`, `fields [page] [-j]`, `get <id>`, `set <id> <value>`, `apply`, `close`, `reset --force`. `claramsg canvas zoom <scale|in|out|fit|reset>` and `canvas state [-j]` control and report the patchbay view, so visual changes can be scripted and verified with `claramsg shot`.
 
+#### 2026-11-11 — Nested patchbay projects load again
+
+- **fix(engine)**: nested Carla-Patchbay chunks were decoded twice. `CarlaStateSave` unescaped the `<Value>` text even though the XML parser had already done it, so a nested chunk containing another project lost one escaping level and failed to parse. Chunk values now keep exactly one decode, matching how they are written.
+- **fix(engine)**: the chunk parser rejected the stored XML prolog/DOCTYPE, so `setState()` now starts at `<CARLA-PROJECT>`/`<CARLA-PRESET>`.
+- **fix(engine)**: an empty state no longer wipes a plugin's plugins before parsing.
+- Verified with upstream #1715's `layer 3` project: three nesting levels load with 3/2/1 plugins, save keeps the full structure, and reloading the saved file reproduces the same counts.
+
 #### 2026-11-10 — Port labels follow the theme
 
 - **fix(patchbay)**: port labels kept their old colour after a theme switch because ports are stored in `canvas.port_list`, not under the group, so `updateTheme()` never reached them and their cached pens stayed stale. Port widgets are now refreshed explicitly; `canvas state` also reports the resolved node/port theme colours for testing.
