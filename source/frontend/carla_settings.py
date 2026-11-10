@@ -651,7 +651,9 @@ class CarlaSettingsW(QDialog):
             ):
                 if _btn is not None:
                     _btn.setText("")
-                    _btn.setIcon(self._make_glyph_icon(_glyph, 16, color="#cdd6f4"))
+                    from styles.theme_manager import theme_manager
+                    _btn.setIcon(self._make_glyph_icon(
+                        _glyph, 16, color=theme_manager.engine.get_token("text-primary", "#cdd6f4")))
         elif self.ui.ch_main_system_icons.isChecked():
             self.ui.b_main_proj_folder_open.setIcon(
                 getIcon("document-open", 16, "svgz")

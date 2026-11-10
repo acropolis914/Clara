@@ -32,6 +32,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(theme)**: theme switching no longer defers until a modal settings dialog closes; the palette, chrome, and rack update immediately.
 - **test(theme)**: added a contrast check for `text-primary` versus `bg-primary` on every bundled theme.
 
+#### 2026-11-10 — Widget code no longer hardcodes theme colors
+
+- **refactor(theme)**: the plugin list, project-loading banner and dialog, update/support banners, About dialog, settings form and settings glyph icons now read their colors from the theme engine instead of Catppuccin literals, so they follow the active theme (including light themes).
+- **fix(theme)**: the inline plugin rename box, scalable dials and slot backgrounds derive from the active skin palette.
+- **test(theme)**: new lint rejects a color literal in widget code unless it sits next to a token lookup (fallback) or the file is on the explicit allowlist (named palettes, user-facing swatches, LED meters, the separate patchcanvas theme).
+
 ### Style
 
 #### 2026-11-05 — No boxes around the CLI banner and Ctrl+C prompt

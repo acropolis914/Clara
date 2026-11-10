@@ -830,7 +830,9 @@ class SettingsFormBuilder(object):
                     elif ftype == "label":
                         lbl = QLabel(self.dialog.tr(field["label"]), group_box)
                         lbl.setWordWrap(True)
-                        lbl.setStyleSheet("color: #a6adc8; font-style: italic;")
+                        from styles.theme_manager import theme_manager
+                        lbl.setStyleSheet("color: %s; font-style: italic;"
+                                          % theme_manager.engine.get_token("text-secondary", "#a6adc8"))
                         group_layout.addWidget(lbl, row, 0, 1, 2)
 
                     row += 1

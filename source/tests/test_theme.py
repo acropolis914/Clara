@@ -29,6 +29,58 @@ def test_qss_uses_palette_roles():
         assert role in qss, f"missing {role}"
 
 
+_FRONTEND = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
+
+# Widget code may only carry a colour literal as a fallback next to a token
+# lookup, never as the value it actually uses.
+_TOKEN_CALL = (
+    "get_token(",
+    "_token(",
+    "_themeColor(",
+    "_themeRgba(",
+    "find_closest_system_color(",
+    "t.get(",
+)
+
+# Files whose colours are their own content, not chrome:
+# - carla_skin: named Catppuccin fallback palettes, fixed openav skins, swatches
+# - canvas_context_toolbar: user-facing colour swatches
+# - digitalpeakmeter: LED level colours
+# - scalabledial: knob plate
+# - patchcanvas: separate canvas theme system (themes.json)
+_ALLOWLIST = (
+    "carla_skin.py",
+    "canvas_context_toolbar.py",
+    "widgets/digitalpeakmeter.py",
+    "widgets/scalabledial.py",
+    "carla_settings.py",
+    "ladspa_rdf.py",
+    "widgets/commondial.py",
+    "resources_rc.py",
+    "patchcanvas/",
+)
+
+
+def test_widget_code_has_no_bare_color_literals():
+    offenders = []
+    for dirpath, _dirs, files in os.walk(_FRONTEND):
+        for name in files:
+            if not name.endswith(".py") or name.startswith("ui_"):
+                continue
+            path = os.path.join(dirpath, name)
+            rel = os.path.relpath(path, _FRONTEND).replace(os.sep, "/")
+            if rel.startswith("styles/") or rel.startswith(_ALLOWLIST):
+                continue
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                for lineno, line in enumerate(f, 1):
+                    if not re.search(r"#[0-9a-fA-F]{3,8}\b", line):
+                        continue
+                    if any(call in line for call in _TOKEN_CALL):
+                        continue
+                    offenders.append(f"{rel}:{lineno}: {line.strip()}")
+    assert not offenders, "colour literal outside the theme engine:\n" + "\n".join(offenders)
+
+
 def test_theme_text_contrasts_with_background():
     from qt_compat import QColor
     from styles.engine import ThemeEngine

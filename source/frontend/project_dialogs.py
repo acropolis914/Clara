@@ -211,7 +211,7 @@ class ProjectLoadingDialog(QDialog):
         header_layout.addWidget(self.lbl_title, 1)
 
         self.lbl_percent = QLabel(f"{int(self._current_progress)}%", self)
-        self.lbl_percent.setStyleSheet("font-weight: bold; color: #89b4fa;")
+        self.lbl_percent.setStyleSheet("font-weight: bold; color: %s;" % _themeColor("blue", "#89b4fa"))
         if offer_mode:
             self.lbl_percent.hide()
         header_layout.addWidget(self.lbl_percent)
@@ -225,16 +225,17 @@ class ProjectLoadingDialog(QDialog):
         self.progressBar.setFixedHeight(6)
         self.progressBar.setStyleSheet("""
             QProgressBar {
-                background-color: #313244;
+                background-color: %s;
                 border: none;
                 border-radius: 3px;
             }
             QProgressBar::chunk {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #89b4fa, stop:0.5 #cba6f7, stop:1 #f5c2e7);
+                    stop:0 %s, stop:0.5 %s, stop:1 %s);
                 border-radius: 3px;
             }
-        """)
+        """ % (_themeColor("border-dim", "#313244"), _themeColor("blue", "#89b4fa"),
+               _themeColor("purple", "#cba6f7"), _themeColor("magenta", "#f5c2e7")))
         if offer_mode:
             self.progressBar.hide()
         layout.addWidget(self.progressBar)
@@ -247,7 +248,7 @@ class ProjectLoadingDialog(QDialog):
         else:
             initial_detail = self.tr("Reading project file & canvas geometry...")
         self.lbl_detail = QLabel(initial_detail, self)
-        self.lbl_detail.setStyleSheet("color: #a6adc8; font-size: 11px;")
+        self.lbl_detail.setStyleSheet("color: %s; font-size: 11px;" % _themeColor("text-secondary", "#a6adc8"))
         self.lbl_detail.setWordWrap(True)
         layout.addWidget(self.lbl_detail)
 
@@ -261,31 +262,32 @@ class ProjectLoadingDialog(QDialog):
         btn_row.setSpacing(8)
 
         self.cb_autoload = QCheckBox(self.tr("Always load last save on startup"), self.offer_widget)
-        self.cb_autoload.setStyleSheet("color: #6c7086; font-size: 11px;")
+        self.cb_autoload.setStyleSheet("color: %s; font-size: 11px;" % _themeColor("text-muted", "#6c7086"))
         btn_row.addWidget(self.cb_autoload, 1)
 
         self.b_skip = QPushButton(self.tr("Start Empty"), self.offer_widget)
         self.b_skip.setStyleSheet("""
             QPushButton {
-                background-color: #313244;
-                color: #cdd6f4;
-                border: 1px solid #45475a;
+                background-color: %s;
+                color: %s;
+                border: 1px solid %s;
                 border-radius: 4px;
                 padding: 4px 12px;
                 font-size: 11px;
             }
             QPushButton:hover {
-                background-color: #45475a;
+                background-color: %s;
             }
-        """)
+        """ % (_themeColor("bg-hover", "#313244"), _themeColor("text-primary", "#cdd6f4"),
+               _themeColor("border-dim", "#45475a"), _themeColor("border-dim", "#45475a")))
         self.b_skip.clicked.connect(self._on_skip_clicked)
         btn_row.addWidget(self.b_skip)
 
         self.b_load = QPushButton(self.tr("Recover Session") if recover_mode else self.tr("Load Session"), self.offer_widget)
         self.b_load.setStyleSheet("""
             QPushButton {
-                background-color: #cba6f7;
-                color: #11111b;
+                background-color: %s;
+                color: %s;
                 border: none;
                 border-radius: 4px;
                 padding: 4px 14px;
@@ -293,9 +295,10 @@ class ProjectLoadingDialog(QDialog):
                 font-size: 11px;
             }
             QPushButton:hover {
-                background-color: #b4befe;
+                background-color: %s;
             }
-        """)
+        """ % (_themeColor("purple", "#cba6f7"), _themeColor("bg-primary", "#11111b"),
+               _themeColor("magenta", "#b4befe")))
         self.b_load.clicked.connect(self._on_load_clicked)
         btn_row.addWidget(self.b_load)
 
@@ -414,6 +417,11 @@ class ProjectLoadingDialog(QDialog):
 
 
 
+def _themeColor(name, fallback):
+    from styles.theme_manager import theme_manager
+    return theme_manager.engine.get_token(name, fallback) or fallback
+
+
 # ------------------------------------------------------------------------------------------------------------
 # Inline project loading banner (part of the main window, not a dialog)
 
@@ -425,17 +433,20 @@ class InlineLoadingBanner(QWidget):
         self.setObjectName("InlineLoadingBanner")
         self.setStyleSheet("""
             QFrame#InlineLoadingBanner {
-                background-color: #181825;
-                border-bottom: 2px solid #89b4fa;
+                background-color: %s;
+                border-bottom: 2px solid %s;
             }
-            QLabel { color: #cdd6f4; font-size: 11px; }
-            QProgressBar { background-color: #313244; border: none; border-radius: 3px; }
+            QLabel { color: %s; font-size: 11px; }
+            QProgressBar { background-color: %s; border: none; border-radius: 3px; }
             QProgressBar::chunk {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #89b4fa, stop:0.5 #cba6f7, stop:1 #f5c2e7);
+                    stop:0 %s, stop:0.5 %s, stop:1 %s);
                 border-radius: 3px;
             }
-        """)
+        """ % (_themeColor("bg-surface", "#181825"), _themeColor("blue", "#89b4fa"),
+               _themeColor("text-primary", "#cdd6f4"), _themeColor("border-dim", "#313244"),
+               _themeColor("blue", "#89b4fa"), _themeColor("purple", "#cba6f7"),
+               _themeColor("magenta", "#f5c2e7")))
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 6, 10, 8)
@@ -452,7 +463,7 @@ class InlineLoadingBanner(QWidget):
         self.lbl_readonly = QLabel(
             "READ-ONLY · patchbay and rack are locked until loading finishes", self)
         self.lbl_readonly.setStyleSheet(
-            "color: #f9e2af; font-size: 10px; font-weight: bold;")
+            "color: %s; font-size: 10px; font-weight: bold;" % _themeColor("yellow", "#f9e2af"))
         self.lbl_readonly.setWordWrap(True)
         self.lbl_readonly.setToolTip(
             "Pan and zoom stay available, but nodes, plugins and cables cannot be "

@@ -628,21 +628,32 @@ class PillFilterGroup(QWidget):
 # ------------------------------------------------------------------------------------------------------------
 # Helper for category indicator colors
 
+def _themeColor(name, fallback="#89b4fa"):
+    from styles.theme_manager import theme_manager
+    return theme_manager.engine.get_token(name, fallback) or fallback
+
+
+def _themeRgba(name, alpha, fallback="#89b4fa"):
+    from qt_compat import QColor
+    c = QColor(_themeColor(name, fallback))
+    return "rgba(%d, %d, %d, %s)" % (c.red(), c.green(), c.blue(), alpha)
+
+
 def _getCategoryColor(category, isSynth=False):
     c = (category or "").lower()
     if isSynth or "synth" in c:
-        return "#a6e3a1"  # Green
+        return _themeColor("green", "#a6e3a1")
     if "reverb" in c or "delay" in c:
-        return "#cba6f7"  # Mauve
+        return _themeColor("purple", "#cba6f7")
     if "distortion" in c or "drive" in c:
-        return "#f38ba8"  # Red
+        return _themeColor("red", "#f38ba8")
     if "dynamic" in c or "compress" in c or "limiter" in c:
-        return "#89b4fa"  # Blue
+        return _themeColor("blue", "#89b4fa")
     if "eq" in c or "filter" in c:
-        return "#fab387"  # Peach
+        return _themeColor("orange", "#fab387")
     if "modulat" in c or "chorus" in c or "flanger" in c or "phaser" in c:
-        return "#89dceb"  # Cyan
-    return "#6c7086"      # Subdued Slate
+        return _themeColor("cyan", "#89dceb")
+    return _themeColor("text-muted", "#6c7086")
 
 # ------------------------------------------------------------------------------------------------------------
 def _formatIoText(ains, aouts):
@@ -659,18 +670,21 @@ def _formatIoText(ains, aouts):
     return f"{ains} In / {aouts} Out"
 
 # ------------------------------------------------------------------------------------------------------------
+_FORMAT_BADGE_TOKENS = {
+    PLUGIN_CLAP: "blue",
+    PLUGIN_VST3: "orange",
+    PLUGIN_LV2: "green",
+    PLUGIN_VST2: "red",
+    PLUGIN_JSFX: "purple",
+}
+
+
 def _getFormatBadgeStyle(ptype):
-    if ptype == PLUGIN_CLAP:
-        return "background-color: rgba(137, 180, 250, 0.16); border: 1px solid rgba(137, 180, 250, 0.4); color: #89b4fa;"
-    if ptype == PLUGIN_VST3:
-        return "background-color: rgba(250, 179, 135, 0.16); border: 1px solid rgba(250, 179, 135, 0.4); color: #fab387;"
-    if ptype == PLUGIN_LV2:
-        return "background-color: rgba(166, 227, 161, 0.16); border: 1px solid rgba(166, 227, 161, 0.4); color: #a6e3a1;"
-    if ptype == PLUGIN_VST2:
-        return "background-color: rgba(243, 139, 168, 0.16); border: 1px solid rgba(243, 139, 168, 0.4); color: #f38ba8;"
-    if ptype == PLUGIN_JSFX:
-        return "background-color: rgba(203, 166, 247, 0.16); border: 1px solid rgba(203, 166, 247, 0.4); color: #cba6f7;"
-    return "background-color: rgba(108, 112, 134, 0.16); border: 1px solid rgba(108, 112, 134, 0.4); color: #a6adc8;"
+    token = _FORMAT_BADGE_TOKENS.get(ptype, "text-muted")
+    fallback = _themeColor(token, "#89b4fa")
+    return ("background-color: %s; border: 1px solid %s; color: %s;"
+            % (_themeRgba(token, 0.16, fallback), _themeRgba(token, 0.4, fallback),
+               fallback))
 
 # ------------------------------------------------------------------------------------------------------------
 # Rack-style Plugin Item Widget (Default View)
@@ -704,7 +718,7 @@ class RackPluginItemWidget(QFrame):
         if cursor is not None:
             self.lbl_star.setCursor(cursor)
         self.lbl_star.setProperty("starred", bool(isFav))
-        self.lbl_star.setStyleSheet("color: #eed49f; font-size: 14px;" if isFav else "color: #6c7086; font-size: 14px;")
+        self.lbl_star.setStyleSheet("color: %s; font-size: 14px;" % (_themeColor("yellow", "#eed49f") if isFav else _themeColor("text-muted", "#6c7086")))
         layout.addWidget(self.lbl_star)
 
         # Format Badge
@@ -739,13 +753,14 @@ class RackPluginItemWidget(QFrame):
         aouts = info.get("audioOuts", 0)
         self.lbl_io = QLabel(_formatIoText(ains, aouts), self)
         self.lbl_io.setObjectName("infoTag")
-        self.lbl_io.setStyleSheet("background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 1px 7px; font-size: 11px;")
+        self.lbl_io.setStyleSheet("background-color: %s; border: 1px solid %s; border-radius: 4px; padding: 1px 7px; font-size: 11px;"
+                                  % (_themeRgba("text-primary", 0.05, "#ffffff"), _themeRgba("text-primary", 0.08, "#ffffff")))
         layout.addWidget(self.lbl_io)
 
     def setFavorite(self, isFav):
         self.lbl_star.setText("★" if isFav else "☆")
         self.lbl_star.setProperty("starred", bool(isFav))
-        self.lbl_star.setStyleSheet("color: #eed49f; font-size: 14px;" if isFav else "color: #6c7086; font-size: 14px;")
+        self.lbl_star.setStyleSheet("color: %s; font-size: 14px;" % (_themeColor("yellow", "#eed49f") if isFav else _themeColor("text-muted", "#6c7086")))
         self.lbl_star.style().unpolish(self.lbl_star)
         self.lbl_star.style().polish(self.lbl_star)
 
@@ -795,7 +810,7 @@ class CardPluginItemWidget(QFrame):
         if cursor is not None:
             self.lbl_star.setCursor(cursor)
         self.lbl_star.setProperty("starred", bool(isFav))
-        self.lbl_star.setStyleSheet("color: #eed49f; font-size: 14px;" if isFav else "color: #6c7086; font-size: 14px;")
+        self.lbl_star.setStyleSheet("color: %s; font-size: 14px;" % (_themeColor("yellow", "#eed49f") if isFav else _themeColor("text-muted", "#6c7086")))
         topBar.addWidget(self.lbl_star)
         layout.addLayout(topBar)
 
@@ -812,13 +827,15 @@ class CardPluginItemWidget(QFrame):
         self.lbl_maker = QLabel(info.get("maker") or "---", self)
         self.lbl_maker.setObjectName("infoMaker")
         self.lbl_maker.setAutoFillBackground(False)
-        self.lbl_maker.setStyleSheet("background: transparent; color: #8aadf4; font-size: 11px;")
+        self.lbl_maker.setStyleSheet("background: transparent; color: %s; font-size: 11px;"
+                                     % _themeColor("blue", "#8aadf4"))
         layout.addWidget(self.lbl_maker)
 
         # Subtle divider above bottom bar
         self.div_line = QFrame(self)
         self.div_line.setFixedHeight(1)
-        self.div_line.setStyleSheet("background-color: rgba(255, 255, 255, 0.08); border: none;")
+        self.div_line.setStyleSheet("background-color: %s; border: none;"
+                                    % _themeRgba("text-primary", 0.08, "#ffffff"))
         layout.addWidget(self.div_line)
 
         # Bottom: Category & I/O
@@ -828,7 +845,8 @@ class CardPluginItemWidget(QFrame):
         self.lbl_cat = QLabel(cat, self)
         self.lbl_cat.setObjectName("infoCategory")
         self.lbl_cat.setAutoFillBackground(False)
-        self.lbl_cat.setStyleSheet("background: transparent; color: #a5adcb; font-size: 11px;")
+        self.lbl_cat.setStyleSheet("background: transparent; color: %s; font-size: 11px;"
+                                   % _themeColor("text-secondary", "#a5adcb"))
         botBar.addWidget(self.lbl_cat)
         botBar.addStretch(1)
 
@@ -836,14 +854,15 @@ class CardPluginItemWidget(QFrame):
         aouts = info.get("audioOuts", 0)
         self.lbl_io = QLabel(_formatIoText(ains, aouts), self)
         self.lbl_io.setObjectName("infoTag")
-        self.lbl_io.setStyleSheet("background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 1px 6px; font-size: 11px;")
+        self.lbl_io.setStyleSheet("background-color: %s; border: 1px solid %s; border-radius: 4px; padding: 1px 6px; font-size: 11px;"
+                                  % (_themeRgba("text-primary", 0.05, "#ffffff"), _themeRgba("text-primary", 0.08, "#ffffff")))
         botBar.addWidget(self.lbl_io)
         layout.addLayout(botBar)
 
     def setFavorite(self, isFav):
         self.lbl_star.setText("★" if isFav else "☆")
         self.lbl_star.setProperty("starred", bool(isFav))
-        self.lbl_star.setStyleSheet("color: #eed49f; font-size: 14px;" if isFav else "color: #6c7086; font-size: 14px;")
+        self.lbl_star.setStyleSheet("color: %s; font-size: 14px;" % (_themeColor("yellow", "#eed49f") if isFav else _themeColor("text-muted", "#6c7086")))
         self.lbl_star.style().unpolish(self.lbl_star)
         self.lbl_star.style().polish(self.lbl_star)
 
@@ -2399,7 +2418,8 @@ class PyPluginListDialog(QDialog):
 
         itemFav = QTableWidgetItem("★" if isFav else "☆")
         itemFav.setTextAlignment(Qt.AlignCenter)
-        itemFav.setForeground(QColor("#eed49f" if isFav else "#6e738d"))
+        itemFav.setForeground(QColor(_themeColor("yellow", "#eed49f") if isFav
+                                     else _themeColor("text-muted", "#6e738d")))
         self.table.setItem(index, TW_FAVORITE, itemFav)
 
         self.table.setItem(index, TW_NAME, QTableWidgetItem(info["name"]))
@@ -2670,7 +2690,8 @@ class PyPluginListDialog(QDialog):
         if itemFav:
             self.table.blockSignals(True)
             itemFav.setText("★" if newFav else "☆")
-            itemFav.setForeground(QColor("#eed49f" if newFav else "#6e738d"))
+            itemFav.setForeground(QColor(_themeColor("yellow", "#eed49f") if newFav
+                                         else _themeColor("text-muted", "#6e738d")))
             self.table.blockSignals(False)
 
         if newFav and not isFavorite:

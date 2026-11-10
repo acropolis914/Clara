@@ -411,15 +411,10 @@ def getColorFromCategory(category):
 
 def setScalableDialStyle(widget, parameterId, parameterCount, whiteLabels, skinStyle):
     is_dark = "light" not in skinStyle
-
-    if is_dark:
-        color = QColor("#00bcd4")
-        colorEnabled  = QColor("#FFFFFF")
-        colorDisabled = QColor("#787c88")
-    else:
-        color = QColor("#00838f")
-        colorEnabled  = QColor("#14151b")
-        colorDisabled = QColor("#858896")
+    p = get_active_skin_palette(is_dark)
+    color = QColor(p['teal'])
+    colorEnabled = QColor(p['text'])
+    colorDisabled = QColor(p['overlay0'])
 
     widget.setCustomPaintColor(color)
     widget.setCustomPaintMode(ScalableDial.CUSTOM_PAINT_MODE_FLAT)
@@ -1107,19 +1102,22 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         self.line_rename.setMaximumHeight(22)
         self.line_rename.setMinimumWidth(80)
         self.line_rename.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        p = get_active_skin_palette(getattr(self, "is_dark", True))
         self.line_rename.setStyleSheet(
             "QLineEdit#inline_plugin_rename {"
-            " background-color: #313244;"
-            " color: #cdd6f4;"
-            " border: 1px solid #89b4fa;"
+            " background-color: %s;"
+            " color: %s;"
+            " border: 1px solid %s;"
             " border-radius: 3px;"
             " padding: 1px 4px;"
-            " selection-background-color: #585b70;"
-            " selection-color: #ffffff;"
+            " selection-background-color: %s;"
+            " selection-color: %s;"
             "}"
             "QLineEdit#inline_plugin_rename:focus {"
-            " border: 1px solid #b4befe;"
+            " border: 1px solid %s;"
             "}"
+            % (p['surface1'], p['text'], p['blue'], p['surface2'],
+               p['base'], p['lavender'])
         )
         self.line_rename.hide()
 

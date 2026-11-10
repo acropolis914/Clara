@@ -26,23 +26,28 @@ from carla_utils import *  # noqa: F401,F403  (repo convention, shared utils nam
 # ------------------------------------------------------------------------------------------------------------
 # Static text
 
+def _token(name, fallback):
+    from styles.theme_manager import theme_manager
+    return theme_manager.engine.get_token(name, fallback) or fallback
+
+
 _ABOUT_HTML = (
     "<div style='text-align: center; font-family: sans-serif; line-height: 1.6;'>"
-    "<h2 style='margin: 0; color: #89b4fa;'>Clara</h2>"
-    "<p style='margin: 4px 0 12px 0; color: #a6adc8; font-size: 11px;'>"
+    "<h2 style='margin: 0; color: {blue};'>Clara</h2>"
+    "<p style='margin: 4px 0 12px 0; color: {subtext}; font-size: 11px;'>"
     "Modernized Audio Plugin Host & Patchbay (v%3 &bull; Carla %1%2)</p>"
     "<p style='margin: 8px 0; font-size: 12px;'>"
     "Maintained & Modernized by <b>acropolis914</b><br>"
     "Original Carla core created by <b>falkTX</b>"
     "</p>"
     "<p style='margin: 12px 0 4px 0;'>"
-    "<a style='color: #89b4fa; text-decoration: none; font-weight: bold;' href='https://github.com/acropolis914/Clara'>🌐 GitHub Project Page</a>"
+    "<a style='color: {blue}; text-decoration: none; font-weight: bold;' href='https://github.com/acropolis914/Clara'>🌐 GitHub Project Page</a>"
     "&nbsp;&nbsp;&bull;&nbsp;&nbsp;"
-    "<a style='color: #a6e3a1; text-decoration: none; font-weight: bold;' href='https://github.com/acropolis914/Clara/releases'>🚀 Releases</a>"
+    "<a style='color: {green}; text-decoration: none; font-weight: bold;' href='https://github.com/acropolis914/Clara/releases'>🚀 Releases</a>"
     "&nbsp;&nbsp;&bull;&nbsp;&nbsp;"
-    "<a style='color: #f38ba8; text-decoration: none; font-weight: bold;' href='https://github.com/sponsors/acropolis914'>💖 Sponsor</a>"
+    "<a style='color: {red}; text-decoration: none; font-weight: bold;' href='https://github.com/sponsors/acropolis914'>💖 Sponsor</a>"
     "</p>"
-    "<p style='margin: 12px 0 0 0; font-size: 10px; color: #6c7086;'>"
+    "<p style='margin: 12px 0 0 0; font-size: 10px; color: {muted};'>"
     "Copyright &copy; 2011-2026 falkTX &amp; acropolis914<br>Licensed under GPLv2+"
     "</p>"
     "</div>"
@@ -180,6 +185,11 @@ class AboutDialog(QDialog):
             _ABOUT_HTML.replace("%1", CARLA_VERSION_STRING)
             .replace("%2", extraInfo)
             .replace("%3", CLARA_VERSION_STRING)
+            .format(blue=_token("blue", "#89b4fa"),
+                    subtext=_token("text-secondary", "#a6adc8"),
+                    green=_token("green", "#a6e3a1"),
+                    red=_token("red", "#f38ba8"),
+                    muted=_token("text-muted", "#6c7086"))
         )
 
         self.l_extended = QLabel()

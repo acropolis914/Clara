@@ -93,6 +93,11 @@ def launch_self_updater(parent, version, current_version):
         return False
 
 
+def _token(name, fallback):
+    from styles.theme_manager import theme_manager
+    return theme_manager.engine.get_token(name, fallback) or fallback
+
+
 def _apply_banner_style(widget, badge, frame_name, border_color, badge_fg,
                         accent_color, accent_hover, accent_selector,
                         padding="3px 10px", extra_rules=""):
@@ -150,28 +155,28 @@ def _apply_banner_style(widget, badge, frame_name, border_color, badge_fg,
     else:
         widget.setStyleSheet(f"""
             QFrame#{frame_name} {{
-                background-color: #181825;
+                background-color: {_token("bg-surface", "#181825")};
                 border-bottom: 2px solid {border_color};
                 padding: 4px 10px;
             }}
             QLabel {{
-                color: #CDD6F4;
+                color: {_token("text-primary", "#CDD6F4")};
                 font-size: 12px;
             }}
             QPushButton {{
-                background-color: #313244;
-                color: #CDD6F4;
-                border: 1px solid #45475A;
+                background-color: {_token("bg-hover", "#313244")};
+                color: {_token("text-primary", "#CDD6F4")};
+                border: 1px solid {_token("border-dim", "#45475A")};
                 border-radius: 4px;
                 padding: {padding};
                 font-size: 11px;
             }}
             QPushButton:hover {{
-                background-color: #45475A;
+                background-color: {_token("border-dim", "#45475A")};
             }}
             QPushButton{accent_selector} {{
                 background-color: {accent_color};
-                color: #11111B;
+                color: {_token("bg-primary", "#11111B")};
                 font-weight: bold;
                 border: none;
             }}
@@ -353,7 +358,8 @@ class UpdateChangelogDialog(QDialog):
 
         btn_row = QHBoxLayout()
         install_btn = QPushButton("Update Now")
-        install_btn.setStyleSheet("background-color: #A6E3A1; color: #11111B; font-weight: bold; padding: 4px 12px;")
+        install_btn.setStyleSheet("background-color: %s; color: %s; font-weight: bold; padding: 4px 12px;"
+                                  % (_token("green", "#A6E3A1"), _token("bg-primary", "#11111B")))
         install_btn.clicked.connect(self.run_terminal_installer)
         btn_row.addWidget(install_btn)
 
@@ -448,30 +454,34 @@ class UpdateNotificationBanner(QFrame):
 
     def update_theme_styling(self):
         badge_colors = {
-            "critical": ("#F38BA8", "#1E1E2E"),
-            "suggested": ("#89B4FA", "#1E1E2E"),
-            "minor": ("#A6ADC8", "#1E1E2E")
+            "critical": (_token("red", "#F38BA8"), _token("bg-primary", "#1E1E2E")),
+            "suggested": (_token("blue", "#89B4FA"), _token("bg-primary", "#1E1E2E")),
+            "minor": (_token("text-secondary", "#A6ADC8"), _token("bg-primary", "#1E1E2E"))
         }
         badge_bg, badge_fg = badge_colors.get(self.urgency, badge_colors["minor"])
 
         _apply_banner_style(
             self, self.badge, "UpdateNotificationBanner",
             border_color=badge_bg, badge_fg=badge_fg,
-            accent_color="#A6E3A1", accent_hover="#94E2D5", accent_selector="#InstallBtn",
+            accent_color=_token("green", "#A6E3A1"),
+            accent_hover=_token("cyan", "#94E2D5"),
+            accent_selector="#InstallBtn",
             extra_rules="""
                 QPushButton#ReleasesBtn {
-                    background-color: #313244;
-                    color: #CDD6F4;
+                    background-color: %s;
+                    color: %s;
                 }
                 QPushButton#ReleasesBtn:hover {
-                    background-color: #45475A;
+                    background-color: %s;
                 }
                 QPushButton#ChangelogBtn {
-                    background-color: #89B4FA;
-                    color: #11111B;
+                    background-color: %s;
+                    color: %s;
                     font-weight: bold;
                 }
-            """,
+            """ % (_token("bg-hover", "#313244"), _token("text-primary", "#CDD6F4"),
+                   _token("border-dim", "#45475A"), _token("blue", "#89B4FA"),
+                   _token("bg-primary", "#11111B")),
         )
 
     def confirm_skip(self):
@@ -549,8 +559,10 @@ class SupportNotificationBanner(QFrame):
     def update_theme_styling(self):
         _apply_banner_style(
             self, self.badge, "SupportNotificationBanner",
-            border_color="#F5C2E7", badge_fg="#11111B",
-            accent_color="#F5C2E7", accent_hover="#F5E0DC", accent_selector="#SponsorBtn",
+            border_color=_token("magenta", "#F5C2E7"), badge_fg=_token("bg-primary", "#11111B"),
+            accent_color=_token("magenta", "#F5C2E7"),
+            accent_hover=_token("base06", "#F5E0DC"),
+            accent_selector="#SponsorBtn",
             padding="3px 8px",
         )
 
