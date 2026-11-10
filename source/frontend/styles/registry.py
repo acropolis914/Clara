@@ -62,27 +62,27 @@ BUILTIN_THEMES: Dict[str, Dict[str, Any]] = {
         },
     },
 
-    "Catppuccin Latte": {
-        "name": "Catppuccin Latte",
-        "author": "Catppuccin Org",
+    "Clara Light": {
+        "name": "Clara Light",
+        "author": "Clara Audio",
         "mode": "light",
         "palette": {
-            "base00": "#dce0e8",  # Crust
-            "base01": "#e6e9ef",  # Mantle
-            "base02": "#eff1f5",  # Base
-            "base03": "#ccd0da",  # Surface0 / Border
-            "base04": "#9ca0b0",  # Overlay0
-            "base05": "#4c4f69",  # Text
-            "base06": "#dc8a78",  # Rosewater
-            "base07": "#7287fd",  # Lavender
-            "base08": "#d20f39",  # Red
-            "base09": "#fe640b",  # Peach
-            "base0A": "#df8e1d",  # Yellow
-            "base0B": "#40a02b",  # Green
-            "base0C": "#179299",  # Teal
-            "base0D": "#1e66f5",  # Blue
-            "base0E": "#8839ef",  # Mauve
-            "base0F": "#ea76cb",  # Flamingo
+            "base00": "#f7f7fa",  # Window
+            "base01": "#eceef4",  # Surface
+            "base02": "#e1e4ed",  # Hover / selected
+            "base03": "#c6cad8",  # Border
+            "base04": "#6e7484",  # Muted text
+            "base05": "#23252d",  # Text
+            "base06": "#43464f",
+            "base07": "#14161c",
+            "base08": "#c0392b",  # Red
+            "base09": "#b35c00",  # Orange
+            "base0A": "#8a6a00",  # Yellow
+            "base0B": "#2e7d32",  # Green
+            "base0C": "#00727c",  # Teal
+            "base0D": "#1f5fbf",  # Blue (Accent)
+            "base0E": "#7b3ec8",  # Purple
+            "base0F": "#b02a5c",  # Pink
         },
     },
 

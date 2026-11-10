@@ -321,9 +321,8 @@ class Theme(object):
     THEME_CATPPUCCIN_MACCHIATO = 6
     THEME_CATPPUCCIN_MOCHA     = 7
     THEME_CATPPUCCIN_FRAPPE    = 8
-    THEME_CATPPUCCIN_LATTE     = 9
 
-    THEME_MAX = 10
+    THEME_MAX = 9
 
     def __init__(self, idx):
         object.__init__(self)

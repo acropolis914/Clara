@@ -57,6 +57,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **refactor(patchbay)**: all canvas colours come from the resolved theme: node fill/header/text/outline, shadows, ports and cables, selection, rubberband, grid dots, drag ghosts, container chrome and node toolbar, role badges and the info panel. The canvas theme now only supplies structure (fonts, port mode, sizes) while the app theme supplies the colours.
 - **fix(patchbay)**: node category badges were never shown because `CATEGORY_BADGES` did not exist in `carla_skin`; they now resolve from the category tokens.
 
+#### 2026-11-10 — Clara Light replaces Catppuccin Latte
+
+- **feat(theme)**: new **Clara Light** theme (neutral light palette, high-contrast text, blue accent) replaces Catppuccin Latte, which is removed from the registry, the canvas theme list and the bundled QSS files.
+- **fix(theme)**: a saved theme that no longer exists (removed or renamed) now falls back to Catppuccin Macchiato instead of leaving the window unstyled. The settings dialog selects the same fallback.
+- **refactor(theme)**: the application theme list is built from the registry, so every bundled theme (Nord, Tokyo Night, Dracula, Gruvbox) is selectable instead of a hardcoded list of four.
+
 ### Style
 
 #### 2026-11-05 — No boxes around the CLI banner and Ctrl+C prompt

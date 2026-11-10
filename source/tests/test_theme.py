@@ -93,13 +93,30 @@ def test_theme_text_contrasts_with_background():
     from styles.engine import ThemeEngine
     from styles.registry import registry
 
-    for name in ("Catppuccin Mocha", "Catppuccin Macchiato", "Catppuccin Latte"):
+    for name in ("Catppuccin Mocha", "Catppuccin Macchiato", "Clara Light"):
         theme = registry.get_theme(name)
         tokens = ThemeEngine().resolve_tokens(theme, mode=theme.get("mode", "dark"))
         text = QColor(tokens["text-primary"])
         background = QColor(tokens["bg-primary"])
         assert abs(text.lightness() - background.lightness()) > 80, (
             f"{name} text-primary and bg-primary have no contrast")
+
+
+def test_unknown_theme_falls_back():
+    from styles.theme_manager import theme_manager
+
+    assert theme_manager.resolve_theme_name("Catppuccin Latte") == "Catppuccin Macchiato"
+    assert theme_manager.resolve_theme_name("catppuccin mocha") == "Catppuccin Mocha"
+    assert theme_manager.resolve_theme_name("") == "Catppuccin Macchiato"
+
+
+def test_bundled_themes_load():
+    from styles.registry import registry
+
+    names = registry.list_theme_names()
+    assert "Clara Light" in names, "missing light theme"
+    assert "Catppuccin Latte" not in names, "Latte should be gone"
+    assert registry.get_theme("Clara Light")["mode"] == "light"
 
 
 def test_palette_maps_theme_tokens():

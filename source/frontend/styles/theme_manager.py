@@ -262,6 +262,20 @@ class ThemeManager:
         self._available_themes = sorted_themes
         return list(sorted_themes)
 
+    def resolve_theme_name(self, theme_name: str) -> str:
+        """Return a theme name we can actually apply for the requested one."""
+        available = self.get_available_themes()
+        name = (theme_name or "").strip()
+        if name in available:
+            return name
+        lowered = name.lower()
+        for candidate in available:
+            if candidate.lower() == lowered:
+                return candidate
+        if CARLA_DEFAULT_MAIN_APP_THEME in available:
+            return CARLA_DEFAULT_MAIN_APP_THEME
+        return available[0] if available else CARLA_DEFAULT_MAIN_APP_THEME
+
     def _resolve_theme_file(self, theme_name: str) -> str | None:
         """Find the .qss file corresponding to a given human-readable theme name."""
         filename = theme_name.lower().replace(" ", "_") + ".qss"
@@ -433,6 +447,12 @@ class ThemeManager:
         from .registry import registry
 
         theme_def = registry.get_theme(theme_name, mode=mode)
+        if theme_def is None and self._resolve_theme_file(theme_name) is None:
+            # The saved theme was removed or renamed since it was written.
+            theme_name = self.resolve_theme_name(theme_name)
+            self._current_theme = theme_name
+            theme_def = registry.get_theme(theme_name, mode=mode)
+
         theme_mode = mode or (theme_def.get("mode", "dark") if theme_def else "dark")
         self._current_mode = theme_mode.lower()
         theme_qss = ""
@@ -442,20 +462,23 @@ class ThemeManager:
             tokens = self.engine.active_tokens
         else:
             qss_file = self._resolve_theme_file(theme_name)
-            if not qss_file and theme_name != CARLA_DEFAULT_MAIN_APP_THEME:
-                theme_def = registry.get_theme(CARLA_DEFAULT_MAIN_APP_THEME, mode=theme_mode)
-                if theme_def:
-                    theme_qss = self.engine.compile_qss(theme_def, mode=theme_mode)
-                    tokens = self.engine.active_tokens
-                else:
-                    qss_file = self._resolve_theme_file(CARLA_DEFAULT_MAIN_APP_THEME)
-
             if not theme_qss and qss_file and os.path.isfile(qss_file):
                 try:
                     with open(qss_file, "r", encoding="utf-8") as f:
                         theme_qss = f.read() + "\n" + MINIMAL_SCROLLBAR_QSS
                 except Exception as e:
                     print(f"[THEME] Failed to load stylesheet {qss_file}: {e}")
+
+        if not theme_qss:
+            # Last resort: a bundled theme, so the UI is never left unstyled.
+            fallback_name = self.resolve_theme_name(CARLA_DEFAULT_MAIN_APP_THEME)
+            fallback = registry.get_theme(fallback_name, mode=theme_mode)
+            if fallback is not None:
+                self._current_theme = fallback_name
+                theme_qss = self.engine.compile_qss(fallback, mode=theme_mode)
+                tokens = self.engine.active_tokens
+                theme_mode = fallback.get("mode", theme_mode)
+                self._current_mode = theme_mode.lower()
 
         if tokens is not None:
             app.setPalette(build_palette(tokens))

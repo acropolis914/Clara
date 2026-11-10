@@ -271,12 +271,7 @@ GENERAL_SCHEMA = {
                             "label": "Application theme:",
                             "key": CARLA_KEY_MAIN_APP_THEME,
                             "default": CARLA_DEFAULT_MAIN_APP_THEME,
-                            "options": [
-                                "Catppuccin Macchiato",
-                                "Catppuccin Mocha",
-                                "Catppuccin Latte",
-                                "Classic Dark",
-                            ],
+                            "options_factory": "app_themes",
                             "depends_on": "not use_system_theme",
                         },
                         {
@@ -862,7 +857,11 @@ class SettingsFormBuilder(object):
 
     def _populate_combo(self, combo, field):
         factory = field.get("options_factory")
-        if factory == "themes":
+        if factory == "app_themes":
+            from styles.theme_manager import theme_manager
+            for name in theme_manager.get_available_themes():
+                combo.addItem(name)
+        elif factory == "themes":
             from patchcanvas.theme import Theme, getThemeName
             for i in range(Theme.THEME_MAX):
                 combo.addItem(getThemeName(i))

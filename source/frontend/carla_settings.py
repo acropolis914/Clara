@@ -548,7 +548,9 @@ class CarlaSettingsW(QDialog):
                 cb_theme.clear()
                 avail_themes = theme_manager.get_available_themes()
                 cb_theme.addItems(avail_themes)
-                if current_text and cb_theme.findText(current_text) >= 0:
+                if not current_text or cb_theme.findText(current_text) < 0:
+                    current_text = theme_manager.resolve_theme_name(current_text)
+                if cb_theme.findText(current_text) >= 0:
                     cb_theme.setCurrentText(current_text)
 
                 self._theme_apply_timer = QTimer(self)
