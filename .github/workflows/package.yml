@@ -572,7 +572,7 @@ jobs:
           submodules: false
 
       - name: Install tools
-        run: pacman -Sy --noconfirm git openssh diffutils
+        run: pacman -Syu --noconfirm --needed git openssh diffutils
 
       - name: Publish clara-bin and clara-git to AUR
         env:
