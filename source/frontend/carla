@@ -82,7 +82,14 @@ if __name__ == '__main__':
 
     initName, libPrefix = handleInitialCommandLineArguments(__file__ if "__file__" in dir() else None)
 
-    from clara_instance_core import first_positional, instance_paths, is_clara_invocation, legacy_socket_path
+    from clara_instance_core import (
+        first_positional,
+        instance_paths,
+        is_clara_invocation,
+        legacy_socket_path,
+        register_instance,
+        unregister_instance,
+    )
     from carla_instance import (
         InstanceLock,
         MsgServer,
@@ -192,6 +199,9 @@ if __name__ == '__main__':
         _server = MsgServer(_paths["socket"], _msg_early_handler)
         if not _server.start(remove_stale=True):
             logger.warning("APP", "Could not listen on %s: %s" % (_paths["socket"], _server.server.errorString()))
+        else:
+            register_instance(_paths["key"], _paths["socket"], kind="gui",
+                              project=_project_arg or "")
         _server.showRequested.connect(_show_or_queue)
         logger.debug("APP", "instance key=%s lock=%s socket=%s pid=%i" % (
             _paths["key"], _paths["lock"], _paths["socket"], os.getpid()))
@@ -243,5 +253,6 @@ if __name__ == '__main__':
         if _server is not None:
             _server.close()
     finally:
+        unregister_instance(_paths["key"])
         if _lock is not None:
             _lock.release()

@@ -67,22 +67,22 @@ BUILTIN_THEMES: Dict[str, Dict[str, Any]] = {
         "author": "Clara Audio",
         "mode": "light",
         "palette": {
-            "base00": "#f7f7fa",  # Window
-            "base01": "#eceef4",  # Surface
-            "base02": "#e1e4ed",  # Hover / selected
-            "base03": "#c6cad8",  # Border
-            "base04": "#6e7484",  # Muted text
-            "base05": "#23252d",  # Text
-            "base06": "#43464f",
-            "base07": "#14161c",
-            "base08": "#c0392b",  # Red
-            "base09": "#b35c00",  # Orange
-            "base0A": "#8a6a00",  # Yellow
-            "base0B": "#2e7d32",  # Green
-            "base0C": "#00727c",  # Teal
-            "base0D": "#1f5fbf",  # Blue (Accent)
-            "base0E": "#7b3ec8",  # Purple
-            "base0F": "#b02a5c",  # Pink
+            "base00": "#e9eaee",  # Window / canvas (soft grey, never pure white)
+            "base01": "#f5f6f8",  # Cards, inputs, node bodies
+            "base02": "#dddfe4",  # Hover / selected
+            "base03": "#c6c9d0",  # Border
+            "base04": "#6b6e76",  # Muted text
+            "base05": "#1d1d1f",  # Text
+            "base06": "#3a3a3c",
+            "base07": "#131315",
+            "base08": "#d70015",  # Red
+            "base09": "#b25000",  # Orange
+            "base0A": "#8a5a00",  # Yellow
+            "base0B": "#1f7a36",  # Green
+            "base0C": "#00707c",  # Teal
+            "base0D": "#0066cc",  # Blue (Accent)
+            "base0E": "#7a3db8",  # Purple
+            "base0F": "#b0185a",  # Pink
         },
     },
 

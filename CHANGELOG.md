@@ -70,6 +70,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(settings)**: the canvas settings were never copied into the live canvas options, so shadow spread/distance/opacity and the drag toggle appeared to do nothing. They now apply immediately.
 - **feat(msg)**: `claramsg settings` drives the settings dialog: `open`, `pages`, `page <name>`, `fields [page] [-j]`, `get <id>`, `set <id> <value>`, `apply`, `close`, `reset --force`. `claramsg canvas zoom <scale|in|out|fit|reset>` and `canvas state [-j]` control and report the patchbay view, so visual changes can be scripted and verified with `claramsg shot`.
 
+#### 2026-11-10 — Instance discovery and UI smoke automation
+
+- **feat(msg)**: `claramsg instances` lists running instances (pid, kind, project), `--instance <pid|key|latest>` targets one, `wait --ready|--dialog` replaces guessy sleeps, and `quit [--force]` closes the window through the normal path (refuses unsaved edits without `--force`).
+- **feat(plugin)**: a nested Clara loaded as a plugin now starts its own control channel and registers itself, so `claramsg` can drive and screenshot plugin-host UIs too. Each plugin host gets a pid-scoped socket.
+- **test(ui)**: `scripts/ui_smoke.py` launches a scratch instance under its own instance key, checks the shadow settings, canvas zoom, screenshot and theme switch, restores the settings it touched and quits.
+
+#### 2026-11-10 — Clara Light is softer
+
+- **style(theme)**: Clara Light no longer uses near-white backgrounds. The window/canvas is a soft grey (`#e9eaee`), cards and node bodies are off-white (`#f5f6f8`), text is Apple-style `#1d1d1f`, with quieter borders and a calmer blue accent. Layering now comes from surface tones plus the drop shadows instead of glare.
+
 #### 2026-11-10 — One theme for the whole UI
 
 - **refactor(settings)**: the separate "Canvas theme" selector is gone. The patchbay already takes every colour from the app theme; the profile now only supplies structure, so the picker was lying. The dead bundled `styles/themes/*.qss` files (unreachable since the engine compiles `base_primitives.qss`) are deleted too.

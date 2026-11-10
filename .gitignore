@@ -68,6 +68,7 @@ qt_config.py
 *_rc.py
 ui_*.hpp
 ui_*.py
+!scripts/ui_smoke.py
 
 # Translation files
 *.qm

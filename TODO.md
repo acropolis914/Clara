@@ -12,6 +12,7 @@
 ## 🐛 Bugs
 - [x] `[Diff: 2]` **FIX**: theming was slow and the rack background/outline was hardcoded. The rack list no longer paints its own background or inset frame, the splitter no longer uses the Fusion default line, and the global QSS uses Qt palette roles. A theme switch now repolishes only the top-level windows (~0.55s on the 25-plugin project), restyles rack slots in place, and reaches the last paint at ~1.9s (was ~5.5s). Light themes also map `text-primary` correctly, so text is no longer invisible. Plugin edit dialogs are built lazily, cutting the widget tree from ~18.8k to ~7.2k.
 - [x] `[Diff: 2]` **THEME AUDIT**: widget code now reads its colors from the theme engine; the remaining literals are fallbacks next to a token lookup, named palettes, user-facing swatches, LED meters, and the separate patchcanvas theme. `source/tests/test_theme.py` fails on any other color literal (it now also catches literal `rgba(...)`).
+- [x] `[Diff: 2]` **UI AUTOMATION**: `claramsg instances` / `--instance` / `wait` / `quit`, a control channel for nested plugin hosts, and `scripts/ui_smoke.py` as the end-to-end UI check.
 - [x] `[Diff: 2]` **ONE THEME**: the separate canvas theme selector is removed; the patchbay follows the app theme and only keeps its structural profile. Patchbay settings are grouped (Nodes / Cables / Node shadows / Rendering), shadow changes preview live, and `source/tests/test_settings_hookup.py` guards the key plumbing.
 - [x] `[Diff: 2]` **SHADOW SETTINGS**: spread, distance, opacity and drag toggle live in the patchbay settings; the stored "Node drop shadows" flag is enforced again and changes apply without a restart.
 - [x] `[Diff: 2]` **LIGHT THEME**: Clara Light replaces Catppuccin Latte; the app theme list comes from the registry, and an unknown saved theme falls back to Catppuccin Macchiato instead of leaving the window unstyled.
@@ -66,7 +67,7 @@
 - [x] `[Diff: 1]` feat: Settings dialog sidebar enhancement - use a more readable, cohesive font
 - [x] `[Diff: 2]` feat: Settings dialog polish & cleanup - reorganize sections, improve layout, use modern compact pills instead of outdated bitmap icons, and add live reactive tweakables
 - [x] `[Diff: 1]` feat: Minimize to system tray
-- [ ] `[Diff: 2]` Cleanup: the static theme files in `source/frontend/styles/themes/` are unreachable (the theme engine always compiles from `base_primitives.qss`), so their rules never apply - port the useful ones into the engine or delete them
+- [x] `[Diff: 2]` Cleanup: the unreachable static theme files in `source/frontend/styles/themes/` were deleted; the engine compiles everything from `base_primitives.qss`.
 
 ---
 

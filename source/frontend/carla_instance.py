@@ -411,6 +411,18 @@ COMMANDS
       in the current directory. `screenshot --path PATH` still works.
       Explicit paths may not be symlinks or special files.
 
+  instances [--json]
+      List running Clara instances (pid, kind, project, key) so commands can
+      target the right one with --instance.
+
+  quit [--force]
+      Close the window. Refuses while the project has unsaved changes unless
+      --force is given (which discards them).
+
+  wait --ready|--dialog [--timeout SECONDS]
+      Block until the app has finished starting, or until a dialog is open.
+      Use this instead of sleeping before the first command.
+
   settings open|close|apply|reset|pages
   settings page <name>
   settings fields [<page>] [-j]
@@ -486,6 +498,10 @@ CANVAS
 DIALOGS AND SCREENSHOTS
   {prog} dialogs
   {prog} shot
+  {prog} instances
+  {prog} wait --ready
+  {prog} --instance 1234 settings open
+  {prog} quit
   {prog} settings open
   {prog} settings page Patchbay
   {prog} settings set shadow_spread 20
@@ -519,7 +535,8 @@ TIPS
 
 
 _COMMANDS = ("status", "save", "show", "events", "list", "open", "shot", "screenshot",
-             "settings", "canvas", "dialogs", "dialog", "replace", "help", "examples")
+             "settings", "canvas", "instances", "quit", "wait",
+             "dialogs", "dialog", "replace", "help", "examples")
 
 
 def _use_color():
@@ -563,6 +580,28 @@ class _MsgParser(argparse.ArgumentParser):
         raise SystemExit(2)
 
 
+def _resolve_instance_socket(selector, default_socket):
+    """Pick a socket from an --instance selector, or None when it is unknown."""
+    if not selector:
+        return default_socket
+    from clara_instance_core import list_instances
+    entries = list_instances()
+    selector = str(selector).strip()
+    if selector == "latest":
+        entries.sort(key=lambda entry: entry.get("started", 0))
+        return entries[-1].get("socket") if entries else None
+    try:
+        wanted_pid = int(selector)
+    except ValueError:
+        wanted_pid = None
+    for entry in entries:
+        if wanted_pid is not None and entry.get("pid") == wanted_pid:
+            return entry.get("socket")
+        if entry.get("key") == selector:
+            return entry.get("socket")
+    return None
+
+
 def _screenshot_path(target):
     """Resolve a shot location to an absolute PNG file path."""
     import time
@@ -593,10 +632,20 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
                         help="show this help")
     parser.add_argument("--examples", action="store_true",
                         help="show copy-paste examples")
+    parser.add_argument("--instance", default=None,
+                        help="pid, key or 'latest' of the target instance")
     sub = parser.add_subparsers(dest="cmd", parser_class=_MsgParser)
     sub.add_parser("help", help="show this help")
     sub.add_parser("examples", help="show copy-paste examples")
     sub.add_parser("show", help="raise the running window")
+    instances_parser = sub.add_parser("instances", help="list running Clara instances")
+    instances_parser.add_argument("-j", "--json", action="store_true")
+    quit_parser = sub.add_parser("quit", help="close the window")
+    quit_parser.add_argument("--force", action="store_true", help="discard unsaved changes")
+    wait_parser = sub.add_parser("wait", help="wait for the app to be ready or show a dialog")
+    wait_parser.add_argument("--ready", action="store_true")
+    wait_parser.add_argument("--dialog", action="store_true")
+    wait_parser.add_argument("--timeout", type=float, default=30.0)
     sub.add_parser("status", help="process and project status")
     sub.add_parser("save", help="save the open project")
     list_parser = sub.add_parser("list", help="inspect the canvas")
@@ -662,6 +711,25 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     if args.show_help or args.cmd == "help" or not args.cmd:
         print_help(prog)
         return 0
+    if args.cmd == "instances":
+        from clara_instance_core import list_instances
+        entries = list_instances()
+        if args.json:
+            print(json.dumps(entries, indent=2))
+        elif not entries:
+            print("no running instances")
+        else:
+            for entry in entries:
+                print("%-7s %-7s %-12s %s" % (
+                    entry.get("pid", "?"), entry.get("kind", "?"),
+                    entry.get("key", "?"), entry.get("project", "")))
+        return 0
+
+    socket_path = _resolve_instance_socket(args.instance, socket_path)
+    if socket_path is None:
+        _emit_error("no such instance: %s" % args.instance)
+        return 1
+
     _ensure_app()
 
     if args.cmd == "show":
@@ -695,6 +763,30 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
             return 1
         print((reply.get("data") or {}).get("path", ""))
         return 0
+
+    if args.cmd == "quit":
+        reply = _send(socket_path, build_request("quit", force=bool(args.force)))
+        if reply is None:
+            return 1
+        print("OK")
+        return 0
+
+    if args.cmd == "wait":
+        deadline = time.time() + max(1.0, args.timeout)
+        while time.time() < deadline:
+            if args.dialog:
+                reply = _send(socket_path, build_request("dialogs"))
+                if reply is not None and (reply.get("data") or {}).get("dialogs"):
+                    print("dialog")
+                    return 0
+            else:
+                reply = _send(socket_path, build_request("status"))
+                if reply is not None and (reply.get("data") or {}).get("mode") == "gui":
+                    print("ready")
+                    return 0
+            time.sleep(0.3)
+        _emit_error("timed out waiting for %s" % ("a dialog" if args.dialog else "the app"))
+        return 1
 
     if args.cmd == "settings":
         payload = build_request("settings", action=args.action, target=args.target,

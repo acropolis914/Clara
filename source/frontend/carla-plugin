@@ -623,6 +623,26 @@ if __name__ == '__main__':
         gui = CarlaMiniW(host, isPatchbay)
 
     # -------------------------------------------------------------
+    # Control channel (claramsg) for this nested instance.
+    # The key carries the pid so several plugin hosts can run side by side.
+
+    from clara_instance_core import instance_paths, register_instance, unregister_instance
+    from carla_instance import MsgServer
+
+    _ctrl_key = "plugin-%d" % os.getpid()
+    _ctrl_paths = instance_paths(app_id=_ctrl_key)
+    _ctrl_server = MsgServer(_ctrl_paths["socket"], gui.handleMsgRequest, parent=gui)
+    if _ctrl_server.start(remove_stale=True):
+        register_instance(_ctrl_paths["key"], _ctrl_paths["socket"],
+                          kind="patchbay-plugin" if isPatchbay else "plugin")
+    else:
+        _ctrl_server = None
+
+    # -------------------------------------------------------------
     # App-Loop
 
     app.exit_exec()
+
+    if _ctrl_server is not None:
+        _ctrl_server.close()
+    unregister_instance(_ctrl_paths["key"])

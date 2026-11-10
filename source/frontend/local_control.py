@@ -205,6 +205,8 @@ class ControlMixin:
         """Return (builder, widget) for a schema field id, or (None, None)."""
         builders = []
         for row, _name, _hidden in self._settingsPages(dialog):
+            # A page only gets its builder once built; set/get must work on any page.
+            dialog._ensure_tab_built(row)
             builder = dialog.form_builder_for_row(row)
             if builder is not None:
                 builders.append(builder)
@@ -387,6 +389,18 @@ class ControlMixin:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
+    def msgQuit(self, force=False):
+        """Close the window through the normal path; refuse to lose unsaved edits."""
+        if getattr(self, "fHasUnsavedChanges", False) and not force:
+            return {"ok": False, "error": "unsaved changes; save first or pass --force"}
+        log_carla("claramsg: quit requested%s" % (" (force)" if force else ""))
+        if force:
+            self.fHasUnsavedChanges = False
+        # Bypass "minimize to tray": a quit command must actually quit.
+        self.fForceQuit = True
+        QTimer.singleShot(0, self.close)
+        return {"ok": True}
+
     def handleMsgRequest(self, request):
         """Read-only control channel; mutating commands go through the same host slots."""
         cmd = request.get("cmd")
@@ -420,6 +434,12 @@ class ControlMixin:
             if not result.get("ok"):
                 return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
             return {"v": 1, "ok": True, "data": result}
+        if cmd == "quit":
+            result = self.msgQuit(bool(request.get("force")))
+            if not result.get("ok"):
+                return {"v": 1, "ok": False,
+                        "error": {"code": "dirty", "message": result.get("error", "failed")}}
+            return {"v": 1, "ok": True}
         if cmd == "settings":
             result = self.msgSettings(request.get("action"), request.get("target"),
                                       request.get("value"), bool(request.get("force")))

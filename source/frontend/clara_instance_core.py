@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 
 
 PROTOCOL_VERSION = 1
@@ -67,6 +68,74 @@ def instance_paths(app_id=DEFAULT_APP_ID):
     if legacy:
         socket_path = legacy
     return {"key": key, "base": base, "lock": lock, "socket": socket_path}
+
+
+def registry_dir():
+    """Directory of discovery entries for running instances."""
+    return os.path.join(runtime_dir(), "clara-instances")
+
+
+def register_instance(key, socket_path, kind="gui", project=""):
+    """Publish a running instance so claramsg can find and target it."""
+    folder = registry_dir()
+    try:
+        os.makedirs(folder, mode=0o700, exist_ok=True)
+        path = os.path.join(folder, key + ".json")
+        entry = {
+            "key": key,
+            "pid": os.getpid(),
+            "socket": socket_path,
+            "kind": kind,
+            "project": project or "",
+            "started": int(time.time()),
+        }
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(entry, f)
+        os.replace(tmp, path)
+        return path
+    except OSError:
+        return None
+
+
+def unregister_instance(key):
+    try:
+        os.unlink(os.path.join(registry_dir(), key + ".json"))
+    except OSError:
+        pass
+
+
+def list_instances():
+    """Return registry entries whose process is still alive, pruning dead ones."""
+    folder = registry_dir()
+    if not os.path.isdir(folder):
+        return []
+    entries = []
+    for name in sorted(os.listdir(folder)):
+        if not name.endswith(".json"):
+            continue
+        path = os.path.join(folder, name)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                entry = json.load(f)
+        except (OSError, ValueError):
+            continue
+        pid = entry.get("pid")
+        alive = False
+        if isinstance(pid, int) and pid > 0:
+            try:
+                os.kill(pid, 0)
+                alive = True
+            except OSError:
+                alive = False
+        if alive:
+            entries.append(entry)
+        else:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+    return entries
 
 
 def legacy_socket_path():
