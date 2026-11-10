@@ -215,6 +215,7 @@ class ThemeManager:
         self.engine = ThemeEngine(base_primitives_template=_load_base_primitives())
         self._current_theme = None
         self._current_mode = "dark"
+        self._previous_mode = "dark"
         self._using_system = False
         self._original_style = None
         self._available_themes = None
@@ -377,6 +378,9 @@ class ThemeManager:
                         try:
                             restyle = getattr(p.fWidget, "restyle", None)
                             if restyle is not None:
+                                follow = getattr(p.fWidget, "follow_theme_mode", None)
+                                if follow is not None:
+                                    follow(self._previous_mode, self._current_mode)
                                 restyle()
                             else:
                                 p.recreateWidget(reopenGui=False)
@@ -405,6 +409,7 @@ class ThemeManager:
             return
 
         self._using_system = use_system
+        self._previous_mode = self._current_mode
         self._current_theme = theme_name
         self._current_mode = (mode or "dark").lower()
 

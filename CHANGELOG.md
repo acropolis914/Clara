@@ -38,6 +38,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(theme)**: the inline plugin rename box, scalable dials and slot backgrounds derive from the active skin palette.
 - **test(theme)**: new lint rejects a color literal in widget code unless it sits next to a token lookup (fallback) or the file is on the explicit allowlist (named palettes, user-facing swatches, LED meters, the separate patchcanvas theme).
 
+#### 2026-11-10 — Rack slots follow the app theme
+
+- **fix(rack)**: rack slots no longer pin a dark skin. A slot keeps its layout variant (minimal / sliders) but takes dark or light from the active app theme, both on load and on a live theme switch, so a light theme no longer shows a dark rack. A slot explicitly set to the opposite mode keeps its choice.
+- **fix(rack)**: every remaining fixed color in the slot paint and stylesheets (button hovers, bypass/power tints, disabled text, combo and spinbox backgrounds, slider hover, selection and shadow outlines, classic and calf slot chrome, category stripe fallback) now comes from the skin palette.
+- **fix(rack)**: the Appearance > Color swatches and the inline rename box use the active palette too.
+- **fix(canvas)**: the minimap's floating "Map" button uses theme tokens instead of fixed dark colors.
+
 ### Style
 
 #### 2026-11-05 — No boxes around the CLI banner and Ctrl+C prompt

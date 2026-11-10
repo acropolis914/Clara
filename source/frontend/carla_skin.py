@@ -15,7 +15,6 @@ import ui_carla_plugin_presets
 from carla_backend import *
 from carla_shared import *
 from carla_widgets import *
-from patchcanvas.theme import Theme
 from qt_compat import (
     QAbstractSpinBox,
     QColor,
@@ -53,7 +52,6 @@ from qt_compat import (
     QWidget,
     QWidgetAction,
 )
-from utils import QSafeSettings
 from widgets.digitalpeakmeter import DigitalPeakMeter
 from widgets.paramspinbox import CustomInputDialog
 from widgets.scalabledial import ScalableDial
@@ -149,6 +147,27 @@ def _rgba(color, alpha):
     """Theme token -> QSS rgba string with the given 0-255 alpha."""
     c = QColor(color)
     return f"rgba({c.red()}, {c.green()}, {c.blue()}, {alpha})"
+
+
+def is_theme_dark():
+    """True when the active app theme uses a dark background."""
+    from styles.theme_manager import theme_manager
+    tokens = theme_manager.engine.active_tokens or {}
+    background = tokens.get("bg-primary")
+    if not background:
+        return True
+    return QColor(background).lightness() < 128
+
+
+_SKIN_VARIANTS = ("minimal-dark", "minimal-light", "sliders-dark", "sliders-light")
+
+
+def skin_for_theme(skinStyle):
+    """Keep the slot layout variant, but take dark/light from the app theme."""
+    if skinStyle not in _SKIN_VARIANTS:
+        return skinStyle
+    prefix = "sliders" if skinStyle.startswith("sliders") else "minimal"
+    return prefix + ("-dark" if is_theme_dark() else "-light")
 
 
 def get_active_skin_palette(is_dark=True):
@@ -439,8 +458,11 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
             self.fDarkStyle = False
         elif skinStyle in ("minimal-dark", "sliders-dark"):
             self.fDarkStyle = True
+        elif skinStyle == "classic" or skinStyle.startswith(("calf", "openav")):
+            # These skins are dark by design, whatever the app theme is.
+            self.fDarkStyle = True
         else:
-            self.fDarkStyle = QColor(skinColor[0], skinColor[1], skinColor[2]).blackF() > 0.4
+            self.fDarkStyle = is_theme_dark()
 
         self.fIsActive   = False
         self.fIsSelected = False
@@ -502,10 +524,21 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         host.OptionChangedCallback.connect(self.slot_handleOptionChangedCallback)
         host.UiStateChangedCallback.connect(self.slot_handleUiStateChangedCallback)
 
-        self.sel_pen = QPen(Qt.cyan, 1, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin)
+        p = get_active_skin_palette(self.fDarkStyle)
+        self.sel_pen = QPen(QColor(p['lavender']), 1, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin)
         self.sel_pen.setDashPattern([2.0, 4.0])
-        self.sel_side_pen = QPen(Qt.cyan, 2, Qt.SolidLine, Qt.FlatCap)
-        self.shadow_pen = QPen(Qt.black, 1)
+        self.sel_side_pen = QPen(QColor(p['lavender']), 2, Qt.SolidLine, Qt.FlatCap)
+        self.shadow_pen = QPen(QColor(p['crust']), 1)
+
+    def follow_theme_mode(self, old_mode, new_mode):
+        """Flip a slot that was following the app theme; keep an explicit choice."""
+        if old_mode == new_mode:
+            return
+        if self.fDarkStyle == (old_mode == "dark"):
+            self.fDarkStyle = new_mode == "dark"
+        if getattr(self, "is_dark", None) == (old_mode == "dark"):
+            self.is_dark = new_mode == "dark"
+        self.fSkinStyle = skin_for_theme(self.fSkinStyle)
 
     @pyqtSlot(int, str)
     def slot_handlePluginRenamedCallback(self, pluginId, newName):
@@ -732,37 +765,28 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
             if self.fPeaksOutputCount == 0 and not isinstance(self, PluginSlot_Classic):
                 self.peak_out.hide()
 
-        if self.fSkinStyle == "openav":
+        if self.fSkinStyle in ("openav", "openav-old"):
+            p = get_active_skin_palette(True)
+            top = p['surface1'] if self.fSkinStyle == "openav" else p['base']
+            name_color = p['text'] if self.fSkinStyle == "openav" else p['orange']
             styleSheet = """
                 QFrame#PluginWidget {
                     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                                      stop: 0 #383838, stop: %f #111111, stop: 1.0 #111111);
+                                                      stop: 0 %s, stop: %f %s, stop: 1.0 %s);
                 }
-                QLabel#label_name          { color: #FFFFFF; }
-                QLabel#label_name:disabled { color: #505050; }
-            """ % (0.95 if isinstance(self, PluginSlot_Compact) else 0.35)
-
-        elif self.fSkinStyle == "openav-old":
-            styleSheet = """
-                QFrame#PluginWidget {
-                    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                                      stop: 0 #303030, stop: %f #111111, stop: 1.0 #111111);
-                }
-                QLabel#label_name          { color: #FF5100; }
-                QLabel#label_name:disabled { color: #505050; }
-            """ % (0.95 if isinstance(self, PluginSlot_Compact) else 0.35)
-
+                QLabel#label_name          { color: %s; }
+                QLabel#label_name:disabled { color: %s; }
+            """ % (top, 0.95 if isinstance(self, PluginSlot_Compact) else 0.35,
+                   p['crust'], p['crust'], name_color, p['overlay0'])
         else:
-            settings = QSafeSettings("falkTX", "Carla2")
-            theme_name = settings.value(CARLA_KEY_CANVAS_THEME, CARLA_DEFAULT_CANVAS_THEME, str)
-            theme = Theme(theme_name)
+            p = get_active_skin_palette(self.fDarkStyle)
 
-            box_bg_1 = theme.box_bg_1.name() if hasattr(theme, "box_bg_1") else "#444444"
-            box_bg_2 = theme.box_bg_2.name() if hasattr(theme, "box_bg_2") else "#333333"
-            box_text = theme.box_text.color().name() if hasattr(theme, "box_text") else "#FFFFFF"
+            box_bg_1 = p['surface1']
+            box_bg_2 = p['base']
+            box_text = p['text']
 
             colorEnabled  = box_text
-            colorDisabled = "#777777"
+            colorDisabled = p['overlay0']
 
             if self.fSkinStyle in ("3bandeq", "calf_black", "calf_blue", "nekobi", "zynfx"):
                 styleSheet2  = f"background-color: {box_bg_2};"
@@ -1452,31 +1476,40 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         palLayout.setContentsMargins(6, 4, 6, 4)
         palLayout.setSpacing(4)
 
-        catppuccin_colors = [
-            ("#f38ba8", "Red"),
-            ("#fab387", "Peach"),
-            ("#f9e2af", "Yellow"),
-            ("#a6e3a1", "Green"),
-            ("#94e2d5", "Teal"),
-            ("#89dceb", "Sky"),
-            ("#89b4fa", "Blue"),
-            ("#b4befe", "Lavender"),
-            ("#cba6f7", "Mauve"),
-            ("#f5c2e7", "Pink"),
+        p = get_active_skin_palette(getattr(self, "is_dark", True))
+        swatch_colors = [
+            (p['red'], "Red"),
+            (p['peach'], "Peach"),
+            (p['yellow'], "Yellow"),
+            (p['green'], "Green"),
+            (p['teal'], "Teal"),
+            (p['sky'], "Sky"),
+            (p['blue'], "Blue"),
+            (p['lavender'], "Lavender"),
+            (p['mauve'], "Mauve"),
+            (p['pink'], "Pink"),
         ]
 
         btn_reset = QPushButton("✕")
         btn_reset.setToolTip(self.tr("Reset to Default Color"))
         btn_reset.setFixedSize(22, 22)
-        btn_reset.setStyleSheet("QPushButton { font-weight: bold; color: #888; background: transparent; border: 1px solid #555; border-radius: 3px; } QPushButton:hover { color: #fff; border-color: #888; background: #333; }")
+        btn_reset.setStyleSheet(
+            "QPushButton { font-weight: bold; color: %s; background: transparent;"
+            " border: 1px solid %s; border-radius: 3px; }"
+            "QPushButton:hover { color: %s; border-color: %s; background: %s; }"
+            % (p['overlay0'], p['surface2'], p['text'], p['overlay1'], p['surface1']))
         btn_reset.clicked.connect(lambda: (gCarla.gui.changePluginColor(self.fPluginId, (255, 255, 255), "255;255;255"), menu.close()))
         palLayout.addWidget(btn_reset)
 
-        for col_hex, col_name in catppuccin_colors:
+        for col_hex, col_name in swatch_colors:
             btn_col = QPushButton()
             btn_col.setToolTip(col_name)
             btn_col.setFixedSize(22, 22)
-            btn_col.setStyleSheet(f"QPushButton {{ background-color: {col_hex}; border: 1px solid rgba(0,0,0,0.4); border-radius: 3px; }} QPushButton:hover {{ border: 2px solid #ffffff; }}")
+            btn_col.setStyleSheet(
+                "QPushButton { background-color: %s; border: 1px solid %s;"
+                " border-radius: 3px; }"
+                "QPushButton:hover { border: 2px solid %s; }"
+                % (col_hex, _rgba(p['base'], 102), p['text']))
             c = QColor(col_hex)
             col_tup = (c.red(), c.green(), c.blue())
             col_str = f"{c.red()};{c.green()};{c.blue()}"
@@ -1997,14 +2030,15 @@ class PluginSlot_Calf(AbstractPluginSlot):
 
     def paintEvent(self, event):
         isBlack = bool(self.fSkinStyle == "calf_black")
+        p = get_active_skin_palette(True)
 
         painter = QPainter(self)
         painter.setBrush(Qt.transparent)
 
-        painter.setPen(QPen(QColor(20, 20, 20) if isBlack else QColor(75, 86, 99), 1))
+        painter.setPen(QPen(QColor(p['crust']) if isBlack else QColor(p['surface2']), 1))
         painter.drawRect(0, 1, self.width()-1, self.height()-3)
 
-        painter.setPen(QPen(QColor(45, 45, 45) if isBlack else QColor(86, 99, 114), 1))
+        painter.setPen(QPen(QColor(p['base']) if isBlack else QColor(p['overlay0']), 1))
         painter.drawLine(0, 0, self.width(), 0)
 
         AbstractPluginSlot.paintEvent(self, event)
@@ -2017,9 +2051,10 @@ class PluginSlot_Classic(AbstractPluginSlot):
         self.ui = ui_carla_plugin_classic.Ui_PluginWidget()
         self.ui.setupUi(self)
 
-        self.fColorTop    = QColor(60, 60, 60)
-        self.fColorBottom = QColor(47, 47, 47)
-        self.fColorSeprtr = QColor(70, 70, 70)
+        p = get_active_skin_palette(True)
+        self.fColorTop    = QColor(p['surface1'])
+        self.fColorBottom = QColor(p['base'])
+        self.fColorSeprtr = QColor(p['surface0'])
 
         self.b_enable = self.ui.b_enable
         self.b_gui    = self.ui.b_gui
@@ -2047,8 +2082,9 @@ class PluginSlot_Classic(AbstractPluginSlot):
         width  = self.width()
         height = self.height()
 
-        painter.setPen(QPen(QColor(17, 17, 17), 1))
-        painter.setBrush(QColor(17, 17, 17))
+        background = QColor(get_active_skin_palette(True)['crust'])
+        painter.setPen(QPen(background, 1))
+        painter.setBrush(background)
         painter.drawRect(0, 0, width, height)
 
         painter.setPen(self.fColorSeprtr.lighter(110))
@@ -2176,8 +2212,8 @@ class PluginSlot_Compact(AbstractPluginSlot):
                 background: transparent;
             }}
             QPushButton {{
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: _rgba(p['text'], 13);
+                border: 1px solid _rgba(p['text'], 31);
                 color: {p['subtext0']};
                 font-size: 10px;
                 font-weight: 700;
@@ -2185,18 +2221,18 @@ class PluginSlot_Compact(AbstractPluginSlot):
                 border-radius: 3px;
             }}
             QPushButton:hover {{
-                background: rgba(255, 255, 255, 0.13);
-                border-color: rgba(255, 255, 255, 0.35);
+                background: _rgba(p['text'], 33);
+                border-color: _rgba(p['text'], 89);
                 color: {p['text']};
             }}
             QPushButton:pressed {{
-                background: rgba(255, 255, 255, 0.25);
-                border-color: rgba(255, 255, 255, 0.6);
-                color: #ffffff;
+                background: _rgba(p['text'], 64);
+                border-color: _rgba(p['text'], 153);
+                color: {p['text']};
             }}
             QPushButton#btn_bypass {{
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: _rgba(p['text'], 13);
+                border: 1px solid _rgba(p['text'], 31);
                 font-size: 10px;
                 font-weight: 700;
                 color: {p['overlay1']};
@@ -2205,23 +2241,23 @@ class PluginSlot_Compact(AbstractPluginSlot):
             }}
             QPushButton#btn_bypass:hover {{
                 color: {p['text']};
-                background: rgba(255, 255, 255, 0.13);
-                border-color: rgba(255, 255, 255, 0.35);
+                background: _rgba(p['text'], 33);
+                border-color: _rgba(p['text'], 89);
             }}
             QPushButton#btn_bypass:checked {{
-                background: rgba(250, 179, 135, 0.18);
-                border: 1px solid rgba(250, 179, 135, 0.45);
+                background: _rgba(p['peach'], 46);
+                border: 1px solid _rgba(p['peach'], 115);
                 color: {bypass_active};
                 font-weight: 800;
             }}
             QPushButton#btn_bypass:checked:hover {{
                 color: {p['yellow']};
-                background: rgba(250, 179, 135, 0.28);
-                border-color: rgba(250, 179, 135, 0.65);
+                background: _rgba(p['peach'], 71);
+                border-color: _rgba(p['peach'], 166);
             }}
             QPushButton#btn_expand, QPushButton#btn_minimize {{
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid rgba(255, 255, 255, 0.10);
+                background: _rgba(p['text'], 10);
+                border: 1px solid _rgba(p['text'], 26);
                 color: {p['overlay1']};
                 font-size: 11px;
                 font-weight: bold;
@@ -2233,13 +2269,13 @@ class PluginSlot_Compact(AbstractPluginSlot):
                 border-radius: 3px;
             }}
             QPushButton#btn_expand:hover, QPushButton#btn_minimize:hover {{
-                background: rgba(255, 255, 255, 0.13);
-                border-color: rgba(255, 255, 255, 0.35);
+                background: _rgba(p['text'], 33);
+                border-color: _rgba(p['text'], 89);
                 color: {p['text']};
             }}
             QPushButton#btn_expand:pressed, QPushButton#btn_minimize:pressed {{
-                background: rgba(255, 255, 255, 0.25);
-                color: #ffffff;
+                background: _rgba(p['text'], 64);
+                color: {p['text']};
             }}
             QLabel#label_name {{
                 font-size: 11px;
@@ -2920,13 +2956,13 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 border-radius: 4px;
             }}
             QPushButton:hover {{
-                background: rgba(255, 255, 255, 0.08);
+                background: _rgba(p['text'], 20);
                 border: none;
                 outline: none;
                 color: {p['text']};
             }}
             QPushButton:pressed {{
-                background: rgba(255, 255, 255, 0.16);
+                background: _rgba(p['text'], 41);
                 border: none;
                 outline: none;
                 color: {p['blue']};
@@ -2936,7 +2972,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 background: transparent;
                 border: none;
                 outline: none;
-                color: rgba(140, 145, 160, 0.30);
+                color: _rgba(p['overlay0'], 76);
             }}
             QPushButton#btn_power {{
                 background: transparent;
@@ -2952,12 +2988,12 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 color: {p['green']};
             }}
             QPushButton#btn_power:hover {{
-                background: rgba(255, 255, 255, 0.08);
+                background: _rgba(p['text'], 20);
                 color: {p['text']};
             }}
             QPushButton#btn_power:checked:hover {{
                 color: {p['green']};
-                background: rgba(166, 227, 161, 0.12);
+                background: _rgba(p['green'], 31);
             }}
             QPushButton#btn_bypass {{
                 background: transparent;
@@ -2971,12 +3007,12 @@ class PluginSlot_Minimal(PluginSlot_Default):
             }}
             QPushButton#btn_bypass:hover {{
                 color: {p['yellow']};
-                background: rgba(255, 255, 255, 0.08);
+                background: _rgba(p['text'], 20);
                 border: none;
                 outline: none;
             }}
             QPushButton#btn_bypass:pressed {{
-                background: rgba(255, 255, 255, 0.16);
+                background: _rgba(p['text'], 41);
                 border: none;
                 outline: none;
                 padding-top: 2px;
@@ -2990,7 +3026,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
             }}
             QPushButton#btn_bypass:checked:hover {{
                 color: {p['yellow']};
-                background: rgba(250, 179, 135, 0.12);
+                background: _rgba(p['peach'], 31);
                 border: none;
                 outline: none;
             }}
@@ -2998,7 +3034,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 background: transparent;
                 border: none;
                 outline: none;
-                color: rgba(140, 145, 160, 0.25);
+                color: _rgba(p['overlay0'], 64);
             }}
             QPushButton#btn_gui {{
                 color: {p['overlay0']};
@@ -3009,7 +3045,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
             }}
             QPushButton#btn_gui:hover {{
                 color: {p['text']};
-                background: rgba(255, 255, 255, 0.08);
+                background: _rgba(p['text'], 20);
             }}
             QPushButton#btn_edit {{
                 color: {p['overlay0']};
@@ -3020,7 +3056,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
             }}
             QPushButton#btn_edit:hover {{
                 color: {p['text']};
-                background: rgba(255, 255, 255, 0.08);
+                background: _rgba(p['text'], 20);
             }}
             QPushButton#btn_slider_mode {{
                 background: transparent;
@@ -3034,13 +3070,13 @@ class PluginSlot_Minimal(PluginSlot_Default):
             }}
             QPushButton#btn_slider_mode:hover {{
                 color: {p['lavender']};
-                background: rgba(255, 255, 255, 0.08);
+                background: _rgba(p['text'], 20);
                 border: none;
                 outline: none;
             }}
             QPushButton#btn_slider_mode:pressed {{
                 color: {p['sapphire']};
-                background: rgba(255, 255, 255, 0.16);
+                background: _rgba(p['text'], 41);
                 border: none;
                 outline: none;
                 padding-top: 2px;
@@ -3060,14 +3096,14 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 padding: 0px;
             }}
             QPushButton#btn_minimize:hover, QPushButton#btn_expand:hover, QPushButton#btn_layer_expand:hover {{
-                background: rgba(255, 255, 255, 0.08);
+                background: _rgba(p['text'], 20);
                 border: none;
                 outline: none;
                 color: {p['text']};
             }}
             QPushButton#btn_minimize:pressed, QPushButton#btn_expand:pressed {{
                 color: {p['blue']};
-                background: rgba(255, 255, 255, 0.16);
+                background: _rgba(p['text'], 41);
                 border: none;
                 outline: none;
                 padding-top: 2px;
@@ -3102,8 +3138,8 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 color: {badge_text};
             }}
             QComboBox#cb_presets {{
-                background-color: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.12);
+                background-color: _rgba(p['text'], 13);
+                border: 1px solid _rgba(p['text'], 31);
                 border-radius: 4px;
                 color: {p['subtext1']};
                 font-size: 10px;
@@ -3114,7 +3150,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 padding-bottom: 1px;
             }}
             QComboBox#cb_presets:hover {{
-                background-color: rgba(255, 255, 255, 0.09);
+                background-color: _rgba(p['text'], 23);
                 border: 1px solid {p['blue']};
                 color: {p['text']};
             }}
@@ -3169,7 +3205,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 font-weight: 600;
             }}
             QDoubleSpinBox:hover, QDoubleSpinBox:focus {{
-                background: {"rgba(255, 255, 255, 0.08)" if self.is_dark else "rgba(0, 0, 0, 0.06)"};
+                background: {_rgba(p['text'], 20) if self.is_dark else _rgba(p['crust'], 15)};
                 border: none;
                 border-radius: 2px;
             }}
@@ -3207,7 +3243,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 border-radius: 6px;
             }}
             QSlider::handle:horizontal:hover {{
-                background: {p['rosewater'] if self.is_dark else '#ffffff'};
+                background: {p['rosewater'] if self.is_dark else p['base']};
                 border: 2px solid {p['lavender']};
             }}
         """
@@ -3891,7 +3927,8 @@ class PluginSlot_Minimal(PluginSlot_Default):
         stripePath.addRoundedRect(QRectF(3.0, 4.0, 4.0, h - 8.0), 2.0, 2.0)
         categoryColor = QColor(self.fSkinColor[0], self.fSkinColor[1], self.fSkinColor[2])
         if (categoryColor.red() == 0 and categoryColor.green() == 0 and categoryColor.blue() == 0) or (categoryColor.red() == 255 and categoryColor.green() == 255 and categoryColor.blue() == 255):
-            categoryColor = QColor(getattr(self, 'cat_color', '#cba6f7'))
+            categoryColor = QColor(getattr(self, 'cat_color', None)
+                                   or get_active_skin_palette(self.is_dark)['mauve'])
         painter.fillPath(stripePath, categoryColor)
 
         if self.fIsSelected:
@@ -4133,14 +4170,14 @@ def getColorAndSkinStyle(host, pluginId):
             pass
 
     if savedSkin:
-        if savedSkin in ("sliders-dark", "sliders-light", "minimal-dark", "minimal-light"):
-            return (color, savedSkin)
+        if savedSkin in _SKIN_VARIANTS:
+            return (color, skin_for_theme(savedSkin))
         if "slider" in savedSkin:
-            return (color, "sliders-light" if "light" in savedSkin else "sliders-dark")
+            return (color, skin_for_theme("sliders-light" if "light" in savedSkin else "sliders-dark"))
         if "light" in savedSkin:
-            return (color, "minimal-light")
+            return (color, skin_for_theme("minimal-light"))
 
-    return (color, "minimal-dark")
+    return (color, skin_for_theme("minimal-dark"))
 
 def createPluginSlot(parent, host, pluginId, options):
     skinColor, skinStyle = getColorAndSkinStyle(host, pluginId)
@@ -4149,7 +4186,7 @@ def createPluginSlot(parent, host, pluginId, options):
         skinColor = options['color']
 
     if options['skin']:
-        skinStyle = options['skin']
+        skinStyle = skin_for_theme(options['skin'])
 
     is_compact = bool("compact" in skinStyle or options.get('compact', False))
     is_layer = bool(

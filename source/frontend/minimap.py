@@ -114,10 +114,15 @@ class MiniCanvasMixin:
             btn.setToolTip("Show minimap")
             btn.setToolButtonStyle(Qt.ToolButtonTextOnly)
             btn.setAutoRaise(False)
+            from styles.theme_manager import theme_manager
+            engine = theme_manager.engine
             btn.setStyleSheet(
-                "QToolButton { background-color: rgba(24,24,37,0.86); "
-                "border: 1px solid rgba(137,180,250,0.35); border-radius: 6px; "
-                "padding: 2px 8px; }"
+                "QToolButton { background-color: %s; "
+                "border: 1px solid %s; border-radius: 6px; "
+                "padding: 2px 8px; color: %s; }"
+                % (engine.get_token("bg-surface", "#181825"),
+                   engine.get_token("accent-tint-50", "#89b4fa"),
+                   engine.get_token("text-primary", "#cdd6f4"))
             )
             btn.clicked.connect(self._showMiniCanvasFloat)
             btn.hide()

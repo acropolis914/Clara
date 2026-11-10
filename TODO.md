@@ -11,7 +11,8 @@
 
 ## 🐛 Bugs
 - [x] `[Diff: 2]` **FIX**: theming was slow and the rack background/outline was hardcoded. The rack list no longer paints its own background or inset frame, the splitter no longer uses the Fusion default line, and the global QSS uses Qt palette roles. A theme switch now repolishes only the top-level windows (~0.55s on the 25-plugin project), restyles rack slots in place, and reaches the last paint at ~1.9s (was ~5.5s). Light themes also map `text-primary` correctly, so text is no longer invisible. Plugin edit dialogs are built lazily, cutting the widget tree from ~18.8k to ~7.2k.
-- [x] `[Diff: 2]` **THEME AUDIT**: widget code now reads its colors from the theme engine; the remaining literals are fallbacks next to a token lookup, named palettes, user-facing swatches, LED meters, and the separate patchcanvas theme. `source/tests/test_theme.py` fails on any other color literal.
+- [x] `[Diff: 2]` **THEME AUDIT**: widget code now reads its colors from the theme engine; the remaining literals are fallbacks next to a token lookup, named palettes, user-facing swatches, LED meters, and the separate patchcanvas theme. `source/tests/test_theme.py` fails on any other color literal (it now also catches literal `rgba(...)`).
+- [x] `[Diff: 2]` **RACK THEME**: rack slots take dark/light from the app theme instead of pinning a skin mode; the remaining slot paint and stylesheet colors (classic/calf chrome, button tints, outlines, swatches, rename box) come from the skin palette.
 
 - [x] `[Diff: 1]` Fix: Rack item remove button still does not delete or show confirmation dialog (reopened: calf skin vs other skins / context menu / delete key)
 - [x] `[Diff: 1]` Fix: Left-click drag on empty canvas does not pan the UI

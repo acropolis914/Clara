@@ -43,13 +43,11 @@ _TOKEN_CALL = (
 )
 
 # Files whose colours are their own content, not chrome:
-# - carla_skin: named Catppuccin fallback palettes, fixed openav skins, swatches
 # - canvas_context_toolbar: user-facing colour swatches
 # - digitalpeakmeter: LED level colours
 # - scalabledial: knob plate
 # - patchcanvas: separate canvas theme system (themes.json)
 _ALLOWLIST = (
-    "carla_skin.py",
     "canvas_context_toolbar.py",
     "widgets/digitalpeakmeter.py",
     "widgets/scalabledial.py",
@@ -59,6 +57,12 @@ _ALLOWLIST = (
     "resources_rc.py",
     "patchcanvas/",
 )
+
+# A named palette definition, e.g. CATPPUCCIN_MOCHA's entries.
+_PALETTE_ENTRY = re.compile(r"^\s*'[a-z0-9]+':\s*'#[0-9a-fA-F]{3,8}',\s*$")
+# A literal rgba(1, 2, 3, ...) color, as opposed to the "%d" format placeholders
+# that _themeRgba() and friends build.
+_LITERAL_RGB = re.compile(r"rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+")
 
 
 def test_widget_code_has_no_bare_color_literals():
@@ -73,7 +77,10 @@ def test_widget_code_has_no_bare_color_literals():
                 continue
             with open(path, "r", encoding="utf-8", errors="replace") as f:
                 for lineno, line in enumerate(f, 1):
-                    if not re.search(r"#[0-9a-fA-F]{3,8}\b", line):
+                    if not (re.search(r"#[0-9a-fA-F]{3,8}\b", line)
+                            or _LITERAL_RGB.search(line)):
+                        continue
+                    if "noqa: theme-color" in line or _PALETTE_ENTRY.match(line):
                         continue
                     if any(call in line for call in _TOKEN_CALL):
                         continue
