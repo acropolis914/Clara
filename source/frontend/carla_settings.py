@@ -752,6 +752,16 @@ class CarlaSettingsW(QDialog):
 
     # -----------------------------------------------------------------------------------------------------------------
 
+    def form_builder_for_row(self, row):
+        """Return the SettingsFormBuilder for a page row, if that page uses one."""
+        return {
+            self.TAB_INDEX_MAIN: getattr(self, "general_form_builder", None),
+            self.TAB_INDEX_CANVAS: getattr(self, "canvas_form_builder", None),
+            self.TAB_INDEX_OSC: getattr(self, "osc_form_builder", None),
+            self.TAB_INDEX_WINE: getattr(self, "wine_form_builder", None),
+            self.TAB_INDEX_EXPERIMENTAL: getattr(self, "experimental_form_builder", None),
+        }.get(row)
+
     @pyqtSlot(int)
     def _ensure_tab_built(self, index):
         if index in self._built_tabs:

@@ -337,6 +337,11 @@ def setOptions(new_options):
     options.grid_enabled = getattr(new_options, "grid_enabled", True)
     options.grid_size = getattr(new_options, "grid_size", 20)
     options.snap_enabled = getattr(new_options, "snap_enabled", True)
+    options.box_shadows = getattr(new_options, "box_shadows", True)
+    options.shadow_opacity = getattr(new_options, "shadow_opacity", 100)
+    options.shadow_spread = getattr(new_options, "shadow_spread", 14)
+    options.shadow_distance = getattr(new_options, "shadow_distance", 3)
+    options.shadow_dragging = getattr(new_options, "shadow_dragging", False)
 
     if not canvas.initiated:
         return

@@ -67,6 +67,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **feat(msg)**: `claramsg shot [LOC]` saves a PNG of the window (patchbay included) or the active dialog; LOC may be a file or directory and defaults to the current directory. `claramsg screenshot --path` still works.
 - **feat(settings)**: the patchbay settings get a shadow box: spread (blur), distance (offset), opacity, and a "keep shadows while dragging nodes" toggle. The existing "Node drop shadows" checkbox now actually controls shadows (it was stored but never read).
 - **fix(canvas)**: applying settings no longer logs "PatchCanvas::init() - already initiated"; the canvas refreshes its theme and shadows instead.
+- **fix(settings)**: the canvas settings were never copied into the live canvas options, so shadow spread/distance/opacity and the drag toggle appeared to do nothing. They now apply immediately.
+- **feat(msg)**: `claramsg settings` drives the settings dialog: `open`, `pages`, `page <name>`, `fields [page] [-j]`, `get <id>`, `set <id> <value>`, `apply`, `close`, `reset --force`. `claramsg canvas zoom <scale|in|out|fit|reset>` and `canvas state [-j]` control and report the patchbay view, so visual changes can be scripted and verified with `claramsg shot`.
 
 ### Style
 

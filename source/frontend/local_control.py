@@ -177,6 +177,216 @@ class ControlMixin:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
+    # --------------------------------------------------------------------------------------------------------
+    # Settings dialog control (claramsg settings ...)
+
+    def _findSettingsDialog(self):
+        try:
+            from qt_compat import QApplication
+            from carla_settings import CarlaSettingsW
+        except Exception:
+            return None
+        for widget in QApplication.topLevelWidgets():
+            if isinstance(widget, CarlaSettingsW) and widget.isVisible():
+                return widget
+        return None
+
+    @staticmethod
+    def _settingsPages(dialog):
+        """Return [(row, name, hidden)] for the settings page list."""
+        rows = dialog.ui.lw_page
+        pages = []
+        for row in range(rows.rowCount()):
+            item = rows.item(row, 0)
+            pages.append((row, item.text() if item is not None else "", rows.isRowHidden(row)))
+        return pages
+
+    def _settingsField(self, dialog, field_id):
+        """Return (builder, widget) for a schema field id, or (None, None)."""
+        builders = []
+        for row, _name, _hidden in self._settingsPages(dialog):
+            builder = dialog.form_builder_for_row(row)
+            if builder is not None:
+                builders.append(builder)
+        for builder in builders:
+            widget = builder.widgets.get(field_id)
+            if widget is not None:
+                return builder, widget
+        return None, None
+
+    @staticmethod
+    def _settingsValue(widget):
+        from qt_compat import QCheckBox, QComboBox, QDoubleSpinBox, QLineEdit, QSlider, QSpinBox
+        if isinstance(widget, QCheckBox):
+            return widget.isChecked()
+        if isinstance(widget, QComboBox):
+            return widget.currentText()
+        if isinstance(widget, QLineEdit):
+            return widget.text()
+        if isinstance(widget, QSlider):
+            return widget.value()
+        if isinstance(widget, QDoubleSpinBox):
+            return widget.value()
+        if isinstance(widget, QSpinBox):
+            return widget.value()
+        return None
+
+    @classmethod
+    def _setSettingsValue(cls, widget, raw):
+        from qt_compat import QCheckBox, QComboBox, QDoubleSpinBox, QLineEdit, QSlider, QSpinBox
+        if isinstance(widget, QCheckBox):
+            value = str(raw).strip().lower() in ("1", "true", "on", "yes", "checked")
+            widget.setChecked(value)
+            return value
+        if isinstance(widget, QComboBox):
+            index = widget.findText(str(raw))
+            if index < 0:
+                index = widget.findData(raw)
+            if index < 0:
+                raise ValueError("no such option: %s" % raw)
+            widget.setCurrentIndex(index)
+            return widget.currentText()
+        if isinstance(widget, QSlider):
+            widget.setValue(int(round(float(raw))))
+            return widget.value()
+        if isinstance(widget, QDoubleSpinBox):
+            widget.setValue(float(raw))
+            return widget.value()
+        if isinstance(widget, QSpinBox):
+            widget.setValue(int(round(float(raw))))
+            return widget.value()
+        if isinstance(widget, QLineEdit):
+            widget.setText(str(raw))
+            return widget.text()
+        raise ValueError("unsupported field type")
+
+    def _settingsPageNames(self, dialog):
+        return [name for _row, name, _hidden in self._settingsPages(dialog)]
+
+    def msgSettings(self, action, target=None, value=None, force=False):
+        try:
+            dialog = self._findSettingsDialog()
+            if action == "open":
+                if dialog is not None:
+                    return {"ok": True, "already_open": True}
+                # slot_configureCarla() runs a modal loop; defer it so this reply
+                # is sent before the dialog takes over the event loop.
+                QTimer.singleShot(0, self.slot_configureCarla)
+                return {"ok": True}
+            if dialog is None:
+                return {"ok": False, "error": "settings dialog is not open"}
+            if action == "close":
+                dialog.reject()
+                return {"ok": True, "closed": True}
+            if action == "apply":
+                dialog.slot_applySettings()
+                return {"ok": True, "applied": True}
+            if action == "reset":
+                if not force:
+                    return {"ok": False, "error": "refusing to reset settings without force"}
+                dialog.slot_resetSettings()
+                return {"ok": True, "reset": True}
+            if action == "pages":
+                return {"ok": True, "pages": [
+                    {"row": row, "name": name, "hidden": hidden}
+                    for row, name, hidden in self._settingsPages(dialog)]}
+            if action == "page":
+                if not target:
+                    return {"ok": False, "error": "page needs a name",
+                            "pages": self._settingsPageNames(dialog)}
+                wanted = str(target).casefold()
+                for row, name, _hidden in self._settingsPages(dialog):
+                    if name.casefold() == wanted:
+                        dialog.ui.lw_page.setCurrentCell(row, 0)
+                        dialog.ui.lw_page.selectRow(row)
+                        dialog._ensure_tab_built(row)
+                        return {"ok": True, "page": name, "row": row}
+                return {"ok": False, "error": "no such page: %s" % target,
+                        "pages": self._settingsPageNames(dialog)}
+            if action == "fields":
+                fields = []
+                wanted = str(target).casefold() if target else None
+                for row, name, _hidden in self._settingsPages(dialog):
+                    if wanted is not None and name.casefold() != wanted:
+                        continue
+                    dialog._ensure_tab_built(row)
+                    builder = dialog.form_builder_for_row(row)
+                    if builder is None:
+                        continue
+                    for field_id, fdef in builder.field_defs.items():
+                        widget = builder.widgets.get(field_id)
+                        if widget is None:
+                            continue
+                        fields.append({"id": field_id, "type": fdef.get("type"),
+                                       "page": name, "value": self._settingsValue(widget)})
+                return {"ok": True, "fields": fields}
+            if action in ("get", "set"):
+                if not target:
+                    return {"ok": False, "error": "%s needs a field id" % action}
+                builder, widget = self._settingsField(dialog, target)
+                if widget is None:
+                    return {"ok": False, "error": "no such field: %s" % target}
+                if action == "get":
+                    return {"ok": True, "field": target, "value": self._settingsValue(widget)}
+                if value is None:
+                    return {"ok": False, "error": "set needs a value"}
+                try:
+                    new_value = self._setSettingsValue(widget, value)
+                except (TypeError, ValueError) as exc:
+                    return {"ok": False, "error": str(exc)}
+                return {"ok": True, "field": target, "value": new_value}
+            return {"ok": False, "error": "unknown settings action: %s" % action}
+        except Exception as exc:
+            import traceback
+            log_carla("claramsg settings error: %s" % traceback.format_exc(), level="warn")
+            return {"ok": False, "error": str(exc)}
+
+    # --------------------------------------------------------------------------------------------------------
+    # Canvas control (claramsg canvas ...)
+
+    def msgCanvas(self, action, value=None):
+        scene = getattr(self, "scene", None)
+        if scene is None:
+            return {"ok": False, "error": "no canvas"}
+        try:
+            if action == "zoom":
+                if value is None:
+                    return {"ok": False, "error": "zoom needs a scale or in/out/fit/reset"}
+                text = str(value).strip().lower()
+                if text == "in":
+                    scene.zoom_in()
+                elif text == "out":
+                    scene.zoom_out()
+                elif text == "fit":
+                    scene.zoom_fit()
+                elif text == "reset":
+                    scene.zoom_reset()
+                else:
+                    scale = max(scene.m_scale_min, min(scene.m_scale_max, float(text)))
+                    view = scene.getView()
+                    transform = view.transform()
+                    transform.reset()
+                    transform.scale(scale, scale)
+                    view.setTransform(transform)
+                    scene.scaleChanged.emit(scale)
+                return {"ok": True, "scale": round(scene.getScaleFactor(), 4)}
+            if action == "state":
+                import patchcanvas
+                data = {
+                    "scale": round(scene.getScaleFactor(), 4),
+                    "nodes": len(getattr(patchcanvas.canvas, "group_list", [])),
+                    "connections": len(getattr(patchcanvas.canvas, "connection_list", [])),
+                    "containers": len(getattr(patchcanvas.canvas, "container_list", [])),
+                }
+                options = patchcanvas.options
+                for key in ("box_shadows", "shadow_spread", "shadow_distance",
+                            "shadow_opacity", "shadow_dragging"):
+                    data[key] = getattr(options, key, None)
+                return {"ok": True, "canvas": data}
+            return {"ok": False, "error": "unknown canvas action: %s" % action}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
     def handleMsgRequest(self, request):
         """Read-only control channel; mutating commands go through the same host slots."""
         cmd = request.get("cmd")
@@ -209,6 +419,19 @@ class ControlMixin:
             result = self.msgScreenshot(request.get("path"), bool(request.get("dialog")))
             if not result.get("ok"):
                 return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
+            return {"v": 1, "ok": True, "data": result}
+        if cmd == "settings":
+            result = self.msgSettings(request.get("action"), request.get("target"),
+                                      request.get("value"), bool(request.get("force")))
+            if not result.get("ok"):
+                return {"v": 1, "ok": False,
+                        "error": {"code": "internal", "message": result.get("error", "failed")}}
+            return {"v": 1, "ok": True, "data": result}
+        if cmd == "canvas":
+            result = self.msgCanvas(request.get("action"), request.get("value"))
+            if not result.get("ok"):
+                return {"v": 1, "ok": False,
+                        "error": {"code": "internal", "message": result.get("error", "failed")}}
             return {"v": 1, "ok": True, "data": result}
         if cmd == "dialogs":
             result = self.msgDialogs()

@@ -411,6 +411,21 @@ COMMANDS
       in the current directory. `screenshot --path PATH` still works.
       Explicit paths may not be symlinks or special files.
 
+  settings open|close|apply|reset|pages
+  settings page <name>
+  settings fields [<page>] [-j]
+  settings get <field>
+  settings set <field> <value>
+      Drive the open settings dialog. `open` shows it, `set` only changes the
+      widget, `apply` commits exactly like the Apply button. `reset` needs
+      --force. Fields are the schema ids (app_theme, box_shadows,
+      shadow_spread, ...).
+
+  canvas zoom <scale|in|out|fit|reset>
+  canvas state [-j]
+      Control and inspect the patchbay view; `state` reports zoom, counts and
+      the live shadow options.
+
   dialogs [-j]
       List visible dialogs and their button texts.
 
@@ -471,6 +486,12 @@ CANVAS
 DIALOGS AND SCREENSHOTS
   {prog} dialogs
   {prog} shot
+  {prog} settings open
+  {prog} settings page Patchbay
+  {prog} settings set shadow_spread 20
+  {prog} settings apply
+  {prog} canvas zoom 0.5
+  {prog} canvas state -j
   {prog} shot ~/Pictures
   {prog} shot --dialog
   {prog} dialog accept
@@ -498,7 +519,7 @@ TIPS
 
 
 _COMMANDS = ("status", "save", "show", "events", "list", "open", "shot", "screenshot",
-             "dialogs", "dialog", "replace", "help", "examples")
+             "settings", "canvas", "dialogs", "dialog", "replace", "help", "examples")
 
 
 def _use_color():
@@ -597,6 +618,20 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     shot_parser.add_argument("--dialog", action="store_true")
     shot_parser.add_argument("--path", default=None)
 
+    settings_parser = sub.add_parser("settings", help="inspect or drive the settings dialog")
+    settings_parser.add_argument("action", choices=(
+        "open", "close", "apply", "reset", "pages", "page", "fields", "get", "set"))
+    settings_parser.add_argument("target", nargs="?", default=None,
+                                 help="page name or field id")
+    settings_parser.add_argument("value", nargs="?", default=None, help="value for set")
+    settings_parser.add_argument("--force", action="store_true")
+    settings_parser.add_argument("-j", "--json", action="store_true")
+
+    canvas_parser = sub.add_parser("canvas", help="control or inspect the patchbay view")
+    canvas_parser.add_argument("action", choices=("zoom", "state"))
+    canvas_parser.add_argument("value", nargs="?", default=None)
+    canvas_parser.add_argument("-j", "--json", action="store_true")
+
     dialogs_parser = sub.add_parser("dialogs", help="list visible dialogs")
     dialogs_parser.add_argument("-j", "--json", action="store_true")
 
@@ -659,6 +694,46 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
         if reply is None:
             return 1
         print((reply.get("data") or {}).get("path", ""))
+        return 0
+
+    if args.cmd == "settings":
+        payload = build_request("settings", action=args.action, target=args.target,
+                                value=args.value, force=bool(args.force))
+        reply = _send(socket_path, payload)
+        if reply is None:
+            return 1
+        data = reply.get("data") or {}
+        if args.json:
+            print(json.dumps(data, indent=2))
+        elif args.action == "pages":
+            for page in data.get("pages") or []:
+                print("  %s%s" % (page.get("name"), " (hidden)" if page.get("hidden") else ""))
+        elif args.action == "fields":
+            for field in data.get("fields") or []:
+                print("%-26s %-10s %s" % (field.get("id"), field.get("type"), field.get("value")))
+        elif args.action == "get":
+            print(data.get("value"))
+        elif args.action == "set":
+            print("%s = %s" % (data.get("field"), data.get("value")))
+        elif args.action == "page":
+            print(data.get("page"))
+        else:
+            print("OK")
+        return 0
+
+    if args.cmd == "canvas":
+        payload = build_request("canvas", action=args.action, value=args.value)
+        reply = _send(socket_path, payload)
+        if reply is None:
+            return 1
+        data = reply.get("data") or {}
+        if args.json:
+            print(json.dumps(data, indent=2))
+        elif args.action == "state":
+            for key, value in (data.get("canvas") or {}).items():
+                print("%-18s %s" % (key, value))
+        else:
+            print(data.get("scale"))
         return 0
 
     if args.cmd == "dialogs":

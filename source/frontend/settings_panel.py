@@ -330,6 +330,31 @@ class SettingsMixin:
                 CARLA_DEFAULT_CANVAS_LINE_OPACITY,
                 int,
             ),
+            CARLA_KEY_CANVAS_BOX_SHADOWS: settings.value(
+                CARLA_KEY_CANVAS_BOX_SHADOWS,
+                CARLA_DEFAULT_CANVAS_BOX_SHADOWS,
+                bool,
+            ),
+            CARLA_KEY_CANVAS_SHADOW_OPACITY: settings.value(
+                CARLA_KEY_CANVAS_SHADOW_OPACITY,
+                CARLA_DEFAULT_CANVAS_SHADOW_OPACITY,
+                int,
+            ),
+            CARLA_KEY_CANVAS_SHADOW_SPREAD: settings.value(
+                CARLA_KEY_CANVAS_SHADOW_SPREAD,
+                CARLA_DEFAULT_CANVAS_SHADOW_SPREAD,
+                int,
+            ),
+            CARLA_KEY_CANVAS_SHADOW_DISTANCE: settings.value(
+                CARLA_KEY_CANVAS_SHADOW_DISTANCE,
+                CARLA_DEFAULT_CANVAS_SHADOW_DISTANCE,
+                int,
+            ),
+            CARLA_KEY_CANVAS_SHADOW_DRAG: settings.value(
+                CARLA_KEY_CANVAS_SHADOW_DRAG,
+                CARLA_DEFAULT_CANVAS_SHADOW_DRAG,
+                bool,
+            ),
             CARLA_KEY_CUSTOM_PAINTING: (
                 settings.value(CARLA_KEY_MAIN_USE_PRO_THEME, True, bool)
                 and settings.value(CARLA_KEY_MAIN_PRO_THEME_COLOR, "Black", str).lower()
