@@ -330,11 +330,8 @@ class ThemeManager:
             import patchcanvas as patchcanvas_pkg
             if getattr(patchcanvas_pkg.canvas, "initiated", False):
                 from patchcanvas.theme import Theme
-                from utils import QSafeSettings
-                from carla_shared import CARLA_KEY_CANVAS_THEME, CARLA_DEFAULT_CANVAS_THEME
-                settings = QSafeSettings("falkTX", "Carla2")
-                canvas_theme_name = settings.value(CARLA_KEY_CANVAS_THEME, CARLA_DEFAULT_CANVAS_THEME, str)
-                patchcanvas_pkg.canvas.theme = Theme(canvas_theme_name)
+                from carla_shared import CARLA_DEFAULT_CANVAS_THEME
+                patchcanvas_pkg.canvas.theme = Theme(CARLA_DEFAULT_CANVAS_THEME)
                 patchcanvas_pkg.updateTheme()
         except Exception as e:
             print(f"[THEME] Error live refreshing canvas: {e}")

@@ -70,6 +70,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(settings)**: the canvas settings were never copied into the live canvas options, so shadow spread/distance/opacity and the drag toggle appeared to do nothing. They now apply immediately.
 - **feat(msg)**: `claramsg settings` drives the settings dialog: `open`, `pages`, `page <name>`, `fields [page] [-j]`, `get <id>`, `set <id> <value>`, `apply`, `close`, `reset --force`. `claramsg canvas zoom <scale|in|out|fit|reset>` and `canvas state [-j]` control and report the patchbay view, so visual changes can be scripted and verified with `claramsg shot`.
 
+#### 2026-11-10 — One theme for the whole UI
+
+- **refactor(settings)**: the separate "Canvas theme" selector is gone. The patchbay already takes every colour from the app theme; the profile now only supplies structure, so the picker was lying. The dead bundled `styles/themes/*.qss` files (unreachable since the engine compiles `base_primitives.qss`) are deleted too.
+- **refactor(settings)**: the Patchbay page is regrouped into Nodes, Cables, Node shadows and Rendering.
+- **feat(settings)**: shadow spread, distance, opacity and the drag toggle preview live on the canvas while the dialog is open, instead of waiting for Apply.
+- **test(settings)**: a hookup test fails when a canvas key read by `setupCanvas()` is missing from `fSavedSettings` — the exact way the shadow sliders ended up doing nothing. It also caught the arrange style, which was never loaded.
+
 ### Style
 
 #### 2026-11-05 — No boxes around the CLI banner and Ctrl+C prompt

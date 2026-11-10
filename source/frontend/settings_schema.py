@@ -55,8 +55,6 @@ from carla_shared import (
     CARLA_KEY_MAIN_APP_THEME,
     CARLA_DEFAULT_MAIN_APP_THEME,
     # Canvas
-    CARLA_KEY_CANVAS_THEME,
-    CARLA_DEFAULT_CANVAS_THEME,
     CARLA_KEY_CANVAS_SIZE,
     CARLA_DEFAULT_CANVAS_SIZE,
     CARLA_KEY_CANVAS_LINE_STYLE,
@@ -324,16 +322,8 @@ PATCHBAY_SCHEMA = {
             "id": "col_left",
             "groups": [
                 {
-                    "title": "Appearance & Styling",
+                    "title": "Nodes",
                     "fields": [
-                        {
-                            "id": "theme",
-                            "type": "combobox",
-                            "label": "Canvas theme:",
-                            "key": CARLA_KEY_CANVAS_THEME,
-                            "default": CARLA_DEFAULT_CANVAS_THEME,
-                            "options_factory": "themes",
-                        },
                         {
                             "id": "canvas_size",
                             "type": "combobox",
@@ -348,6 +338,47 @@ PATCHBAY_SCHEMA = {
                                 ("5120x2880 (5K)", "5120x2880"),
                             ],
                         },
+                        {
+                            "id": "rounded_nodes",
+                            "type": "checkbox",
+                            "label": "Rounded nodes",
+                            "key": CARLA_KEY_CANVAS_ROUNDED_NODES,
+                            "default": CARLA_DEFAULT_CANVAS_ROUNDED_NODES,
+                        },
+                        {
+                            "id": "node_radius",
+                            "type": "slider",
+                            "label": "Corner radius:",
+                            "key": CARLA_KEY_CANVAS_NODE_RADIUS,
+                            "default": CARLA_DEFAULT_CANVAS_NODE_RADIUS,
+                            "min": 2,
+                            "max": 24,
+                            "suffix": " px",
+                            "depends_on": "rounded_nodes",
+                        },
+                        {
+                            "id": "node_min_width",
+                            "type": "slider",
+                            "label": "Min node width:",
+                            "key": CARLA_KEY_CANVAS_NODE_MIN_WIDTH,
+                            "default": CARLA_DEFAULT_CANVAS_NODE_MIN_WIDTH,
+                            "min": 100,
+                            "max": 320,
+                            "suffix": " px",
+                        },
+                        {
+                            "id": "inline_displays",
+                            "type": "checkbox",
+                            "label": "Embedded inline displays",
+                            "tooltip": "Render embedded plugin meters and UI displays directly inside nodes",
+                            "key": CARLA_KEY_CANVAS_INLINE_DISPLAYS,
+                            "default": CARLA_DEFAULT_CANVAS_INLINE_DISPLAYS,
+                        },
+                    ],
+                },
+                {
+                    "title": "Cables",
+                    "fields": [
                         {
                             "id": "line_style",
                             "type": "combobox",
@@ -379,61 +410,27 @@ PATCHBAY_SCHEMA = {
                             "suffix": "%",
                         },
                         {
-                            "id": "rounded_nodes",
+                            "id": "signal_flow",
                             "type": "checkbox",
-                            "label": "Rounded nodes",
-                            "key": CARLA_KEY_CANVAS_ROUNDED_NODES,
-                            "default": CARLA_DEFAULT_CANVAS_ROUNDED_NODES,
-                        },
-                        {
-                            "id": "node_radius",
-                            "type": "slider",
-                            "label": "Corner radius:",
-                            "key": CARLA_KEY_CANVAS_NODE_RADIUS,
-                            "default": CARLA_DEFAULT_CANVAS_NODE_RADIUS,
-                            "min": 2,
-                            "max": 24,
-                            "suffix": " px",
-                            "depends_on": "rounded_nodes",
-                        },
-                        {
-                            "id": "node_min_width",
-                            "type": "slider",
-                            "label": "Min node width:",
-                            "key": CARLA_KEY_CANVAS_NODE_MIN_WIDTH,
-                            "default": CARLA_DEFAULT_CANVAS_NODE_MIN_WIDTH,
-                            "min": 100,
-                            "max": 320,
-                            "suffix": " px",
-                        },
-                        {
-                            "id": "auto_hide_groups",
-                            "type": "checkbox",
-                            "label": "Auto-hide empty groups",
-                            "key": CARLA_KEY_CANVAS_AUTO_HIDE_GROUPS,
-                            "default": CARLA_DEFAULT_CANVAS_AUTO_HIDE_GROUPS,
-                        },
-                        {
-                            "id": "auto_select",
-                            "type": "checkbox",
-                            "label": "Auto-select items on hover",
-                            "key": CARLA_KEY_CANVAS_AUTO_SELECT_ITEMS,
-                            "default": CARLA_DEFAULT_CANVAS_AUTO_SELECT_ITEMS,
+                            "label": "Signal flow & cable pulses",
+                            "tooltip": "Live audio activity pulse traveling along patchbay cables",
+                            "key": CARLA_KEY_CANVAS_SIGNAL_FLOW,
+                            "default": CARLA_DEFAULT_CANVAS_SIGNAL_FLOW,
                         },
                     ],
-                }
+                },
             ],
         },
         {
             "id": "col_right",
             "groups": [
                 {
-                    "title": "Motion, FX & Performance",
+                    "title": "Node shadows",
                     "fields": [
                         {
                             "id": "box_shadows",
                             "type": "checkbox",
-                            "label": "Node drop shadows",
+                            "label": "Drop shadows",
                             "tooltip": "Render soft drop shadows beneath canvas node boxes",
                             "key": CARLA_KEY_CANVAS_BOX_SHADOWS,
                             "legacy_keys": [CARLA_KEY_CANVAS_EYE_CANDY],
@@ -442,7 +439,7 @@ PATCHBAY_SCHEMA = {
                         {
                             "id": "shadow_spread",
                             "type": "slider",
-                            "label": "Shadow spread:",
+                            "label": "Spread:",
                             "tooltip": "How far the shadow fades out",
                             "key": CARLA_KEY_CANVAS_SHADOW_SPREAD,
                             "default": CARLA_DEFAULT_CANVAS_SHADOW_SPREAD,
@@ -454,7 +451,7 @@ PATCHBAY_SCHEMA = {
                         {
                             "id": "shadow_distance",
                             "type": "slider",
-                            "label": "Shadow distance:",
+                            "label": "Distance:",
                             "tooltip": "How far the shadow is offset from the node",
                             "key": CARLA_KEY_CANVAS_SHADOW_DISTANCE,
                             "default": CARLA_DEFAULT_CANVAS_SHADOW_DISTANCE,
@@ -466,7 +463,7 @@ PATCHBAY_SCHEMA = {
                         {
                             "id": "shadow_opacity",
                             "type": "slider",
-                            "label": "Shadow opacity:",
+                            "label": "Opacity:",
                             "tooltip": "Shadow strength relative to the theme",
                             "key": CARLA_KEY_CANVAS_SHADOW_OPACITY,
                             "default": CARLA_DEFAULT_CANVAS_SHADOW_OPACITY,
@@ -484,13 +481,24 @@ PATCHBAY_SCHEMA = {
                             "default": CARLA_DEFAULT_CANVAS_SHADOW_DRAG,
                             "depends_on": "box_shadows",
                         },
+                    ],
+                },
+                {
+                    "title": "Rendering",
+                    "fields": [
                         {
-                            "id": "signal_flow",
+                            "id": "auto_hide_groups",
                             "type": "checkbox",
-                            "label": "Signal flow & cable pulses",
-                            "tooltip": "Live audio activity pulse traveling along patchbay cables",
-                            "key": CARLA_KEY_CANVAS_SIGNAL_FLOW,
-                            "default": CARLA_DEFAULT_CANVAS_SIGNAL_FLOW,
+                            "label": "Auto-hide empty groups",
+                            "key": CARLA_KEY_CANVAS_AUTO_HIDE_GROUPS,
+                            "default": CARLA_DEFAULT_CANVAS_AUTO_HIDE_GROUPS,
+                        },
+                        {
+                            "id": "auto_select",
+                            "type": "checkbox",
+                            "label": "Auto-select items on hover",
+                            "key": CARLA_KEY_CANVAS_AUTO_SELECT_ITEMS,
+                            "default": CARLA_DEFAULT_CANVAS_AUTO_SELECT_ITEMS,
                         },
                         {
                             "id": "node_transitions",
@@ -517,16 +525,8 @@ PATCHBAY_SCHEMA = {
                             "key": CARLA_KEY_CANVAS_HQ_ANTIALIASING,
                             "default": CARLA_DEFAULT_CANVAS_HQ_ANTIALIASING,
                         },
-                        {
-                            "id": "inline_displays",
-                            "type": "checkbox",
-                            "label": "Embedded inline displays",
-                            "tooltip": "Render embedded plugin meters and UI displays directly inside nodes",
-                            "key": CARLA_KEY_CANVAS_INLINE_DISPLAYS,
-                            "default": CARLA_DEFAULT_CANVAS_INLINE_DISPLAYS,
-                        },
                     ],
-                }
+                },
             ],
         },
     ]
@@ -914,10 +914,6 @@ class SettingsFormBuilder(object):
             from styles.theme_manager import theme_manager
             for name in theme_manager.get_available_themes():
                 combo.addItem(name)
-        elif factory == "themes":
-            from patchcanvas.theme import Theme, getThemeName
-            for i in range(Theme.THEME_MAX):
-                combo.addItem(getThemeName(i))
         elif factory == "line_styles":
             from patchcanvas.linealgos import line_algorithms
             for name, label in line_algorithms():

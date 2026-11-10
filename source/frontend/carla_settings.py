@@ -762,6 +762,44 @@ class CarlaSettingsW(QDialog):
             self.TAB_INDEX_EXPERIMENTAL: getattr(self, "experimental_form_builder", None),
         }.get(row)
 
+    def _connect_live_shadow_fields(self):
+        """Preview shadow changes on the canvas without pressing Apply."""
+        builder = getattr(self, "canvas_form_builder", None)
+        if builder is None:
+            return
+        from patchcanvas import patchcanvas
+        widgets = builder.widgets
+
+        def apply_live(*_):
+            options = patchcanvas.options
+            for field_id, attr, read in (
+                ("box_shadows", "box_shadows", "isChecked"),
+                ("shadow_spread", "shadow_spread", "value"),
+                ("shadow_distance", "shadow_distance", "value"),
+                ("shadow_opacity", "shadow_opacity", "value"),
+                ("shadow_dragging", "shadow_dragging", "isChecked"),
+            ):
+                widget = widgets.get(field_id)
+                if widget is not None:
+                    setattr(options, attr, getattr(widget, read)())
+            try:
+                patchcanvas.applyShadowSettings()
+                if patchcanvas.canvas.scene is not None:
+                    patchcanvas.canvas.scene.update()
+            except Exception:
+                pass
+
+        for field_id, signal_name in (
+            ("box_shadows", "toggled"),
+            ("shadow_spread", "valueChanged"),
+            ("shadow_distance", "valueChanged"),
+            ("shadow_opacity", "valueChanged"),
+            ("shadow_dragging", "toggled"),
+        ):
+            widget = widgets.get(field_id)
+            if widget is not None:
+                getattr(widget, signal_name).connect(apply_live)
+
     @pyqtSlot(int)
     def _ensure_tab_built(self, index):
         if index in self._built_tabs:
@@ -777,6 +815,7 @@ class CarlaSettingsW(QDialog):
             self.canvas_form_builder = SettingsFormBuilder(self, PATCHBAY_SCHEMA)
             self.canvas_form_builder.build_page(self.ui.page_canvas)
             self.canvas_form_builder.load_values(settings)
+            self._connect_live_shadow_fields()
 
         elif index == self.TAB_INDEX_OSC and hasattr(self.ui, "page_osc"):
             self._built_tabs.add(index)

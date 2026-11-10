@@ -33,6 +33,7 @@ from carla_shared import (
     CARLA_DEFAULT_CANVAS_NODE_MIN_WIDTH,
     CARLA_DEFAULT_CANVAS_NODE_RADIUS,
     CARLA_DEFAULT_CANVAS_BOX_SHADOWS,
+    CARLA_DEFAULT_CANVAS_THEME,
     CARLA_DEFAULT_CANVAS_ROUNDED_NODES,
     CARLA_DEFAULT_CANVAS_SHADOW_DISTANCE,
     CARLA_DEFAULT_CANVAS_SHADOW_DRAG,
@@ -62,7 +63,6 @@ from carla_shared import (
     CARLA_KEY_CANVAS_SHADOW_SPREAD,
     CARLA_KEY_CANVAS_SHOW_EXTERNAL,
     CARLA_KEY_CANVAS_SIZE,
-    CARLA_KEY_CANVAS_THEME,
     CARLA_KEY_CANVAS_USE_BEZIER_LINES,
     CARLA_KEY_CANVAS_USE_OPENGL,
     CARLA_KEY_CUSTOM_PAINTING,
@@ -122,7 +122,9 @@ class CanvasMixin:
 
     def setupCanvas(self):
         pOptions = patchcanvas.options_t()
-        pOptions.theme_name = self.fSavedSettings[CARLA_KEY_CANVAS_THEME]
+        # The canvas takes every colour from the app theme; the profile only
+        # supplies structure (port mode, fonts, header size).
+        pOptions.theme_name = CARLA_DEFAULT_CANVAS_THEME
         pOptions.auto_hide_groups = self.fSavedSettings[
             CARLA_KEY_CANVAS_AUTO_HIDE_GROUPS
         ]

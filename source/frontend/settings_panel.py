@@ -330,6 +330,11 @@ class SettingsMixin:
                 CARLA_DEFAULT_CANVAS_LINE_OPACITY,
                 int,
             ),
+            CARLA_KEY_CANVAS_ARRANGE_STYLE: settings.value(
+                CARLA_KEY_CANVAS_ARRANGE_STYLE,
+                CARLA_DEFAULT_CANVAS_ARRANGE_STYLE,
+                str,
+            ),
             CARLA_KEY_CANVAS_BOX_SHADOWS: settings.value(
                 CARLA_KEY_CANVAS_BOX_SHADOWS,
                 CARLA_DEFAULT_CANVAS_BOX_SHADOWS,
