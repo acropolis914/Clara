@@ -287,6 +287,10 @@ def init(appName, scene, callback, debug=False):
 
     canvas.scene.updateTheme()
 
+    from .canvasboxshadow import updateShadowScale
+    canvas.scene.scaleChanged.connect(updateShadowScale)
+    updateShadowScale()
+
     canvas.initiated = True
 
 
