@@ -629,6 +629,9 @@ if __name__ == '__main__':
     from clara_instance_core import instance_paths, register_instance, unregister_instance
     from carla_instance import MsgServer
 
+    # The parent may have set CLARA_INSTANCE_KEY for its own socket; a plugin
+    # host must never inherit it or the two instances collide on one key.
+    os.environ.pop("CLARA_INSTANCE_KEY", None)
     _ctrl_key = "plugin-%d" % os.getpid()
     _ctrl_paths = instance_paths(app_id=_ctrl_key)
     _ctrl_server = MsgServer(_ctrl_paths["socket"], gui.handleMsgRequest, parent=gui)

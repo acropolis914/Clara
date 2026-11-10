@@ -70,6 +70,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(settings)**: the canvas settings were never copied into the live canvas options, so shadow spread/distance/opacity and the drag toggle appeared to do nothing. They now apply immediately.
 - **feat(msg)**: `claramsg settings` drives the settings dialog: `open`, `pages`, `page <name>`, `fields [page] [-j]`, `get <id>`, `set <id> <value>`, `apply`, `close`, `reset --force`. `claramsg canvas zoom <scale|in|out|fit|reset>` and `canvas state [-j]` control and report the patchbay view, so visual changes can be scripted and verified with `claramsg shot`.
 
+#### 2026-11-10 — Nested project loading and the autosave folder
+
+- **fix(project)**: autosaves failed with "Failed to write file" whenever the `.autosaves/<project>` folder did not exist yet. The folder is now created before the backend writes the autosave; this is what popped up when opening a nested Carla-Patchbay UI.
+- **fix(msg)**: `claramsg plugin ui <id> [off]` opens or closes a plugin's custom UI, which makes nested instances testable. A plugin host no longer inherits the parent's `CLARA_INSTANCE_KEY`, so several nested instances keep separate sockets.
+
 #### 2026-11-10 — Instance discovery and UI smoke automation
 
 - **feat(msg)**: `claramsg instances` lists running instances (pid, kind, project), `--instance <pid|key|latest>` targets one, `wait --ready|--dialog` replaces guessy sleeps, and `quit [--force]` closes the window through the normal path (refuses unsaved edits without `--force`).

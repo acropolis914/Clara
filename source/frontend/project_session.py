@@ -137,6 +137,12 @@ class ProjectSessionManager:
         autosave_dir = self.get_autosave_dir(project_filepath)
         if not autosave_dir:
             return None
+        try:
+            os.makedirs(autosave_dir, exist_ok=True)
+        except OSError as e:
+            log_carla(f"ProjectSessionManager::create_autosave could not create {autosave_dir}: {e}",
+                      level="warn")
+            return None
 
         try:
             canonical_path = self.get_canonical_project_filepath(project_filepath)

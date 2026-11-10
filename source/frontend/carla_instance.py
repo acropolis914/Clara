@@ -415,6 +415,9 @@ COMMANDS
       List running Clara instances (pid, kind, project, key) so commands can
       target the right one with --instance.
 
+  plugin ui <id> [off]
+      Show (or hide) a plugin's custom/native UI window.
+
   quit [--force]
       Close the window. Refuses while the project has unsaved changes unless
       --force is given (which discards them).
@@ -535,7 +538,7 @@ TIPS
 
 
 _COMMANDS = ("status", "save", "show", "events", "list", "open", "shot", "screenshot",
-             "settings", "canvas", "instances", "quit", "wait",
+             "settings", "canvas", "plugin", "instances", "quit", "wait",
              "dialogs", "dialog", "replace", "help", "examples")
 
 
@@ -640,6 +643,10 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     sub.add_parser("show", help="raise the running window")
     instances_parser = sub.add_parser("instances", help="list running Clara instances")
     instances_parser.add_argument("-j", "--json", action="store_true")
+    plugin_parser = sub.add_parser("plugin", help="control a plugin")
+    plugin_parser.add_argument("action", choices=("ui",))
+    plugin_parser.add_argument("plugin_id", type=int)
+    plugin_parser.add_argument("value", nargs="?", default=None, help="off to hide")
     quit_parser = sub.add_parser("quit", help="close the window")
     quit_parser.add_argument("--force", action="store_true", help="discard unsaved changes")
     wait_parser = sub.add_parser("wait", help="wait for the app to be ready or show a dialog")
@@ -762,6 +769,16 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
         if reply is None:
             return 1
         print((reply.get("data") or {}).get("path", ""))
+        return 0
+
+    if args.cmd == "plugin":
+        reply = _send(socket_path, build_request("plugin", action=args.action,
+                                                 plugin=args.plugin_id, value=args.value))
+        if reply is None:
+            return 1
+        data = reply.get("data") or {}
+        print("%s %s" % (data.get("name", data.get("plugin")),
+                         "shown" if data.get("shown") else "hidden"))
         return 0
 
     if args.cmd == "quit":

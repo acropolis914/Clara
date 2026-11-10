@@ -389,6 +389,20 @@ class ControlMixin:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
+    def msgPlugin(self, action, plugin_id=None, value=None):
+        if action != "ui":
+            return {"ok": False, "error": "unknown plugin action: %s" % action}
+        try:
+            pid = int(plugin_id)
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "plugin id must be an integer"}
+        if pid < 0 or pid >= int(getattr(self, "fPluginCount", 0)):
+            return {"ok": False, "error": "no such plugin: %s" % plugin_id}
+        show = True if value is None else str(value).lower() not in ("0", "off", "false", "hide")
+        self.host.show_custom_ui(pid, show)
+        return {"ok": True, "plugin": pid, "shown": show,
+                "name": self.host.get_plugin_info(pid)["name"]}
+
     def msgQuit(self, force=False):
         """Close the window through the normal path; refuse to lose unsaved edits."""
         if getattr(self, "fHasUnsavedChanges", False) and not force:
@@ -433,6 +447,13 @@ class ControlMixin:
             result = self.msgScreenshot(request.get("path"), bool(request.get("dialog")))
             if not result.get("ok"):
                 return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
+            return {"v": 1, "ok": True, "data": result}
+        if cmd == "plugin":
+            result = self.msgPlugin(request.get("action"), request.get("plugin"),
+                                    request.get("value"))
+            if not result.get("ok"):
+                return {"v": 1, "ok": False,
+                        "error": {"code": "internal", "message": result.get("error", "failed")}}
             return {"v": 1, "ok": True, "data": result}
         if cmd == "quit":
             result = self.msgQuit(bool(request.get("force")))
