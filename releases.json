@@ -1,6 +1,50 @@
 {
-  "latest": "1.1.8",
+  "latest": "1.2.0",
   "releases": {
+    "1.2.0": {
+      "version": "1.2.0",
+      "date": "2026-11-11",
+      "urgency": "critical",
+      "summary": "One theme for the whole UI, real node shadows, nested Carla-Patchbay projects that load and save correctly, and a scriptable control channel for testing.",
+      "highlights": [
+        "Unified theming: one app theme now drives the rack, the patchbay, dialogs and settings; theme switching settles in ~0.55 s on a 25-plugin project (was ~5.5 s).",
+        "Clara Light rebuilt as a soft-grey theme with high-contrast text, calmer borders and an Apple-style label colour, replacing Catppuccin Latte.",
+        "Node shadows that behave: real drop shadows, zoom-aware blur/offset, spread/distance/opacity controls and a keep-shadows-while-dragging toggle, previewed live.",
+        "Nested Carla-Patchbay projects fixed (upstream #1715): chunks were decoded twice and saved empty; three nesting levels now load, save and round-trip intact.",
+        "Scriptable UI: claramsg can screenshot, drive the settings dialog, zoom/report the canvas, list and target instances, wait for readiness, quit cleanly, and open plugin UIs, including nested plugin hosts.",
+        "Generic bridged LV2 state restore: custom data is applied before a single state:restore, fixing sfizz and LSP plugins alike.",
+        "Autosave no longer fails with \"Failed to write file\", and nested plugin windows no longer add duplicate tray icons."
+      ],
+      "changes": [
+        "Theme engine: the global QSS uses Qt palette roles instead of compiled colour literals, so a theme change swaps the palette and repaints only the visible top-level windows.",
+        "Rack: slots restyle in place instead of being rebuilt, take dark/light from the app theme, and the list itself paints no background so it inherits the theme surface.",
+        "Patchbay: node fill, header, text, outline, shadows, ports, cables, selection, rubberband, grid dots, drag ghosts, containers and role badges all resolve from the app theme.",
+        "Port labels now refresh on theme change instead of keeping cached pens; canvas state reports the resolved theme colours for testing.",
+        "Drop shadows: translucent black instead of the canvas background colour, offset and blur scaled with zoom, plus container shadows.",
+        "Settings: the separate Canvas theme selector is gone (the canvas follows the app theme), the Patchbay page is grouped into Nodes, Cables, Node shadows and Rendering, and shadow changes preview live.",
+        "The stored \"Node drop shadows\" flag is enforced again, and shadow spread/distance/opacity plus the drag toggle are copied into the live canvas options on Apply.",
+        "Nested projects: chunk values are decoded exactly once, the stored XML prolog/DOCTYPE is skipped, empty states are ignored, and a failed load keeps its stored state on save.",
+        "Bridged LV2: custom-data messages are applied even while a plugin is disabled, then one state:restore runs after the batch; sfizz stores raw absolute instrument paths.",
+        "Autosave: the .autosaves/<project> folder is created before the backend writes, fixing the \"Failed to write file\" dialog.",
+        "Tray: only the standalone app owns a tray item; nested plugin and control instances skip it.",
+        "claramsg: new shot, settings, canvas, instances, wait, quit and plugin ui commands, with --instance targeting and pid-scoped sockets for nested plugin hosts.",
+        "scripts/ui_smoke.py launches a scratch instance and checks shadows, zoom, screenshots, theme switching and clean shutdown.",
+        "Performance: plugin edit dialogs are built lazily (18.8k -> 7.2k widgets) and SVG images are parented to their owner instead of becoming top-level widgets.",
+        "Tests: theme colour-literal lint, text/background contrast, settings key hookup, project-storage round-trip, JSON round-trip, and the UI smoke script.",
+        "Clara Light replaces Catppuccin Latte; a saved theme that no longer exists falls back to Catppuccin Macchiato, and every bundled theme is selectable from the registry."
+      ],
+      "image": "docs/screenshots/clara-1.2.0.png",
+      "installation": {
+        "appimage": "Download `Clara-1.1.8-x86_64.AppImage`, then: `chmod +x Clara-1.1.8-x86_64.AppImage && ./Clara-1.1.8-x86_64.AppImage`",
+        "flatpak": "Download/run the Flatpak bundle: `flatpak install --user com.github.acropolis914.Clara.flatpak`",
+        "arch": "Install via AUR / PKGBUILD: `paru -S clara-bin` (or `clara-git`)",
+        "ubuntu": "Download `.deb` and run: `sudo dpkg -i clara-ubuntu-*.deb && sudo apt-get install -f`",
+        "fedora": "Download `.rpm` and run: `sudo dnf install clara-*.rpm`",
+        "void": "Extract tarball: `tar --zstd -xvf clara-void-*.tar.zst -C /`",
+        "alpine": "Extract tarball: `tar --zstd -xvf clara-alpine-*.tar.zst -C /`",
+        "nix": "Run directly via Flake: `nix run github:acropolis914/Clara`"
+      }
+    },
     "1.1.8": {
       "version": "1.1.8",
       "date": "2026-11-04",

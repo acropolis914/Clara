@@ -501,6 +501,13 @@ jobs:
           merge-multiple: true
           path: release-assets
 
+      - name: Include release screenshot
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ -f "docs/screenshots/clara-${TAG}.png" ]; then
+            cp "docs/screenshots/clara-${TAG}.png" release-assets/
+          fi
+
       - name: Extract Structured Notes from releases.json
         id: notes
         run: |
@@ -513,9 +520,19 @@ jobs:
           summary = rel.get("summary", "Automated release")
           urgency = rel.get("urgency", "minor").upper()
           changes = "\n".join(f"- {c}" for c in rel.get("changes", []))
+          highlights = "\n".join(f"- {h}" for h in rel.get("highlights", []))
           inst = rel.get("installation", {})
           inst_text = "\n".join(f"- **{k.title()}**: {v}" for k, v in inst.items())
-          md = f"## 🚀 Clara v{tag} [{urgency}]\n\n{summary}\n\n### ✨ What’s Changed\n{changes}\n\n### 📦 Installation Guide\n{inst_text}\n"
+          image = rel.get("image", "")
+          image_md = ""
+          if image:
+              name = os.path.basename(image)
+              url = f"https://github.com/acropolis914/Clara/releases/download/v{tag}/{name}"
+              image_md = f"![Clara v{tag}]({url})\n\n"
+          md = f"## 🚀 Clara v{tag} [{urgency}]\n\n{image_md}{summary}\n\n"
+          if highlights:
+              md += f"### ⭐ Highlights\n{highlights}\n\n"
+          md += f"### ✨ What’s Changed\n{changes}\n\n### 📦 Installation Guide\n{inst_text}\n"
           with open("RELEASE_NOTES.md", "w") as f:
               f.write(md)
           '

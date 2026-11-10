@@ -22,6 +22,11 @@
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.2.0" date="2026-11-11">
+      <description>
+        <p>One theme for the whole UI with a redesigned Clara Light, zoom-aware node shadows, fixed nested Carla-Patchbay projects, a scriptable claramsg control channel, and generic bridged LV2 state restore.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-10-15">
       <description>
         <p>First Clara feature release: patchbay overhaul, animated signal flow, Catppuccin theming and portable AppImage/Flatpak packaging.</p>

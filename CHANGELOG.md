@@ -18,7 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ---
 
 
-## [Unreleased]
+## [1.2.0] - 2026-11-11
+
+Clara 1.2.0 makes theming consistent end to end (rack, patchbay, dialogs) and fast, gives the patchbay usable node shadows, repairs nested Carla-Patchbay projects so they load, save and round-trip, and adds a scriptable control channel plus a UI smoke test. It also fixes autosave creation, the extra nested tray icons, and restores bridged LV2 state generically.
 
 ### Changed
 
