@@ -70,6 +70,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(settings)**: the canvas settings were never copied into the live canvas options, so shadow spread/distance/opacity and the drag toggle appeared to do nothing. They now apply immediately.
 - **feat(msg)**: `claramsg settings` drives the settings dialog: `open`, `pages`, `page <name>`, `fields [page] [-j]`, `get <id>`, `set <id> <value>`, `apply`, `close`, `reset --force`. `claramsg canvas zoom <scale|in|out|fit|reset>` and `canvas state [-j]` control and report the patchbay view, so visual changes can be scripted and verified with `claramsg shot`.
 
+#### 2026-11-10 — Port labels follow the theme
+
+- **fix(patchbay)**: port labels kept their old colour after a theme switch because ports are stored in `canvas.port_list`, not under the group, so `updateTheme()` never reached them and their cached pens stayed stale. Port widgets are now refreshed explicitly; `canvas state` also reports the resolved node/port theme colours for testing.
+- **chore(engine)**: the failed-nested-load log now includes the engine's last error and the start of the state, which is what identified "Failed to parse project file".
+
 #### 2026-11-10 — Nested project state is never destroyed on save
 
 - **fix(engine)**: a nested Carla-Patchbay project that fails to load is now detected (the loader returned false and the child had zero plugins). Saving then returns the state that was originally loaded instead of serializing the empty child engine, so nested data is no longer wiped. Reproduced with upstream #1715's `layer 2/3` projects: the saved chunks keep every inner plugin.

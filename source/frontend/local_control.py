@@ -384,6 +384,13 @@ class ControlMixin:
                 for key in ("box_shadows", "shadow_spread", "shadow_distance",
                             "shadow_opacity", "shadow_dragging"):
                     data[key] = getattr(options, key, None)
+                theme = getattr(patchcanvas.canvas, "theme", None)
+                if theme is not None:
+                    for key in ("box_text", "box_text_sel", "box_pen", "box_bg_1", "canvas_bg"):
+                        value = getattr(theme, key, None)
+                        if hasattr(value, "color"):
+                            value = value.color()
+                        data[key] = value.name() if hasattr(value, "name") else None
                 return {"ok": True, "canvas": data}
             return {"ok": False, "error": "unknown canvas action: %s" % action}
         except Exception as exc:

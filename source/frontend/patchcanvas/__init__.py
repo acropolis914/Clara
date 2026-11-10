@@ -447,6 +447,10 @@ def updateTheme():
         for port in getattr(group, "port_list", []):
             if port is not None and hasattr(port, "updateTheme"):
                 port.updateTheme()
+    for port in getattr(canvas, "port_list", []):
+        widget = getattr(port, "widget", None)
+        if widget is not None and hasattr(widget, "updateTheme"):
+            widget.updateTheme()
     for connection in getattr(canvas, "connection_list", []):
         widget = getattr(connection, "widget", None)
         if widget is not None and hasattr(widget, "updateTheme"):

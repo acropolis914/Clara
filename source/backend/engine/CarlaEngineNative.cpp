@@ -1539,8 +1539,10 @@ protected:
         fLastStateLoadFailed = ! loaded || (stateHadPlugins && pData->curPluginCount == 0);
 
         if (fLastStateLoadFailed)
-            carla_stderr2("CarlaEngineNative::setState() - project did not load (%u plugins, %s parse), keeping the stored state",
-                          pData->curPluginCount, loaded ? "valid" : "invalid");
+            carla_stderr2("CarlaEngineNative::setState() - project did not load (%u plugins, %s parse), keeping the stored state; error: %s",
+                          pData->curPluginCount, loaded ? "valid" : "invalid", getLastError());
+        if (fLastStateLoadFailed)
+            carla_stderr2("CarlaEngineNative::setState() - state starts with: %.100s", data);
         else
         {
             carla_debug("CarlaEngineNative::setState() - loaded %u plugins", pData->curPluginCount);
