@@ -105,7 +105,7 @@ class CanvasContainer(QGraphicsObject):
         self.setAcceptHoverEvents(True)
 
         # Drop shadow so the container reads as a panel above the canvas.
-        if getattr(options, "eyecandy", False) and not getattr(options, "software_render", False):
+        if getattr(options, "box_shadows", True) and not getattr(options, "software_render", False):
             self.m_shadow = CanvasBoxShadow(self)
             self.m_shadow.setFakeParent(self)
             self.setGraphicsEffect(self.m_shadow)

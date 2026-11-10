@@ -703,7 +703,7 @@ class CanvasBox(QGraphicsObject):
             self.icon_svg = None
 
         # Shadow
-        if options.eyecandy and not options.software_render and QT_VERSION >= 0x50C00:
+        if options.box_shadows and not options.software_render and QT_VERSION >= 0x50C00:
             self.shadow = CanvasBoxShadow(self.toGraphicsObject())
             self.shadow.setFakeParent(self)
             self.setGraphicsEffect(self.shadow)

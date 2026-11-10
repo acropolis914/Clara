@@ -251,7 +251,12 @@ def init(appName, scene, callback, debug=False):
         )
 
     if canvas.initiated:
-        qCritical("PatchCanvas::init() - already initiated")
+        # setupCanvas() calls this again whenever settings are applied; just
+        # refresh what depends on the new options instead of writing an error.
+        if canvas.scene is not None:
+            from . import applyShadowSettings
+            canvas.scene.updateTheme()
+            applyShadowSettings()
         return
 
     if not callback:

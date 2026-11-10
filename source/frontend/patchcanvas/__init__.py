@@ -109,6 +109,11 @@ class options_t(object):
         "grid_enabled",
         "grid_size",
         "snap_enabled",
+        "box_shadows",
+        "shadow_opacity",
+        "shadow_spread",
+        "shadow_distance",
+        "shadow_dragging",
     ]
 
 
@@ -293,6 +298,11 @@ options.arrange_style = "flow"
 options.grid_enabled = True
 options.grid_size = 20
 options.snap_enabled = True
+options.box_shadows = True
+options.shadow_opacity = 100
+options.shadow_spread = 14
+options.shadow_distance = 3
+options.shadow_dragging = False
 
 features = features_t()
 features.group_info = False
@@ -332,6 +342,8 @@ def setOptions(new_options):
         return
 
     # Canvas is already running: apply visual changes live in-place without deleting items!
+    applyShadowSettings()
+
     # 1. Theme update
     if options.theme_name != old_theme:
         for i in range(Theme.THEME_MAX):
@@ -383,6 +395,38 @@ def setOptions(new_options):
                 v.viewport().update()
 
 
+
+
+def applyShadowSettings():
+    """Create, update or drop live canvas shadows from the current options."""
+    if not canvas.initiated or canvas.scene is None:
+        return
+    from .canvasboxshadow import CanvasBoxShadow
+    items = []
+    for group in getattr(canvas, "group_list", []):
+        items.extend(widget for widget in getattr(group, "widgets", []) if widget is not None)
+    items.extend(getattr(canvas, "container_list", []))
+    want = bool(getattr(options, "box_shadows", True)) and not getattr(options, "software_render", False)
+    for item in items:
+        effect = item.graphicsEffect()
+        if want:
+            if not isinstance(effect, CanvasBoxShadow):
+                if effect is not None:
+                    item.setGraphicsEffect(None)
+                effect = CanvasBoxShadow(item)
+                effect.setFakeParent(item)
+                item.setGraphicsEffect(effect)
+                if hasattr(item, "shadow"):
+                    item.shadow = effect
+                elif hasattr(item, "m_shadow"):
+                    item.m_shadow = effect
+            effect.applyOptions()
+        elif effect is not None:
+            item.setGraphicsEffect(None)
+            if hasattr(item, "shadow"):
+                item.shadow = None
+            elif hasattr(item, "m_shadow"):
+                item.m_shadow = None
 
 
 def updateTheme():

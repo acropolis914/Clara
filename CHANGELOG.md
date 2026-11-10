@@ -65,6 +65,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(patchbay)**: node shadows were painted with the canvas background colour, so they were invisible and every node looked flat. The shadow is now a translucent black (softer in light themes), with a small vertical offset and a wider blur, and layout containers get the same shadow.
 - **fix(patchbay)**: the shadow blur/offset now follow the view zoom, so the shadow keeps the same visual weight instead of growing as you zoom out.
 - **feat(msg)**: `claramsg shot [LOC]` saves a PNG of the window (patchbay included) or the active dialog; LOC may be a file or directory and defaults to the current directory. `claramsg screenshot --path` still works.
+- **feat(settings)**: the patchbay settings get a shadow box: spread (blur), distance (offset), opacity, and a "keep shadows while dragging nodes" toggle. The existing "Node drop shadows" checkbox now actually controls shadows (it was stored but never read).
+- **fix(canvas)**: applying settings no longer logs "PatchCanvas::init() - already initiated"; the canvas refreshes its theme and shadows instead.
 
 ### Style
 

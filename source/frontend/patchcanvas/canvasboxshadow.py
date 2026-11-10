@@ -10,7 +10,7 @@ from qt_compat import QColor, QGraphicsDropShadowEffect
 # ------------------------------------------------------------------------------------------------------------
 # Imports (Custom)
 
-from . import canvas
+from . import canvas, options
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -46,14 +46,26 @@ class CanvasBoxShadow(QGraphicsDropShadowEffect):
 
         self.m_fakeParent = None
 
-        self.setColor(canvas.theme.box_shadow)
-        self.setScale(canvas.scene.getScaleFactor() if canvas.scene is not None else 1.0)
+        self.applyOptions()
+
+    def applyOptions(self):
+        """Re-read the shadow settings from the canvas options."""
+        color = QColor(canvas.theme.box_shadow)
+        opacity = max(0.0, min(1.0, getattr(options, "shadow_opacity", 100) / 100.0))
+        color.setAlphaF(color.alphaF() * opacity)
+        self.setColor(color)
+        scale = 1.0
+        if canvas.scene is not None and hasattr(canvas.scene, "getScaleFactor"):
+            scale = canvas.scene.getScaleFactor()
+        self.setScale(scale)
 
     def setScale(self, scale):
         # Cap the radius: blur cost grows with its size and deep zoom already
         # makes nodes huge.
-        self.setBlurRadius(min(max(1.0, SHADOW_BLUR * scale), SHADOW_BLUR * 2.5))
-        self.setOffset(0, SHADOW_OFFSET_Y * scale)
+        spread = float(getattr(options, "shadow_spread", SHADOW_BLUR))
+        distance = float(getattr(options, "shadow_distance", SHADOW_OFFSET_Y))
+        self.setBlurRadius(min(max(1.0, spread * scale), spread * 2.5))
+        self.setOffset(0, distance * scale)
 
     def setFakeParent(self, fakeParent):
         self.m_fakeParent = fakeParent
@@ -73,7 +85,7 @@ class CanvasBoxShadow(QGraphicsDropShadowEffect):
         # While a box is being dragged the blur is recomputed every frame for
         # every moved box, which is the main source of drag lag. Skip the blur
         # and paint the source directly for a smooth drag.
-        if getattr(canvas, "dragging", False):
+        if getattr(canvas, "dragging", False) and not getattr(options, "shadow_dragging", False):
             self.drawSource(painter)
             return
         QGraphicsDropShadowEffect.draw(self, painter)
