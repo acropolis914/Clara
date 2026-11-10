@@ -944,9 +944,9 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
             _emit_error((reply.get("error") or {}).get("message", "failed"))
             return 1
         data = reply.get("data") or {}
-        for key in ("pid", "version", "mode", "project", "dirty", "plugins", "uptime"):
+        for key in ("pid", "version", "mode", "project", "dirty", "plugins", "tray", "uptime"):
             value = data.get(key, "")
-            if key == "dirty" and key in data:
+            if key in ("dirty", "tray") and key in data:
                 value = "yes" if value else "no"
             print("%-8s %s" % (key, value))
         return 0

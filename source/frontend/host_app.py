@@ -1641,6 +1641,7 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             "project": self.fProjectFilename or "",
             "dirty": bool(getattr(self, "fHasUnsavedChanges", False)),
             "plugins": int(getattr(self, "fPluginCount", 0)),
+            "tray": bool(getattr(self, "fSystemTrayIcon", None) is not None),
             "uptime": int(time.time() - _CLARA_PROCESS_START),
         }
 

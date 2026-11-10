@@ -219,6 +219,12 @@ class EventsMixin:
             pass
         self.ui.act_file_quit.triggered.connect(self._requestQuit)
 
+        # Only the standalone app owns a tray item. Nested plugin windows and
+        # control instances must not add more icons to the tray.
+        if getattr(self.host, "isPlugin", False) or getattr(self.host, "isControl", False):
+            self.fSystemTrayIcon = None
+            return
+
         if not QSystemTrayIcon.isSystemTrayAvailable():
             self.fSystemTrayIcon = None
             return
