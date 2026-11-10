@@ -143,7 +143,8 @@ def map_base_to_semantic(palette: Dict[str, str], mode: str = "dark") -> Dict[st
     border_focus = base0D
     text_muted = base04
     text_secondary = base05
-    text_primary = base05 if mode == "dark" else base00
+    # Inversion above already puts the background in base00 and the text in base05.
+    text_primary = base05
     accent = base0D
 
     semantic: Dict[str, str] = {

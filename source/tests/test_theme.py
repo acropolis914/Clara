@@ -29,6 +29,20 @@ def test_qss_uses_palette_roles():
         assert role in qss, f"missing {role}"
 
 
+def test_theme_text_contrasts_with_background():
+    from qt_compat import QColor
+    from styles.engine import ThemeEngine
+    from styles.registry import registry
+
+    for name in ("Catppuccin Mocha", "Catppuccin Macchiato", "Catppuccin Latte"):
+        theme = registry.get_theme(name)
+        tokens = ThemeEngine().resolve_tokens(theme, mode=theme.get("mode", "dark"))
+        text = QColor(tokens["text-primary"])
+        background = QColor(tokens["bg-primary"])
+        assert abs(text.lightness() - background.lightness()) > 80, (
+            f"{name} text-primary and bg-primary have no contrast")
+
+
 def test_palette_maps_theme_tokens():
     from qt_compat import QPalette
     from styles.engine import ThemeEngine

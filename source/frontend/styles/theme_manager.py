@@ -5,10 +5,11 @@ and applies styles live to QApplication without requiring application restart.
 Canvasbox theming is handled independently via patchcanvas/themes.json.
 """
 
-import math
-import re
-import os
 import glob
+import math
+import os
+import re
+import weakref
 
 # Global minimal scrollbar QSS applied to all themes
 MINIMAL_SCROLLBAR_QSS = """QScrollBar:vertical {
@@ -218,11 +219,11 @@ class ThemeManager:
         self._original_style = None
         self._available_themes = None
         self._applied_qss = None
+        self._theme_serial = 0
+        self._themed_windows = weakref.WeakSet()
         self._style_is_fusion = False
         self._rack_rebuild_token = 0
-        self._pending_qss = None
-        self._preview_modal = None
-        self._deferred_refresh_token = 0
+
 
     @classmethod
     def instance(cls):
@@ -283,49 +284,29 @@ class ThemeManager:
         return None
 
     def _apply_full_style(self, qss: str):
-        """Apply the QSS to the chrome without repolishing the rack subtree.
-        The rack slots rebuild from the new tokens separately."""
-        from carla_shared import gCarla
+        """Repolish the windows that are already on screen.
+
+        The stylesheet is palette-only, so a theme switch only needs existing
+        widgets to re-resolve their palette roles. Applying it per window is
+        much cheaper than a QApplication-wide repolish, and windows that carry
+        their own stylesheet (rack list, custom panels) are left alone.
+        """
         app = QApplication.instance()
-        gui = getattr(gCarla, "gui", None)
-        list_widget = getattr(getattr(gui, "ui", None), "listWidget", None) if gui else None
-        layout = getattr(getattr(gui, "ui", None), "horizontalLayout_10", None) if gui else None
+        if self._applied_qss is None:
+            # First application: every window, including windows created later.
+            app.setStyleSheet(qss)
+            self._applied_qss = qss
+            return
 
-        index = -1
-        if list_widget is not None and layout is not None:
-            index = layout.indexOf(list_widget)
-            list_widget.hide()
-            list_widget.setParent(None)
-
-        app.setStyleSheet(qss)
+        self._theme_serial += 1
+        forced = qss + "\n/* theme %d */" % self._theme_serial
+        for widget in app.topLevelWidgets():
+            if widget in self._themed_windows:
+                widget.setStyleSheet(forced)
+            elif not widget.styleSheet():
+                widget.setStyleSheet(forced)
+                self._themed_windows.add(widget)
         self._applied_qss = qss
-
-        if list_widget is not None and layout is not None:
-            if index >= 0:
-                layout.insertWidget(index, list_widget)
-            else:
-                layout.addWidget(list_widget)
-            list_widget.show()
-
-    def _refresh_after_modal(self, token: int):
-        from qt_compat import QApplication, QTimer
-        if token != self._deferred_refresh_token:
-            return
-        app = QApplication.instance()
-        if app is not None and app.activeModalWidget() is not None:
-            QTimer.singleShot(300, lambda: self._refresh_after_modal(token))
-            return
-        qss = self._pending_qss
-        self._pending_qss = None
-        if qss:
-            self._apply_full_style(qss)
-        if self._preview_modal is not None:
-            try:
-                self._preview_modal.setStyleSheet("")
-            except RuntimeError:
-                pass
-            self._preview_modal = None
-        self._notify_theme_changed()
 
     def _notify_theme_changed(self):
         """Live update patchcanvas, canvasbox, rack list, and banners without application restart."""
@@ -368,6 +349,8 @@ class ThemeManager:
                 if hasattr(gCarla.gui, "fSupportBanner") and gCarla.gui.fSupportBanner:
                     if hasattr(gCarla.gui.fSupportBanner, "update_theme_styling"):
                         gCarla.gui.fSupportBanner.update_theme_styling()
+                if hasattr(gCarla.gui, "updateSessionStatusIndicators"):
+                    gCarla.gui.updateSessionStatusIndicators()
         except Exception as e:
             print(f"[THEME] Error live refreshing GUI views: {e}")
 
@@ -384,7 +367,7 @@ class ThemeManager:
                     token = self._rack_rebuild_token
                     queue = list(items)
 
-                    def _rebuild_next():
+                    def _restyle_next():
                         if token != self._rack_rebuild_token or not queue:
                             return
                         p = queue.pop(0)
@@ -392,27 +375,20 @@ class ThemeManager:
                         if list_widget is not None:
                             list_widget.setUpdatesEnabled(False)
                         try:
-                            p.recreateWidget(reopenGui=False)
+                            restyle = getattr(p.fWidget, "restyle", None)
+                            if restyle is not None:
+                                restyle()
+                            else:
+                                p.recreateWidget(reopenGui=False)
                         except Exception as e:
-                            print(f"[THEME] Error rebuilding rack slot: {e}")
+                            print(f"[THEME] Error restyling rack slot: {e}")
                         finally:
                             if list_widget is not None:
                                 list_widget.setUpdatesEnabled(True)
                         if queue:
-                            QTimer.singleShot(16, _rebuild_next)
+                            QTimer.singleShot(16, _restyle_next)
 
-                    def _start_when_idle():
-                        # While the settings dialog is open (exec_), keep the
-                        # preview responsive and restyle the rack after it closes.
-                        app = QApplication.instance()
-                        if token != self._rack_rebuild_token:
-                            return
-                        if app is not None and app.activeModalWidget() is not None:
-                            QTimer.singleShot(300, _start_when_idle)
-                            return
-                        QTimer.singleShot(0, _rebuild_next)
-
-                    QTimer.singleShot(0, _start_when_idle)
+                    QTimer.singleShot(0, _restyle_next)
         except Exception as e:
             print(f"[THEME] Error live refreshing rack slots: {e}")
 
@@ -420,7 +396,7 @@ class ThemeManager:
     def apply_theme(
         self,
         theme_name: str = CARLA_DEFAULT_MAIN_APP_THEME,
-        mode: str = "dark",
+        mode: str | None = None,
         use_system: bool = False,
     ):
         """Apply the specified theme via the centralized theme engine or revert to native system styling."""
@@ -430,7 +406,7 @@ class ThemeManager:
 
         self._using_system = use_system
         self._current_theme = theme_name
-        self._current_mode = mode.lower()
+        self._current_mode = (mode or "dark").lower()
 
         if self._original_style is None and hasattr(app, "style"):
             curr_style = app.style()
@@ -463,17 +439,19 @@ class ThemeManager:
         from .registry import registry
 
         theme_def = registry.get_theme(theme_name, mode=mode)
+        theme_mode = mode or (theme_def.get("mode", "dark") if theme_def else "dark")
+        self._current_mode = theme_mode.lower()
         theme_qss = ""
         tokens = None
         if theme_def:
-            theme_qss = self.engine.compile_qss(theme_def, mode=mode)
+            theme_qss = self.engine.compile_qss(theme_def, mode=theme_mode)
             tokens = self.engine.active_tokens
         else:
             qss_file = self._resolve_theme_file(theme_name)
             if not qss_file and theme_name != CARLA_DEFAULT_MAIN_APP_THEME:
-                theme_def = registry.get_theme(CARLA_DEFAULT_MAIN_APP_THEME, mode=mode)
+                theme_def = registry.get_theme(CARLA_DEFAULT_MAIN_APP_THEME, mode=theme_mode)
                 if theme_def:
-                    theme_qss = self.engine.compile_qss(theme_def, mode=mode)
+                    theme_qss = self.engine.compile_qss(theme_def, mode=theme_mode)
                     tokens = self.engine.active_tokens
                 else:
                     qss_file = self._resolve_theme_file(CARLA_DEFAULT_MAIN_APP_THEME)
@@ -489,17 +467,6 @@ class ThemeManager:
             app.setPalette(build_palette(tokens))
 
         if not theme_qss:
-            return
-
-        modal = app.activeModalWidget()
-        if modal is not None:
-            # Preview the theme in the settings dialog immediately, then update
-            # the rest of the window once the dialog closes.
-            modal.setStyleSheet(theme_qss)
-            self._pending_qss = theme_qss
-            self._preview_modal = modal
-            self._deferred_refresh_token += 1
-            self._refresh_after_modal(self._deferred_refresh_token)
             return
 
         self._apply_full_style(theme_qss)

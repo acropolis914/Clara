@@ -571,9 +571,6 @@ class CanvasMixin:
                 # Only apply custom flush styling if not using system desktop theme
                 from styles.theme_manager import theme_manager
                 if not theme_manager.is_using_system():
-                    tokens = theme_manager.engine.active_tokens or {}
-                    accent = tokens.get("accent", "#89b4fa")
-
                     # No rack/panel rectangle or outline: the theme background shows
                     # through, and the splitter is only visible while hovered.
                     self.splitter.setStyleSheet(f"""
@@ -585,7 +582,7 @@ class CanvasMixin:
                             width: 2px;
                         }}
                         QSplitter::handle:hover {{
-                            background-color: {accent};
+                            background-color: palette(highlight);
                             width: 2px;
                         }}
                     """)

@@ -20,6 +20,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+#### 2026-11-10 — Theme switch repaints the whole UI
+
+- **perf(theme)**: a theme change repolishes only the top-level windows instead of `QApplication.setStyleSheet`, and the rack list stays attached. Chrome settles in ~0.55 s on the 25-plugin test project (was ~2.0 s) and the last slot repaints at ~1.9 s (was ~5.5 s).
+- **perf(rack)**: rack slots restyle in place (`PluginSlot_Minimal.restyle()`) instead of being destroyed and rebuilt. No SVG reloads, no item-widget churn, and the UI keeps responding while the slots update.
+- **fix(theme)**: light themes had `text-primary` mapped to the background color, so all text was invisible. The semantic map now always uses `base05` for text.
+- **fix(theme)**: the save-status label and splitter hover use theme tokens/palette roles instead of `#ffaa00` and `#8aadf4`.
+- **fix(rack)**: slot backgrounds come from the active palette, and a slot keeps the monochrome palette that matches its own dark/light skin, so text stays readable when the app theme and the slot skin differ.
+- **fix(theme)**: theme switching no longer defers until a modal settings dialog closes; the palette, chrome, and rack update immediately.
+- **test(theme)**: added a contrast check for `text-primary` versus `bg-primary` on every bundled theme.
+
 ### Style
 
 #### 2026-11-05 — No boxes around the CLI banner and Ctrl+C prompt

@@ -1373,13 +1373,12 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         if not hasattr(self, "label_save_status") or not hasattr(self, "label_autosave_status"):
             return
 
+        from styles.theme_manager import theme_manager
         is_dirty = getattr(self, "fHasUnsavedChanges", False)
-        if is_dirty:
-            self.label_save_status.setText(self.tr("● Unsaved"))
-            self.label_save_status.setStyleSheet("color: #ffaa00; font-weight: bold; margin-left: 8px; margin-right: 4px;")
-        else:
-            self.label_save_status.setText(self.tr("✓ Saved"))
-            self.label_save_status.setStyleSheet("color: #55ff55; font-weight: bold; margin-left: 8px; margin-right: 4px;")
+        color = theme_manager.engine.get_token("orange" if is_dirty else "green")
+        self.label_save_status.setText(self.tr("● Unsaved") if is_dirty else self.tr("✓ Saved"))
+        self.label_save_status.setStyleSheet(
+            "color: %s; font-weight: bold; margin-left: 8px; margin-right: 4px;" % color)
 
         if hasattr(self, "fSessionManager") and self.fSessionManager is not None and self.fSessionManager.enabled:
             secs_left = self.fSessionManager.get_seconds_until_next_autosave()

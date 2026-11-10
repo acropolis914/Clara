@@ -121,13 +121,43 @@ CATPPUCCIN_LATTE = {
 }
 
 
+CATEGORY_TOKENS = {
+    PLUGIN_CATEGORY_SYNTH: 'blue',
+    PLUGIN_CATEGORY_DELAY: 'peach',
+    PLUGIN_CATEGORY_EQ: 'green',
+    PLUGIN_CATEGORY_FILTER: 'teal',
+    PLUGIN_CATEGORY_DISTORTION: 'red',
+    PLUGIN_CATEGORY_DYNAMICS: 'mauve',
+    PLUGIN_CATEGORY_MODULATOR: 'yellow',
+    PLUGIN_CATEGORY_UTILITY: 'sky',
+}
+
+CATEGORY_NAMES = {
+    PLUGIN_CATEGORY_SYNTH: "Synth",
+    PLUGIN_CATEGORY_DELAY: "Delay",
+    PLUGIN_CATEGORY_EQ: "EQ",
+    PLUGIN_CATEGORY_FILTER: "Filter",
+    PLUGIN_CATEGORY_DISTORTION: "Distortion",
+    PLUGIN_CATEGORY_DYNAMICS: "Dynamics",
+    PLUGIN_CATEGORY_MODULATOR: "Modulator",
+    PLUGIN_CATEGORY_UTILITY: "Utility",
+    PLUGIN_CATEGORY_OTHER: "FX",
+}
+
+
+def _rgba(color, alpha):
+    """Theme token -> QSS rgba string with the given 0-255 alpha."""
+    c = QColor(color)
+    return f"rgba({c.red()}, {c.green()}, {c.blue()}, {alpha})"
+
+
 def get_active_skin_palette(is_dark=True):
     """Retrieve active palette dynamically from theme_manager with fallback to Catppuccin."""
     try:
         from styles.theme_manager import theme_manager
         t = theme_manager.engine.active_tokens
         if t and "bg-surface" in t:
-            return {
+            palette = {
                 'base': t.get("bg-primary", "#1e1e2e" if is_dark else "#eff1f5"),
                 'mantle': t.get("bg-primary", "#181825" if is_dark else "#e6e9ef"),
                 'crust': t.get("base00", "#11111b" if is_dark else "#dce0e8"),
@@ -155,6 +185,29 @@ def get_active_skin_palette(is_dark=True):
                 'flamingo': t.get("orange", "#f2cdcd" if is_dark else "#dd7878"),
                 'rosewater': t.get("accent-tint-15", "#f5e0dc" if is_dark else "#dc8a78"),
             }
+            # A slot keeps its own dark/light skin, so its monochrome roles must
+            # match that skin rather than the app theme, or the text vanishes.
+            theme_is_dark = QColor(t.get("bg-primary", "#000000")).lightness() < 128
+            if theme_is_dark != bool(is_dark):
+                fallback = CATPPUCCIN_MOCHA if is_dark else CATPPUCCIN_LATTE
+                # Map the semantic keys back onto the named Catppuccin palette:
+                # the token palette puts base01 in surface1, but the named one
+                # calls base01 "mantle".
+                palette.update({
+                    'base': fallback['crust'],
+                    'mantle': fallback['crust'],
+                    'crust': fallback['crust'],
+                    'surface0': fallback['surface0'],
+                    'surface1': fallback['mantle'],
+                    'surface2': fallback['base'],
+                    'overlay0': fallback['overlay0'],
+                    'overlay1': fallback['overlay1'],
+                    'overlay2': fallback['overlay2'],
+                    'subtext0': fallback['subtext0'],
+                    'subtext1': fallback['subtext1'],
+                    'text': fallback['text'],
+                })
+            return palette
     except Exception:
         pass
     return CATPPUCCIN_MOCHA if is_dark else CATPPUCCIN_LATTE
@@ -2042,31 +2095,22 @@ class PluginSlot_Compact(AbstractPluginSlot):
         self.ui.horizontalLayout_2.setContentsMargins(14, 3, 6, 3)
 
         self.is_dark = skinStyle in ("minimal-dark", "sliders-dark") or "light" not in skinStyle
-        p = CATPPUCCIN_MOCHA if self.is_dark else CATPPUCCIN_LATTE
+        p = get_active_skin_palette(self.is_dark)
 
+        bg = QColor(p['surface1'])
         if skinColor != (0, 0, 0) and skinColor != (255, 255, 255):
-            bg_r, bg_g, bg_b = skinColor
-            if self.is_dark:
-                bg_r = int(0.80 * 24 + 0.20 * bg_r)
-                bg_g = int(0.80 * 24 + 0.20 * bg_g)
-                bg_b = int(0.80 * 37 + 0.20 * bg_b)
-            else:
-                bg_r = int(0.85 * 230 + 0.15 * bg_r)
-                bg_g = int(0.85 * 233 + 0.15 * bg_g)
-                bg_b = int(0.85 * 239 + 0.15 * bg_b)
-        else:
-            if self.is_dark:
-                bg_r, bg_g, bg_b = 24, 24, 37
-            else:
-                bg_r, bg_g, bg_b = 230, 233, 239
+            weight = 0.80 if self.is_dark else 0.85
+            bg = QColor(int(bg.red() * weight + (1.0 - weight) * skinColor[0]),
+                        int(bg.green() * weight + (1.0 - weight) * skinColor[1]),
+                        int(bg.blue() * weight + (1.0 - weight) * skinColor[2]))
 
-        self.minimal_bg_color = QColor(bg_r, bg_g, bg_b)
+        self.minimal_bg_color = bg
         self.border_color = QColor(p['surface0'])
         self.selection_color = QColor(p['lavender'])
 
         text_color = p['text']
         text_disabled = p['overlay0']
-        badge_bg = "rgba(203, 166, 247, 0.12)" if self.is_dark else "rgba(136, 57, 239, 0.10)"
+        badge_bg = _rgba(p['mauve'], 30)
         badge_text = p['mauve']
         bypass_active = p['peach']
 
@@ -2378,6 +2422,22 @@ class SliderParamWidget(QWidget):
         self.setIsMini(is_mini)
         self._updateTooltip()
 
+    def setAccentColor(self, accent_color):
+        if not accent_color or accent_color == self.fAccentColor:
+            return
+        self.fAccentColor = accent_color
+        self.label.setStyleSheet(f"color: {accent_color}; font-weight: bold;")
+        self.slider.setStyleSheet(f"""
+            QSlider::sub-page:horizontal {{
+                background: {accent_color};
+                height: 4px;
+                border-radius: 2px;
+            }}
+            QSlider::handle:horizontal {{
+                border: 1px solid {accent_color};
+            }}
+        """)
+
     def setIsMini(self, is_mini):
         is_mini = bool(is_mini)
         if self.fIsMini == is_mini:
@@ -2492,41 +2552,15 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.w_subrow = None
         self.fMiniSliderParameterList = []
 
-        p = get_active_skin_palette(self.is_dark)
-        has_custom_color = (skinColor != (0, 0, 0) and skinColor != (255, 255, 255))
-
-        if has_custom_color:
-            bg_r, bg_g, bg_b = skinColor
-            if self.is_dark:
-                bg_r = int(0.80 * 24 + 0.20 * bg_r)
-                bg_g = int(0.80 * 24 + 0.20 * bg_g)
-                bg_b = int(0.80 * 37 + 0.20 * bg_b)
-            else:
-                bg_r = int(0.85 * 230 + 0.15 * bg_r)
-                bg_g = int(0.85 * 233 + 0.15 * bg_g)
-                bg_b = int(0.85 * 239 + 0.15 * bg_b)
-            accent_color = f"rgb({skinColor[0]}, {skinColor[1]}, {skinColor[2]})"
-            arcColor = QColor(skinColor[0], skinColor[1], skinColor[2])
-        else:
-            if self.is_dark:
-                bg_r, bg_g, bg_b = 24, 24, 37
-            else:
-                bg_r, bg_g, bg_b = 230, 233, 239
-            accent_color = p['blue']
-            arcColor = QColor(p['blue'])
-
-        self.minimal_bg_color = QColor(bg_r, bg_g, bg_b)
-        self.border_color = QColor(p['surface0'])
-        self.selection_color = QColor(p['lavender'])
-
-        text_color = p['text']
-        text_disabled = p['overlay0']
-        badge_bg = "rgba(203, 166, 247, 0.12)" if self.is_dark else "rgba(136, 57, 239, 0.10)"
-        badge_text = p['mauve']
-        slider_groove = p['surface0']
-        slider_track = accent_color
-        slider_handle = p['text']
-        slider_handle_border = p['blue'] if not has_custom_color else accent_color
+        colors = self._themeColors()
+        p = colors['p']
+        self.minimal_bg_color = colors['bg']
+        self.border_color = colors['border']
+        self.selection_color = colors['selection']
+        accent_color = colors['accent']
+        arcColor = colors['arc']
+        text_color = colors['text']
+        text_disabled = colors['text_disabled']
 
         # Create clean QPushButton instances with FontAwesome Nerd Font glyphs for minimal style
         # Power / DSP Active: \uf011
@@ -2612,30 +2646,8 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.ui.horizontalLayout.addWidget(self.b_edit)
 
         plugin_cat = self.fPluginInfo.get('category', PLUGIN_CATEGORY_OTHER)
-        CATPPUCCIN_CATEGORY_COLORS = {
-            PLUGIN_CATEGORY_SYNTH: '#89b4fa',      # Blue
-            PLUGIN_CATEGORY_DELAY: '#fab387',      # Peach
-            PLUGIN_CATEGORY_EQ: '#a6e3a1',         # Green
-            PLUGIN_CATEGORY_FILTER: '#94e2d5',     # Teal
-            PLUGIN_CATEGORY_DISTORTION: '#f38ba8', # Red
-            PLUGIN_CATEGORY_DYNAMICS: '#cba6f7',   # Mauve
-            PLUGIN_CATEGORY_MODULATOR: '#f9e2af',  # Yellow
-            PLUGIN_CATEGORY_UTILITY: '#89dceb',    # Sky
-            PLUGIN_CATEGORY_OTHER: '#b4befe',      # Lavender
-        }
-        CATPPUCCIN_CATEGORY_NAMES = {
-            PLUGIN_CATEGORY_SYNTH: "Synth",
-            PLUGIN_CATEGORY_DELAY: "Delay",
-            PLUGIN_CATEGORY_EQ: "EQ",
-            PLUGIN_CATEGORY_FILTER: "Filter",
-            PLUGIN_CATEGORY_DISTORTION: "Distortion",
-            PLUGIN_CATEGORY_DYNAMICS: "Dynamics",
-            PLUGIN_CATEGORY_MODULATOR: "Modulator",
-            PLUGIN_CATEGORY_UTILITY: "Utility",
-            PLUGIN_CATEGORY_OTHER: "FX",
-        }
-        self.cat_color = CATPPUCCIN_CATEGORY_COLORS.get(plugin_cat, p['mauve'])
-        cat_name = CATPPUCCIN_CATEGORY_NAMES.get(plugin_cat, "")
+        self.cat_color = self._categoryColor(p)
+        cat_name = CATEGORY_NAMES.get(plugin_cat, "")
         plugin_type_str = getPluginTypeAsString(self.fPluginInfo['type'])
         type_sub = f"{plugin_type_str} • {cat_name.upper()}" if cat_name else plugin_type_str
 
@@ -2658,7 +2670,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.label_badge.setObjectName("label_badge")
         self.label_badge.setAutoFillBackground(False)
         self.label_badge.setToolTip(f"Plugin: {self.fFullTitle} ({type_sub})")
-        self.label_badge.setStyleSheet(f"color: {self.cat_color}; font-size: 8px; font-weight: 700; background: transparent; padding: 0px; margin: 0px;")
+        self._applyBadgeStyle()
 
         self.layout_title_stack.addWidget(self.label_name)
         self.layout_title_stack.addWidget(self.label_badge)
@@ -2788,6 +2800,110 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.ui.verticalLayout.setContentsMargins(8, 4, 6, 4)
         self.ui.verticalLayout.setSpacing(2)
 
+        self.setStyleSheet(self._buildStyleSheet())
+
+        colorEnabled = QColor(text_color)
+        colorDisabled = QColor(text_disabled)
+        dial_col_width = 68
+        dial_col_height = 54
+        for _, paramWidget in self.fParameterList:
+            if hasattr(paramWidget, "setLabelColor"):
+                paramWidget.setLabelColor(colorEnabled, colorDisabled)
+            if hasattr(paramWidget, "setCustomPaintColor"):
+                paramWidget.setCustomPaintColor(arcColor)
+                paramWidget.setCustomPaintMode(ScalableDial.CUSTOM_PAINT_MODE_FLAT)
+            if isinstance(paramWidget, ScalableDial):
+                paramWidget.setFixedSize(dial_col_width, dial_col_height)
+
+        if self.w_knobs_left is not None:
+            leftLayout = self.w_knobs_left.layout()
+            if leftLayout is not None:
+                try:
+                    leftLayout.setSpacing(6)
+                    leftLayout.setContentsMargins(6, 4, 6, 4)
+                except Exception:
+                    pass
+
+        if self.is_slider_mode:
+            self.setSliderMode(True)
+        else:
+            self.setSliderMode(False)
+
+        # Initialize modernized header layout mode (default True for minimal/sliders skin)
+        self.is_modernized_slice = True
+        custom_slice = self.host.get_custom_data_value(self.fPluginId, CUSTOM_DATA_TYPE_PROPERTY, "CarlaModernizedHeaderSlice")
+        if custom_slice is not None and custom_slice != "":
+            self.is_modernized_slice = (custom_slice.lower() in ("1", "true"))
+        self._apply_modernized_slice_layout(self.is_modernized_slice)
+
+    def _themeColors(self):
+        """Resolve every theme-dependent color used by this slot."""
+        p = get_active_skin_palette(self.is_dark)
+        skinColor = self.fSkinColor
+        has_custom_color = skinColor not in ((0, 0, 0), (255, 255, 255))
+
+        bg = QColor(p['surface1'])
+        if has_custom_color:
+            weight = 0.80 if self.is_dark else 0.85
+            bg = QColor(int(bg.red() * weight + (1.0 - weight) * skinColor[0]),
+                        int(bg.green() * weight + (1.0 - weight) * skinColor[1]),
+                        int(bg.blue() * weight + (1.0 - weight) * skinColor[2]))
+            accent = f"rgb({skinColor[0]}, {skinColor[1]}, {skinColor[2]})"
+            arc = QColor(skinColor[0], skinColor[1], skinColor[2])
+        else:
+            accent = p['blue']
+            arc = QColor(p['blue'])
+
+        return {
+            'p': p,
+            'bg': bg,
+            'border': QColor(p['surface0']),
+            'selection': QColor(p['lavender']),
+            'accent': accent,
+            'arc': arc,
+            'text': p['text'],
+            'text_disabled': p['overlay0'],
+            'badge_bg': _rgba(p['mauve'], 30),
+            'badge_text': p['mauve'],
+            'slider_groove': p['surface0'],
+            'slider_track': accent,
+            'slider_handle': p['text'],
+            'slider_handle_border': p['blue'] if not has_custom_color else accent,
+        }
+
+    def _categoryColor(self, p):
+        token = CATEGORY_TOKENS.get(self.fPluginInfo.get('category', PLUGIN_CATEGORY_OTHER), 'lavender')
+        return p[token]
+
+    def _applyBadgeStyle(self):
+        self.label_badge.setStyleSheet(
+            "color: %s; font-size: 8px; font-weight: 700; background: transparent; padding: 0px; margin: 0px;"
+            % self.cat_color)
+
+    def _applySliceColors(self):
+        p = get_active_skin_palette(self.is_dark)
+        if getattr(self, '_modern_slice_container', None) is None:
+            return
+        self._modern_slice_container.setStyleSheet(
+            "QWidget#w_modern_slice { background: %s; border: 1px solid %s; border-radius: 4px; }"
+            % (_rgba(p['base'], 50), _rgba(p['surface1'], 60)))
+        self._led_grid_container.setStyleSheet("background: %s; border-radius: 2px;" % _rgba(p['base'], 60))
+        self._meter_slice_container.setStyleSheet("border-left: 1px solid %s;" % _rgba(p['surface1'], 60))
+        for pm in (getattr(self, 'peak_in', None), getattr(self, 'peak_out', None)):
+            if pm is not None:
+                pm.setStyleSheet("background: %s; border-radius: 2px;" % _rgba(p['base'], 200))
+
+    def _buildStyleSheet(self, colors=None):
+        colors = colors or self._themeColors()
+        p = colors['p']
+        badge_bg = colors['badge_bg']
+        badge_text = colors['badge_text']
+        text_color = colors['text']
+        text_disabled = colors['text_disabled']
+        slider_groove = colors['slider_groove']
+        slider_track = colors['slider_track']
+        slider_handle = colors['slider_handle']
+        slider_handle_border = colors['slider_handle_border']
         styleSheet = f"""
             QFrame#PluginWidget, QWidget#w_title_stack, QWidget#w_title_row, QWidget#w_slot_subrow, QWidget#w_buttons {{
                 background: transparent;
@@ -3097,41 +3213,40 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 border: 2px solid {p['lavender']};
             }}
         """
-        self.setStyleSheet(styleSheet)
+        return styleSheet
 
-        colorEnabled = QColor(text_color)
-        colorDisabled = QColor(text_disabled)
-        dial_col_width = 68
-        dial_col_height = 54
+    def restyle(self):
+        """Reapply theme colors in place instead of rebuilding the whole slot."""
+        colors = self._themeColors()
+        p = colors['p']
+        self.minimal_bg_color = colors['bg']
+        self.border_color = colors['border']
+        self.selection_color = colors['selection']
+        self.cat_color = self._categoryColor(p)
+        self._applyBadgeStyle()
+        self.setStyleSheet(self._buildStyleSheet(colors))
+
+        colorEnabled = QColor(colors['text'])
+        colorDisabled = QColor(colors['text_disabled'])
         for _, paramWidget in self.fParameterList:
             if hasattr(paramWidget, "setLabelColor"):
                 paramWidget.setLabelColor(colorEnabled, colorDisabled)
             if hasattr(paramWidget, "setCustomPaintColor"):
-                paramWidget.setCustomPaintColor(arcColor)
-                paramWidget.setCustomPaintMode(ScalableDial.CUSTOM_PAINT_MODE_FLAT)
-            if isinstance(paramWidget, ScalableDial):
-                paramWidget.setFixedSize(dial_col_width, dial_col_height)
+                paramWidget.setCustomPaintColor(colors['arc'])
 
-        if self.w_knobs_left is not None:
-            leftLayout = self.w_knobs_left.layout()
-            if leftLayout is not None:
-                try:
-                    leftLayout.setSpacing(6)
-                    leftLayout.setContentsMargins(6, 4, 6, 4)
-                except Exception:
-                    pass
-
-        if self.is_slider_mode:
-            self.setSliderMode(True)
-        else:
-            self.setSliderMode(False)
-
-        # Initialize modernized header layout mode (default True for minimal/sliders skin)
-        self.is_modernized_slice = True
-        custom_slice = self.host.get_custom_data_value(self.fPluginId, CUSTOM_DATA_TYPE_PROPERTY, "CarlaModernizedHeaderSlice")
-        if custom_slice is not None and custom_slice != "":
-            self.is_modernized_slice = (custom_slice.lower() in ("1", "true"))
-        self._apply_modernized_slice_layout(self.is_modernized_slice)
+        accents = {PARAMETER_DRYWET: p['peach'], PARAMETER_VOLUME: p['green']}
+        for sliders in (self.fSliderParameterList, self.fMiniSliderParameterList):
+            for index, widget in sliders:
+                if hasattr(widget, "setAccentColor"):
+                    widget.setAccentColor(accents.get(index))
+        for container in (self.sliders_container, self.mini_params_tray):
+            if container is not None:
+                for sep in container.findChildren(QFrame):
+                    if sep.frameShape() == QFrame.HLine:
+                        sep.setStyleSheet("background: %s; border: none; margin: 2px 2px;" % p['surface0'])
+        if getattr(self, 'is_modernized_slice', False):
+            self._applySliceColors()
+        self.update()
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -3318,9 +3433,6 @@ class PluginSlot_Minimal(PluginSlot_Default):
         if not hasattr(self, '_modern_slice_container'):
             self._modern_slice_container = QWidget(parent=self)
             self._modern_slice_container.setObjectName("w_modern_slice")
-            self._modern_slice_container.setStyleSheet(
-                "QWidget#w_modern_slice { background: rgba(0, 0, 0, 50); border: 1px solid rgba(255, 255, 255, 15); border-radius: 4px; }"
-            )
             slice_layout = QHBoxLayout(self._modern_slice_container)
             slice_layout.setContentsMargins(2, 2, 2, 2)
             slice_layout.setSpacing(3)
@@ -3332,7 +3444,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
             self._led_grid_layout.setContentsMargins(0, 0, 0, 0)
             self._led_grid_layout.setSpacing(2)
             self._led_grid_container.setFixedSize(18, 18)
-            self._led_grid_container.setStyleSheet("background: rgba(0, 0, 0, 40); border-radius: 2px;")
+            self._led_grid_container.setStyleSheet("")
 
             # Meter slice container
             self._meter_slice_container = QWidget(self._modern_slice_container)
@@ -3340,10 +3452,11 @@ class PluginSlot_Minimal(PluginSlot_Default):
             self._meter_slice_layout.setContentsMargins(1, 0, 0, 0)
             self._meter_slice_layout.setSpacing(1)
             self._meter_slice_container.setFixedHeight(18)
-            self._meter_slice_container.setStyleSheet("border-left: 1px solid rgba(255, 255, 255, 15);")
+            self._meter_slice_container.setStyleSheet("")
 
             slice_layout.addWidget(self._led_grid_container)
             slice_layout.addWidget(self._meter_slice_container)
+            self._applySliceColors()
 
             # Place in top row before chevron minimize button
             min_idx = self.ui.layout_top.indexOf(self.b_minimize) if hasattr(self, 'b_minimize') and self.b_minimize is not None else -1
@@ -3383,8 +3496,9 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 if pm is not None:
                     pm.setMeterOrientation(DigitalPeakMeter.VERTICAL)
                     pm.setFixedSize(6, 18)
-                    pm.setStyleSheet("background: rgba(15, 15, 20, 180); border-radius: 2px;")
+                    pm.setStyleSheet("")
 
+            self._applySliceColors()
             self._modern_slice_container.setVisible(True)
         else:
             # Restore legacy layout
