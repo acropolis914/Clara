@@ -83,6 +83,16 @@ from carla_shared import (
     CARLA_DEFAULT_CANVAS_SHADOW_DISTANCE,
     CARLA_KEY_CANVAS_SHADOW_DRAG,
     CARLA_DEFAULT_CANVAS_SHADOW_DRAG,
+    CARLA_KEY_CANVAS_SELECTED_LINE_ENABLED,
+    CARLA_DEFAULT_CANVAS_SELECTED_LINE_ENABLED,
+    CARLA_KEY_CANVAS_SELECTED_LINE_STYLE,
+    CARLA_DEFAULT_CANVAS_SELECTED_LINE_STYLE,
+    CARLA_KEY_CANVAS_SELECTED_LINE_STROKE,
+    CARLA_DEFAULT_CANVAS_SELECTED_LINE_STROKE,
+    CARLA_KEY_CANVAS_SELECTED_LINE_THICKNESS,
+    CARLA_DEFAULT_CANVAS_SELECTED_LINE_THICKNESS,
+    CARLA_KEY_CANVAS_SELECTED_LINE_SKIP_ALL,
+    CARLA_DEFAULT_CANVAS_SELECTED_LINE_SKIP_ALL,
     CARLA_KEY_CANVAS_SIGNAL_FLOW,
     CARLA_DEFAULT_CANVAS_SIGNAL_FLOW,
     CARLA_KEY_CANVAS_NODE_TRANSITIONS,
@@ -408,6 +418,57 @@ PATCHBAY_SCHEMA = {
                             "min": 20,
                             "max": 100,
                             "suffix": "%",
+                        },
+                        {
+                            "id": "selected_line_enabled",
+                            "type": "checkbox",
+                            "label": "Style cables of selected nodes",
+                            "tooltip": "Redraw the cables attached to a selected node with their own routing, pattern and thickness",
+                            "key": CARLA_KEY_CANVAS_SELECTED_LINE_ENABLED,
+                            "default": CARLA_DEFAULT_CANVAS_SELECTED_LINE_ENABLED,
+                        },
+                        {
+                            "id": "selected_line_style",
+                            "type": "combobox",
+                            "label": "Selected routing:",
+                            "key": CARLA_KEY_CANVAS_SELECTED_LINE_STYLE,
+                            "default": CARLA_DEFAULT_CANVAS_SELECTED_LINE_STYLE,
+                            "options_factory": "line_styles_inherit",
+                            "depends_on": "selected_line_enabled",
+                        },
+                        {
+                            "id": "selected_line_stroke",
+                            "type": "combobox",
+                            "label": "Selected pattern:",
+                            "key": CARLA_KEY_CANVAS_SELECTED_LINE_STROKE,
+                            "default": CARLA_DEFAULT_CANVAS_SELECTED_LINE_STROKE,
+                            "options": [
+                                ("Same as normal", "inherit"),
+                                ("Solid", "solid"),
+                                ("Dotted", "dotted"),
+                                ("Dashed", "dashed"),
+                            ],
+                            "depends_on": "selected_line_enabled",
+                        },
+                        {
+                            "id": "selected_line_thickness",
+                            "type": "slider",
+                            "label": "Selected thickness:",
+                            "key": CARLA_KEY_CANVAS_SELECTED_LINE_THICKNESS,
+                            "default": CARLA_DEFAULT_CANVAS_SELECTED_LINE_THICKNESS,
+                            "min": 2,
+                            "max": 12,
+                            "suffix": " px",
+                            "depends_on": "selected_line_enabled",
+                        },
+                        {
+                            "id": "selected_line_skip_all",
+                            "type": "checkbox",
+                            "label": "Skip when all nodes are selected",
+                            "tooltip": "Keep normal cables when the whole graph is selected, so the effect only highlights a focused subset",
+                            "key": CARLA_KEY_CANVAS_SELECTED_LINE_SKIP_ALL,
+                            "default": CARLA_DEFAULT_CANVAS_SELECTED_LINE_SKIP_ALL,
+                            "depends_on": "selected_line_enabled",
                         },
                         {
                             "id": "signal_flow",
@@ -914,7 +975,9 @@ class SettingsFormBuilder(object):
             from styles.theme_manager import theme_manager
             for name in theme_manager.get_available_themes():
                 combo.addItem(name)
-        elif factory == "line_styles":
+        elif factory in ("line_styles", "line_styles_inherit"):
+            if factory == "line_styles_inherit":
+                combo.addItem(self.dialog.tr("Same as normal"), "")
             from patchcanvas.linealgos import line_algorithms
             for name, label in line_algorithms():
                 combo.addItem(self.dialog.tr(label), name)

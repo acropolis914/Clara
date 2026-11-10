@@ -195,6 +195,7 @@ from . import (
 )
 
 from .canvasboxshadow import CanvasBoxShadow
+from .canvasline import scheduleSelectionStyleRefresh
 from .canvasicon import CanvasIcon
 from .canvasport import CanvasPort
 from .linealgos import active_line_algorithm_is_dynamic
@@ -2477,6 +2478,9 @@ class CanvasBox(QGraphicsObject):
         elif change == QGraphicsItem.ItemSelectedHasChanged:
             # A focused/selected node must update its cables right away
             self.updateConnectionSelectionState()
+            # Select-all changes many boxes in a row; one deferred global pass
+            # makes the "skip when everything is selected" rule see the final state.
+            scheduleSelectionStyleRefresh()
 
         return super().itemChange(change, value)
 

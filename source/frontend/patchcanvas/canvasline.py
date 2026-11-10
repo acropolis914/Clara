@@ -24,6 +24,7 @@ from . import (
     canvas,
     options,
     ACTION_PORTS_DISCONNECT,
+    CanvasBoxType,
     EYECANDY_FULL,
     PORT_MODE_OUTPUT,
     PORT_TYPE_AUDIO_JACK,
@@ -42,6 +43,44 @@ from .canvasportglow import CanvasPortGlow
 
 # ------------------------------------------------------------------------------------------------------------
 
+_selection_refresh_scheduled = False
+
+
+def scheduleSelectionStyleRefresh():
+    """Coalesce one global refresh after a batch of selection changes (select all)."""
+    global _selection_refresh_scheduled
+    if _selection_refresh_scheduled:
+        return
+    _selection_refresh_scheduled = True
+
+    def _run():
+        global _selection_refresh_scheduled
+        _selection_refresh_scheduled = False
+        for connection in getattr(canvas, "connection_list", ()):
+            widget = getattr(connection, "widget", None)
+            if widget is not None and hasattr(widget, "refreshSelectionStyle"):
+                widget.refreshSelectionStyle()
+
+    QTimer.singleShot(0, _run)
+
+
+def _allNodesSelected():
+    """True when every node box is selected, used to skip the selected-cable style."""
+    try:
+        scene = canvas.scene
+        if scene is None:
+            return False
+        # Only count what is actually visible: filtered/hidden clients still exist
+        # in group_list but cannot be selected, which would keep this false forever.
+        boxes = [item for item in scene.items()
+                 if item.type() == CanvasBoxType and item.isVisible()]
+        if not boxes:
+            return False
+        return all(item.isSelected() for item in boxes)
+    except Exception:
+        return False
+
+
 class CanvasLine(QGraphicsPathItem):
     """
     Unified connection line item rendering both Bézier curves, straight lines,
@@ -57,6 +96,14 @@ class CanvasLine(QGraphicsPathItem):
         self.m_stroke = stroke if stroke is not None else getattr(options, "line_stroke", "solid")
         self.m_opacity = opacity if opacity is not None else getattr(options, "line_opacity", 100)
         self.m_algorithm = get_line_algorithm(self.m_shape)
+        self.m_base_algorithm = self.m_algorithm
+
+        # Per-selection style override (routing, stroke, thickness)
+        self.m_active_stroke = self.m_stroke
+        self.m_sel_shape = None
+        self.m_sel_algorithm = None
+        self.m_width_override = None
+        self._selection_style_dirty = True
 
         self.m_locked = False
         self.m_lineSelected = None  # None sentinel - ensures updateLineGradient() fires on first call
@@ -72,7 +119,8 @@ class CanvasLine(QGraphicsPathItem):
     def setShape(self, shape):
         if self.m_shape != shape:
             self.m_shape = shape
-            self.m_algorithm = get_line_algorithm(shape)
+            self.m_base_algorithm = get_line_algorithm(shape)
+            self._applySelectionStyle()
             self._cached_pen = None
             self.prepareGeometryChange()
             self.updateLinePos()
@@ -84,6 +132,7 @@ class CanvasLine(QGraphicsPathItem):
     def setStroke(self, stroke):
         if self.m_stroke != stroke:
             self.m_stroke = stroke
+            self._applySelectionStyle()
             self._cached_pen = None
             self.prepareGeometryChange()
             self.updateLineGradient()
@@ -122,15 +171,63 @@ class CanvasLine(QGraphicsPathItem):
                  (p1 is not None and p1.isSelected()) or 
                  (p2 is not None and p2.isSelected()))
 
-        if yesno == self.m_lineSelected:
+        if yesno == self.m_lineSelected and not self._selection_style_dirty:
             return  # No state change - skip expensive gradient + QPen recompute
 
         self.m_lineSelected = yesno
+        style_changed = self._applySelectionStyle()
+        self._selection_style_dirty = False
         self.updateLineGradient()
 
-        # Selection-aware algorithms need a re-route; coalesce to one per event-loop tick
-        if self.m_algorithm.selection_sensitive and self._ctx is not None:
+        # Selection-aware algorithms need a re-route; the selected-cable style may
+        # also switch the algorithm (linear/bezier/...), so rebuild in both cases.
+        if style_changed or (self.m_algorithm.selection_sensitive and self._ctx is not None):
             QTimer.singleShot(0, self.updateLinePos)
+
+    def refreshSelectionStyle(self):
+        """Re-apply the selected-cable options without waiting for a selection change."""
+        self._selection_style_dirty = True
+        self.updateLineSelected()
+
+    def _selectionOverrideActive(self):
+        if not self.m_lineSelected:
+            return False
+        if not getattr(options, "selected_line_enabled", False):
+            return False
+        if getattr(options, "selected_line_skip_all", True) and _allNodesSelected():
+            return False
+        return True
+
+    def _applySelectionStyle(self):
+        """Switch routing/stroke/thickness for a selected cable; returns True on change."""
+        active = self._selectionOverrideActive()
+        shape = getattr(options, "selected_line_style", "") if active else ""
+        stroke = getattr(options, "selected_line_stroke", "inherit") if active else "inherit"
+        thickness = getattr(options, "selected_line_thickness", 5) if active else None
+
+        algorithm = self.m_base_algorithm
+        if shape:
+            if shape != self.m_sel_shape or self.m_sel_algorithm is None:
+                self.m_sel_shape = shape
+                self.m_sel_algorithm = get_line_algorithm(shape)
+            algorithm = self.m_sel_algorithm
+        else:
+            # Drop both, or a later reselect would reuse the stale shape with a
+            # cleared algorithm and paint with None.
+            self.m_sel_shape = None
+            self.m_sel_algorithm = None
+
+        active_stroke = self.m_stroke if stroke in (None, "", "inherit") else stroke
+
+        changed = (algorithm is not self.m_algorithm
+                   or active_stroke != self.m_active_stroke
+                   or thickness != self.m_width_override)
+        self.m_algorithm = algorithm
+        self.m_active_stroke = active_stroke
+        self.m_width_override = thickness
+        if changed:
+            self._cached_pen = None
+        return changed
 
     def triggerDisconnect(self):
         for connection in canvas.connection_list:
@@ -271,9 +368,9 @@ class CanvasLine(QGraphicsPathItem):
         port_gradient.setColorAt(1.0, get_color(get_port_color(self.item2)))
 
         pen_style = Qt.SolidLine
-        if self.m_stroke == "dotted":
+        if self.m_active_stroke == "dotted":
             pen_style = Qt.DotLine
-        elif self.m_stroke == "dashed":
+        elif self.m_active_stroke == "dashed":
             pen_style = Qt.DashLine
 
         cap_style = self.m_algorithm.cap_style
@@ -303,7 +400,10 @@ class CanvasLine(QGraphicsPathItem):
         pen = self._cached_pen if self._cached_pen is not None else self.pen()
         scale = canvas.scene.getScaleFactor() if hasattr(canvas.scene, "getScaleFactor") else 1.0
         # Dynamic cable thickness: maintain clear visibility across zoom levels while remaining crisp when zoomed in
-        effective_width = max(1.5, min(6.0, 2.2 / (scale ** 0.6)))
+        if self.m_width_override:
+            effective_width = max(2.0, min(14.0, float(self.m_width_override) / (scale ** 0.6)))
+        else:
+            effective_width = max(1.5, min(6.0, 2.2 / (scale ** 0.6)))
         if abs(pen.widthF() - effective_width) > 0.05:
             pen = QPen(pen)
             pen.setWidthF(effective_width)

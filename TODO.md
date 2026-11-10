@@ -31,6 +31,8 @@
 ---
 
 ## 🎛️ Patchbay Canvas & Navigation
+- [x] `[Diff: 2]` feat: selected-node cable styling - routing, pattern and thickness change while a node is selected and restore on deselect, with a "skip when all nodes are selected" toggle.
+
 - [x] `[Diff: 1]` feat: Patchbay selection keyboard shortcuts (Ctrl+A to select all, Photoshop-style selection shortcuts: Ctrl+D to deselect, Ctrl+Shift+I to invert selection)
 - [x] `[Diff: 2]` feat: Smoother patchbay rendering and interaction performance (higher refresh/frame rate, reduced dragging jitter and cable render overhead)
 - [x] `[Diff: 1]` feat: Search selection persists selected items until user interaction

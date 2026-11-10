@@ -18,6 +18,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ---
 
 
+## [Unreleased]
+
+### Added
+
+#### 2026-11-11 — Selected-node cable styling
+
+- **feat(canvas)**: cables attached to a selected node can switch to their own routing (linear, bezier, stepped, ...), stroke pattern and thickness, then restore when deselected. Configured under Settings > Patchbay > Cables: enable, selected routing, selected pattern, selected thickness, and "skip when all nodes are selected" so selecting the whole graph stays visually quiet.
+- **feat(msg)**: `claramsg canvas select <node ids|all|none>` selects nodes by graph id, which made this testable end to end.
+
 ## [1.2.0] - 2026-11-11
 
 Clara 1.2.0 makes theming consistent end to end (rack, patchbay, dialogs) and fast, gives the patchbay usable node shadows, repairs nested Carla-Patchbay projects so they load, save and round-trip, and adds a scriptable control channel plus a UI smoke test. It also fixes autosave creation, the extra nested tray icons, and restores bridged LV2 state generically.

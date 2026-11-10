@@ -372,6 +372,29 @@ class ControlMixin:
                     view.setTransform(transform)
                     scene.scaleChanged.emit(scale)
                 return {"ok": True, "scale": round(scene.getScaleFactor(), 4)}
+            if action == "select":
+                import patchcanvas
+                scene = patchcanvas.canvas.scene
+                if scene is None:
+                    return {"ok": False, "error": "no canvas scene"}
+                text = str(value or "none").strip().lower()
+                if text in ("none", "clear", ""):
+                    scene.clearSelection()
+                elif text == "all":
+                    for group in getattr(patchcanvas.canvas, "group_list", []):
+                        for widget in getattr(group, "widgets", []):
+                            if widget is not None:
+                                widget.setSelected(True)
+                else:
+                    wanted = set()
+                    for part in text.replace(" ", ",").split(","):
+                        if part.isdigit():
+                            wanted.add(int(part))
+                    for group in getattr(patchcanvas.canvas, "group_list", []):
+                        for widget in getattr(group, "widgets", []):
+                            if widget is not None:
+                                widget.setSelected(group.group_id in wanted)
+                return {"ok": True, "selected": len(scene.selectedItems())}
             if action == "state":
                 import patchcanvas
                 data = {

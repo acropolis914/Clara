@@ -438,8 +438,10 @@ COMMANDS
 
   canvas zoom <scale|in|out|fit|reset>
   canvas state [-j]
+  canvas select <node ids|all|none>
       Control and inspect the patchbay view; `state` reports zoom, counts and
-      the live shadow options.
+      the live shadow options. `select` takes comma-separated node ids from
+      `list nodes`.
 
   dialogs [-j]
       List visible dialogs and their button texts.
@@ -694,7 +696,7 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     settings_parser.add_argument("-j", "--json", action="store_true")
 
     canvas_parser = sub.add_parser("canvas", help="control or inspect the patchbay view")
-    canvas_parser.add_argument("action", choices=("zoom", "state"))
+    canvas_parser.add_argument("action", choices=("zoom", "state", "select"))
     canvas_parser.add_argument("value", nargs="?", default=None)
     canvas_parser.add_argument("-j", "--json", action="store_true")
 
@@ -863,6 +865,8 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
         elif args.action == "state":
             for key, value in (data.get("canvas") or {}).items():
                 print("%-18s %s" % (key, value))
+        elif args.action == "select":
+            print(data.get("selected"))
         else:
             print(data.get("scale"))
         return 0

@@ -360,6 +360,31 @@ class SettingsMixin:
                 CARLA_DEFAULT_CANVAS_SHADOW_DRAG,
                 bool,
             ),
+            CARLA_KEY_CANVAS_SELECTED_LINE_ENABLED: settings.value(
+                CARLA_KEY_CANVAS_SELECTED_LINE_ENABLED,
+                CARLA_DEFAULT_CANVAS_SELECTED_LINE_ENABLED,
+                bool,
+            ),
+            CARLA_KEY_CANVAS_SELECTED_LINE_STYLE: settings.value(
+                CARLA_KEY_CANVAS_SELECTED_LINE_STYLE,
+                CARLA_DEFAULT_CANVAS_SELECTED_LINE_STYLE,
+                str,
+            ),
+            CARLA_KEY_CANVAS_SELECTED_LINE_STROKE: settings.value(
+                CARLA_KEY_CANVAS_SELECTED_LINE_STROKE,
+                CARLA_DEFAULT_CANVAS_SELECTED_LINE_STROKE,
+                str,
+            ),
+            CARLA_KEY_CANVAS_SELECTED_LINE_THICKNESS: settings.value(
+                CARLA_KEY_CANVAS_SELECTED_LINE_THICKNESS,
+                CARLA_DEFAULT_CANVAS_SELECTED_LINE_THICKNESS,
+                int,
+            ),
+            CARLA_KEY_CANVAS_SELECTED_LINE_SKIP_ALL: settings.value(
+                CARLA_KEY_CANVAS_SELECTED_LINE_SKIP_ALL,
+                CARLA_DEFAULT_CANVAS_SELECTED_LINE_SKIP_ALL,
+                bool,
+            ),
             CARLA_KEY_CUSTOM_PAINTING: (
                 settings.value(CARLA_KEY_MAIN_USE_PRO_THEME, True, bool)
                 and settings.value(CARLA_KEY_MAIN_PRO_THEME_COLOR, "Black", str).lower()

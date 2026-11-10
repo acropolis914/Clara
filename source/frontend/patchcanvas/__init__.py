@@ -105,6 +105,11 @@ class options_t(object):
         "line_style",
         "line_stroke",
         "line_opacity",
+        "selected_line_enabled",
+        "selected_line_style",
+        "selected_line_stroke",
+        "selected_line_thickness",
+        "selected_line_skip_all",
         "arrange_style",
         "grid_enabled",
         "grid_size",
@@ -294,6 +299,11 @@ options.node_min_width = 160
 options.line_style = "bezier"
 options.line_stroke = "solid"
 options.line_opacity = 100
+options.selected_line_enabled = False
+options.selected_line_style = ""
+options.selected_line_stroke = "inherit"
+options.selected_line_thickness = 5
+options.selected_line_skip_all = True
 options.arrange_style = "flow"
 options.grid_enabled = True
 options.grid_size = 20
@@ -333,6 +343,11 @@ def setOptions(new_options):
     options.line_style = getattr(new_options, "line_style", "bezier")
     options.line_stroke = getattr(new_options, "line_stroke", "solid")
     options.line_opacity = getattr(new_options, "line_opacity", 100)
+    options.selected_line_enabled = getattr(new_options, "selected_line_enabled", False)
+    options.selected_line_style = getattr(new_options, "selected_line_style", "")
+    options.selected_line_stroke = getattr(new_options, "selected_line_stroke", "inherit")
+    options.selected_line_thickness = getattr(new_options, "selected_line_thickness", 5)
+    options.selected_line_skip_all = getattr(new_options, "selected_line_skip_all", True)
     options.arrange_style = getattr(new_options, "arrange_style", "flow")
     options.grid_enabled = getattr(new_options, "grid_enabled", True)
     options.grid_size = getattr(new_options, "grid_size", 20)
@@ -348,6 +363,16 @@ def setOptions(new_options):
 
     # Canvas is already running: apply visual changes live in-place without deleting items!
     applyShadowSettings()
+
+    # Re-apply per-cable selection styling when its options change.
+    for connection in getattr(canvas, "connection_list", []):
+        widget = getattr(connection, "widget", None)
+        if widget is None:
+            continue
+        if hasattr(widget, "refreshSelectionStyle"):
+            widget.refreshSelectionStyle()
+        elif hasattr(widget, "updateLineSelected"):
+            widget.updateLineSelected()
 
     # 1. Theme update
     if options.theme_name != old_theme:
