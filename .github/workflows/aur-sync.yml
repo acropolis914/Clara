@@ -121,4 +121,4 @@ jobs:
           SCRIPT
           chmod +x /home/builder/sync.sh
           chown builder:builder /home/builder/sync.sh
-          su builder -c "AUR_PACKAGE='$AUR_PACKAGE' GITHUB_WORKSPACE='$GITHUB_WORKSPACE' bash /home/builder/sync.sh"
+          su builder -c "AUR_PACKAGE='$AUR_PACKAGE' AUR_VERSION='${AUR_VERSION:-}' GITHUB_WORKSPACE='$GITHUB_WORKSPACE' bash /home/builder/sync.sh"
