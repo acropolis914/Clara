@@ -16,6 +16,11 @@ on:
         type: choice
         options:
           - clara-bin
+      version:
+        description: 'Version to publish (leave empty to keep the live AUR version)'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   sync-aur:
@@ -35,6 +40,7 @@ jobs:
         env:
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           AUR_PACKAGE: ${{ inputs.package }}
+          AUR_VERSION: ${{ inputs.version }}
         run: |
           if [ -z "$AUR_SSH_PRIVATE_KEY" ]; then
             echo "::error::AUR_SSH_PRIVATE_KEY secret is not set"
@@ -76,7 +82,12 @@ jobs:
             live_rel="$(sed -n 's/^pkgrel=//p' "$aurdir/PKGBUILD.orig" | head -n1)"
             case "$live_rel" in ''|*[!0-9]*) live_rel=0 ;; esac
           fi
-          [ -n "$live_ver" ] && sed -i "s/^pkgver=.*/pkgver=${live_ver}/" "$aurdir/PKGBUILD"
+          if [ -n "${AUR_VERSION:-}" ]; then
+            # Explicit version: used to repair a release whose publish step failed.
+            sed -i "s/^pkgver=.*/pkgver=${AUR_VERSION}/" "$aurdir/PKGBUILD"
+          elif [ -n "$live_ver" ]; then
+            sed -i "s/^pkgver=.*/pkgver=${live_ver}/" "$aurdir/PKGBUILD"
+          fi
 
           # AUR expects pkgrel to be bumped whenever the PKGBUILD changes; the counter lives on
           # the AUR side, so derive it from the live package rather than from the copy in this
@@ -91,6 +102,7 @@ jobs:
           else
             new_rel="$live_rel"
           fi
+          [ -n "${AUR_VERSION:-}" ] && new_rel=1
           [ "$new_rel" -lt 1 ] && new_rel=1
           sed -i "s/^pkgrel=.*/pkgrel=${new_rel}/" "$aurdir/PKGBUILD"
           rm -f "$aurdir/PKGBUILD.orig" "$aurdir/.masked.orig" "$aurdir/.masked.new"
