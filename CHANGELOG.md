@@ -63,6 +63,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(theme)**: a saved theme that no longer exists (removed or renamed) now falls back to Catppuccin Macchiato instead of leaving the window unstyled. The settings dialog selects the same fallback.
 - **refactor(theme)**: the application theme list is built from the registry, so every bundled theme (Nord, Tokyo Night, Dracula, Gruvbox) is selectable instead of a hardcoded list of four.
 - **fix(patchbay)**: node shadows were painted with the canvas background colour, so they were invisible and every node looked flat. The shadow is now a translucent black (softer in light themes), with a small vertical offset and a wider blur, and layout containers get the same shadow.
+- **fix(patchbay)**: the shadow blur/offset now follow the view zoom, so the shadow keeps the same visual weight instead of growing as you zoom out.
+- **feat(msg)**: `claramsg shot [LOC]` saves a PNG of the window (patchbay included) or the active dialog; LOC may be a file or directory and defaults to the current directory. `claramsg screenshot --path` still works.
 
 ### Style
 

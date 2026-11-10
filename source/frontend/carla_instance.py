@@ -405,10 +405,11 @@ COMMANDS
       changes; save first. If the new load fails, the previous project is
       restored.
 
-  screenshot [--dialog] [--path PATH]
+  shot [LOC] [--dialog]
       Save a PNG of the window (the patchbay is included) or the active
-      dialog. The default is a private 0600 temp file. Explicit paths may
-      not be symlinks or special files.
+      dialog. LOC may be a file or a directory; with no LOC the PNG lands
+      in the current directory. `screenshot --path PATH` still works.
+      Explicit paths may not be symlinks or special files.
 
   dialogs [-j]
       List visible dialogs and their button texts.
@@ -469,8 +470,9 @@ CANVAS
 
 DIALOGS AND SCREENSHOTS
   {prog} dialogs
-  {prog} screenshot
-  {prog} screenshot --dialog
+  {prog} shot
+  {prog} shot ~/Pictures
+  {prog} shot --dialog
   {prog} dialog accept
   {prog} dialog cancel
   {prog} dialog click "Replace"
@@ -495,7 +497,7 @@ TIPS
 """
 
 
-_COMMANDS = ("status", "save", "show", "events", "list", "open", "screenshot",
+_COMMANDS = ("status", "save", "show", "events", "list", "open", "shot", "screenshot",
              "dialogs", "dialog", "replace", "help", "examples")
 
 
@@ -540,6 +542,30 @@ class _MsgParser(argparse.ArgumentParser):
         raise SystemExit(2)
 
 
+def _screenshot_path(target):
+    """Resolve a shot location to an absolute PNG file path."""
+    import time
+    stamp = time.strftime("clara-shot-%Y%m%d-%H%M%S")
+    if not target:
+        folder, name = os.getcwd(), stamp + ".png"
+    else:
+        target = os.path.abspath(os.path.expanduser(str(target)))
+        if os.path.isdir(target):
+            folder, name = target, stamp + ".png"
+        else:
+            folder, name = os.path.dirname(target), os.path.basename(target)
+            if not name:
+                name = stamp + ".png"
+    path = os.path.join(folder, name)
+    if os.path.exists(path):
+        root, ext = os.path.splitext(path)
+        index = 2
+        while os.path.exists("%s-%d%s" % (root, index, ext)):
+            index += 1
+        path = "%s-%d%s" % (root, index, ext)
+    return path
+
+
 def run_msg_cli(argv, socket_path, prog="claramsg"):
     parser = _MsgParser(prog=prog, add_help=False)
     parser.add_argument("-h", "--help", action="store_true", dest="show_help",
@@ -564,7 +590,10 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     events_parser.add_argument("--level", default=None)
     events_parser.add_argument("-j", "--json", action="store_true")
 
-    shot_parser = sub.add_parser("screenshot", help="save a PNG of the window or active dialog")
+    shot_parser = sub.add_parser("shot", aliases=["screenshot"],
+                                 help="save a PNG of the window or active dialog")
+    shot_parser.add_argument("loc", nargs="?", default=None,
+                             help="output file or directory (default: current directory)")
     shot_parser.add_argument("--dialog", action="store_true")
     shot_parser.add_argument("--path", default=None)
 
@@ -623,10 +652,9 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
                     entry.get("tag", ""), entry.get("message", "")))
         return 0
 
-    if args.cmd == "screenshot":
+    if args.cmd in ("shot", "screenshot"):
         payload = build_request("screenshot", dialog=bool(args.dialog))
-        if args.path:
-            payload["path"] = args.path
+        payload["path"] = _screenshot_path(args.loc or args.path)
         reply = _send(socket_path, payload)
         if reply is None:
             return 1
