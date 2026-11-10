@@ -402,6 +402,9 @@ def updateTheme():
         widget = getattr(connection, "widget", None)
         if widget is not None and hasattr(widget, "updateTheme"):
             widget.updateTheme()
+    for item in canvas.scene.items():
+        if item.type() == CanvasContainerType and hasattr(item, "updateTheme"):
+            item.updateTheme()
     canvas.scene.update()
 
 

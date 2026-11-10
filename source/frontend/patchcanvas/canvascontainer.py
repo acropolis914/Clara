@@ -31,6 +31,7 @@ from qt_compat import (
     QWidgetAction,
 )
 
+from .canvasboxshadow import CanvasBoxShadow
 from .theme import get_swatch_colors
 from . import (
     canvas,
@@ -102,6 +103,19 @@ class CanvasContainer(QGraphicsObject):
             QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemSendsGeometryChanges
         )
         self.setAcceptHoverEvents(True)
+
+        # Drop shadow so the container reads as a panel above the canvas.
+        if getattr(options, "eyecandy", False) and not getattr(options, "software_render", False):
+            self.m_shadow = CanvasBoxShadow(self)
+            self.m_shadow.setFakeParent(self)
+            self.setGraphicsEffect(self.m_shadow)
+        else:
+            self.m_shadow = None
+
+    def updateTheme(self):
+        if self.m_shadow is not None:
+            self.m_shadow.setColor(canvas.theme.box_shadow)
+        self.update()
 
     def type(self):
         return CanvasContainerType

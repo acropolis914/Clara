@@ -62,6 +62,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **feat(theme)**: new **Clara Light** theme (neutral light palette, high-contrast text, blue accent) replaces Catppuccin Latte, which is removed from the registry, the canvas theme list and the bundled QSS files.
 - **fix(theme)**: a saved theme that no longer exists (removed or renamed) now falls back to Catppuccin Macchiato instead of leaving the window unstyled. The settings dialog selects the same fallback.
 - **refactor(theme)**: the application theme list is built from the registry, so every bundled theme (Nord, Tokyo Night, Dracula, Gruvbox) is selectable instead of a hardcoded list of four.
+- **fix(patchbay)**: node shadows were painted with the canvas background colour, so they were invisible and every node looked flat. The shadow is now a translucent black (softer in light themes), with a small vertical offset and a wider blur, and layout containers get the same shadow.
 
 ### Style
 

@@ -347,6 +347,10 @@ class Theme(object):
                 # apart from structure (fonts, port mode, header size).
                 t = active_tokens
                 background = t.get("bg-primary", "#1e1e2e")
+                is_dark = QColor(background).lightness() < 128
+                # A drop shadow must be darker than the canvas, otherwise nodes
+                # look flat (light themes need a softer one than dark themes).
+                shadow = "#000000%02x" % (0x99 if is_dark else 0x4d)
                 surface = t.get("bg-surface", background)
                 text = t.get("text-primary", "#cdd6f4")
                 accent = t.get("accent", "#89b4fa")
@@ -362,7 +366,7 @@ class Theme(object):
                     "port_text_sel": accent,
                     "box_pen_color": line,
                     "box_pen_sel_color": accent,
-                    "box_shadow": _with_alpha(background, 0xb4),
+                    "box_shadow": shadow,
                     "rubberband_pen_color": accent,
                     "rubberband_brush": _with_alpha(accent, 0x40),
                 })
@@ -413,6 +417,10 @@ class Theme(object):
                             adapted_raw[k] = pal.color(QPalette.HighlightedText).name()
                         elif k == "box_pen_sel_color":
                             adapted_raw[k] = pal.color(QPalette.Highlight).name()
+                        elif k == "box_shadow":
+                            shadow = pal.color(QPalette.Shadow)
+                            adapted_raw[k] = "#%02x%02x%02x%02x" % (
+                                shadow.red(), shadow.green(), shadow.blue(), 0x60)
                         elif k == "rubberband_brush":
                             c = pal.color(QPalette.Highlight)
                             adapted_raw[k] = f"#{c.red():02x}{c.green():02x}{c.blue():02x}40"
