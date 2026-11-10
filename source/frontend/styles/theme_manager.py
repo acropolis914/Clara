@@ -313,26 +313,15 @@ class ThemeManager:
         """Live update patchcanvas, canvasbox, rack list, and banners without application restart."""
         # 1. PatchCanvas & CanvasBoxes
         try:
-            from patchcanvas import patchcanvas
-            if hasattr(patchcanvas, "canvas") and getattr(patchcanvas.canvas, "initiated", False):
+            import patchcanvas as patchcanvas_pkg
+            if getattr(patchcanvas_pkg.canvas, "initiated", False):
                 from patchcanvas.theme import Theme
                 from utils import QSafeSettings
                 from carla_shared import CARLA_KEY_CANVAS_THEME, CARLA_DEFAULT_CANVAS_THEME
                 settings = QSafeSettings("falkTX", "Carla2")
                 canvas_theme_name = settings.value(CARLA_KEY_CANVAS_THEME, CARLA_DEFAULT_CANVAS_THEME, str)
-                patchcanvas.canvas.theme = Theme(canvas_theme_name)
-                if hasattr(patchcanvas.canvas, "scene") and patchcanvas.canvas.scene:
-                    patchcanvas.canvas.scene.updateTheme()
-                if hasattr(patchcanvas.canvas, "group_list"):
-                    for group in patchcanvas.canvas.group_list:
-                        if hasattr(group, "updateTheme"):
-                            group.updateTheme()
-                        if hasattr(group, "port_list"):
-                            for port in group.port_list:
-                                if hasattr(port, "updateTheme"):
-                                    port.updateTheme()
-                if hasattr(patchcanvas.canvas, "scene") and patchcanvas.canvas.scene:
-                    patchcanvas.canvas.scene.update()
+                patchcanvas_pkg.canvas.theme = Theme(canvas_theme_name)
+                patchcanvas_pkg.updateTheme()
         except Exception as e:
             print(f"[THEME] Error live refreshing canvas: {e}")
 

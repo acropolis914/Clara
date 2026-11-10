@@ -507,18 +507,10 @@ class CanvasContextToolBarOverlay(QFrame):
     def _slot_show_color_menu(self, source_button, nodes):
         menu = QMenu(self)
 
-        presets = [
-            ("Default Dark", "#1e1e2e"),
-            ("Crimson / Red", "#f38ba8"),
-            ("Synth / Green", "#a6e3a1"),
-            ("Audio / Blue", "#89b4fa"),
-            ("MIDI / Yellow", "#f9e2af"),
-            ("FX / Mauve", "#cba6f7"),
-            ("Dynamics / Peach", "#fab387"),
-            ("Teal / Mod", "#94e2d5"),
-            ("Sky / Light Blue", "#89dceb"),
-            ("Flamingo / Coral", "#f2cdcd"),
-        ]
+        from patchcanvas.theme import get_swatch_colors
+        theme = patchcanvas.canvas.theme
+        presets = [("Default", theme.color_surface.name())]
+        presets += [(label, colour) for colour, label in get_swatch_colors()]
 
         def create_color_icon(hex_str):
             pix = QPixmap(14, 14)
@@ -526,7 +518,7 @@ class CanvasContextToolBarOverlay(QFrame):
             p = QPainter(pix)
             p.setRenderHint(QPainter.Antialiasing, True)
             p.setBrush(QColor(hex_str))
-            p.setPen(QColor("#45475a"))
+            p.setPen(QColor(theme.color_muted))
             p.drawRoundedRect(1, 1, 12, 12, 3, 3)
             p.end()
             return QIcon(pix)
@@ -592,7 +584,7 @@ class CanvasContextToolBarOverlay(QFrame):
     def _apply_color_to_nodes(self, nodes, hex_str):
         for n in nodes:
             if hasattr(n, "setColor") and hasattr(n, "m_layout_mode"):
-                n.setColor(hex_str if hex_str else "#89b4fa")
+                n.setColor(hex_str if hex_str else patchcanvas.canvas.theme.color_accent)
                 continue
             if hasattr(n, "setCustomColor"):
                 n.setCustomColor(hex_str)
@@ -603,7 +595,7 @@ class CanvasContextToolBarOverlay(QFrame):
                 )
 
     def _open_custom_color_dialog(self, nodes):
-        initial = QColor("#1e1e2e")
+        initial = QColor(patchcanvas.canvas.theme.color_surface)
         if nodes:
             if hasattr(nodes[0], "m_color") and nodes[0].m_color:
                 initial = nodes[0].m_color

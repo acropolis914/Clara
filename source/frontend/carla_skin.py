@@ -143,6 +143,14 @@ CATEGORY_NAMES = {
 }
 
 
+# Node badges in the patchbay: label plus the token that colours them.
+CATEGORY_BADGES = {
+    category: (CATEGORY_NAMES[category].upper(), token)
+    for category, token in CATEGORY_TOKENS.items()
+}
+CATEGORY_BADGES[PLUGIN_CATEGORY_OTHER] = ("FX", "purple")
+
+
 def _rgba(color, alpha):
     """Theme token -> QSS rgba string with the given 0-255 alpha."""
     c = QColor(color)

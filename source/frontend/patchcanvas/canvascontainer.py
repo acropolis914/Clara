@@ -31,6 +31,7 @@ from qt_compat import (
     QWidgetAction,
 )
 
+from .theme import get_swatch_colors
 from . import (
     canvas,
     CanvasBoxType,
@@ -47,19 +48,6 @@ CONTAINER_PADDING = 14.0
 CONTAINER_HEADER_HEIGHT = 28.0
 CONTAINER_ITEM_SPACING = 12.0
 CONTAINER_MIN_WIDTH = 220.0
-
-CATPPUCCIN_PALETTE = [
-    ("Blue", "#89b4fa"),
-    ("Mauve", "#cba6f7"),
-    ("Green", "#a6e3a1"),
-    ("Peach", "#fab387"),
-    ("Teal", "#94e2d5"),
-    ("Lavender", "#b4befe"),
-    ("Flamingo", "#f2cdcd"),
-    ("Red", "#f38ba8"),
-    ("Yellow", "#f9e2af"),
-]
-
 
 class CanvasContainer(QGraphicsObject):
     """
@@ -81,7 +69,7 @@ class CanvasContainer(QGraphicsObject):
         self.m_title = title
         self.m_layout_mode = layout_mode
         self.m_collapsed = False
-        self.m_color = QColor("#89b4fa")  # Catppuccin Blue default
+        self.m_color = QColor(canvas.theme.color_accent)
 
         # Ordered list of child CanvasBox items currently attached
         self.m_items = []
@@ -571,7 +559,7 @@ class CanvasContainer(QGraphicsObject):
         font.setBold(True)
         font.setPixelSize(12)
         text_item.setFont(font)
-        text_item.setDefaultTextColor(QColor("#cad3f5"))
+        text_item.setDefaultTextColor(QColor(canvas.theme.color_text))
         text_item.setPos(74.0, 3.0)
         text_item.setTextInteractionFlags(Qt.TextEditorInteraction)
         text_item.setZValue(100.0)
@@ -712,39 +700,35 @@ class CanvasContainer(QGraphicsObject):
         pal_layout.setContentsMargins(6, 4, 6, 4)
         pal_layout.setSpacing(4)
 
-        catppuccin_colors = [
-            ("#f38ba8", "Red"),
-            ("#fab387", "Peach"),
-            ("#f9e2af", "Yellow"),
-            ("#a6e3a1", "Green"),
-            ("#94e2d5", "Teal"),
-            ("#89dceb", "Sky"),
-            ("#89b4fa", "Blue"),
-            ("#b4befe", "Lavender"),
-            ("#cba6f7", "Mauve"),
-            ("#f5c2e7", "Pink"),
-        ]
+        swatch_colors = get_swatch_colors()
+        theme = canvas.theme
 
         # Reset button
         btn_reset = QPushButton("✕")
         btn_reset.setToolTip("Reset to Default Color")
         btn_reset.setFixedSize(22, 22)
         btn_reset.setStyleSheet(
-            "QPushButton { font-weight: bold; color: #888; background: transparent; border: 1px solid #555; border-radius: 3px; } "
-            "QPushButton:hover { color: #fff; border-color: #888; background: #333; }"
+            "QPushButton { font-weight: bold; color: %s; background: transparent;"
+            " border: 1px solid %s; border-radius: 3px; }"
+            "QPushButton:hover { color: %s; border-color: %s; background: %s; }"
+            % (theme.color_muted.name(), theme.color_muted.name(),
+               theme.color_text.name(), theme.color_text.name(),
+               theme.color_surface.name())
         )
         btn_reset.clicked.connect(
-            lambda: (self.setColor(QColor("#89b4fa")), menu.close())
+            lambda: (self.setColor(QColor(theme.color_accent)), menu.close())
         )
         pal_layout.addWidget(btn_reset)
 
-        for col_hex, col_name in catppuccin_colors:
+        for col_hex, col_name in swatch_colors:
             btn_col = QPushButton()
             btn_col.setToolTip(col_name)
             btn_col.setFixedSize(22, 22)
             btn_col.setStyleSheet(
-                f"QPushButton {{ background-color: {col_hex}; border: 1px solid rgba(0,0,0,0.4); border-radius: 3px; }} "
-                f"QPushButton:hover {{ border: 2px solid #ffffff; }}"
+                "QPushButton { background-color: %s; border: 1px solid %s;"
+                " border-radius: 3px; }"
+                "QPushButton:hover { border: 2px solid %s; }"
+                % (col_hex, theme.color_muted.name(), theme.color_text.name())
             )
             btn_col.clicked.connect(
                 lambda checked=False, c=col_hex: (
@@ -761,7 +745,7 @@ class CanvasContainer(QGraphicsObject):
 
         def pickCustomColor():
             menu.close()
-            initial = self.m_color if self.m_color else QColor("#89b4fa")
+            initial = self.m_color if self.m_color else QColor(canvas.theme.color_accent)
             chosen = QColorDialog.getColor(initial, None, "Select Container Color")
             if chosen.isValid():
                 self.setColor(chosen)
@@ -771,7 +755,7 @@ class CanvasContainer(QGraphicsObject):
 
         act_reset_color = color_menu.addAction("Reset Color")
         act_reset_color.triggered.connect(
-            lambda: (self.setColor(QColor("#89b4fa")), menu.close())
+            lambda: (self.setColor(QColor(canvas.theme.color_accent)), menu.close())
         )
 
         menu.addMenu(color_menu)
@@ -836,8 +820,11 @@ class CanvasContainer(QGraphicsObject):
         painter.setRenderHint(QPainter.Antialiasing, True)
         rect = self.boundingRect()
 
+        theme = canvas.theme
+
         # 1. Background Frame Panel
-        bg_color = QColor(24, 25, 38, 195)  # Catppuccin Macchiato mantle
+        bg_color = QColor(theme.color_surface)
+        bg_color.setAlpha(195)
         painter.setBrush(bg_color)
         pen_color = self.m_color
         pen = QPen(pen_color, 1.5)
@@ -856,7 +843,7 @@ class CanvasContainer(QGraphicsObject):
         font = QFont(painter.font())
 
         # 1. Close / ungroup button [󰅖] (x: 8 to 26)
-        painter.setPen(QColor(235, 160, 172))
+        painter.setPen(QColor(theme.color_danger))
         font.setBold(True)
         font.setPixelSize(12)
         painter.setFont(font)
@@ -868,7 +855,7 @@ class CanvasContainer(QGraphicsObject):
 
         # 2. Collapse toggle [󰍡 / 󰍢] (x: 28 to 46)
         collapse_icon = "󰪦" if self.m_collapsed else "󰘖"
-        painter.setPen(QColor(180, 190, 210))
+        painter.setPen(QColor(theme.color_muted))
         painter.drawText(
             QRectF(28, 0, 18, CONTAINER_HEADER_HEIGHT),
             Qt.AlignVCenter | Qt.AlignCenter,
@@ -884,7 +871,7 @@ class CanvasContainer(QGraphicsObject):
             CONTAINER_LAYOUT_FREEFORM: "󰆟",
         }
         layout_icon = layout_icons.get(self.m_layout_mode, "󰝘")
-        painter.setPen(QColor(137, 180, 250))
+        painter.setPen(QColor(theme.color_accent))
         painter.drawText(
             QRectF(48, 0, 24, CONTAINER_HEADER_HEIGHT),
             Qt.AlignVCenter | Qt.AlignCenter,
@@ -893,7 +880,7 @@ class CanvasContainer(QGraphicsObject):
 
         # 4. Title text (hidden while inline editing, positioned at x=78)
         if self.m_title_editor_item is None:
-            painter.setPen(QColor(220, 224, 232))
+            painter.setPen(QColor(theme.color_text))
             font.setBold(True)
             font.setPixelSize(12)
             painter.setFont(font)
@@ -909,7 +896,9 @@ class CanvasContainer(QGraphicsObject):
         # 3. Disconnected standby chip notice if items are unplugged
         if self.m_standby_descriptors:
             standby_cnt = len(self.m_standby_descriptors)
-            painter.setPen(QColor(243, 139, 168, 180))  # Catppuccin Red/Pink
+            standby = QColor(theme.color_danger)
+            standby.setAlpha(180)
+            painter.setPen(standby)
             font.setItalic(True)
             font.setPixelSize(10)
             painter.setFont(font)
@@ -921,7 +910,7 @@ class CanvasContainer(QGraphicsObject):
 
         # 4. Interactive Drop Slot Indicator Line
         if self.m_hover_insert_idx is not None:
-            painter.setPen(QPen(QColor("#6c7c6a"), 2.5, Qt.DashLine))
+            painter.setPen(QPen(QColor(theme.color_accent), 2.5, Qt.DashLine))
             if self.m_layout_mode == CONTAINER_LAYOUT_VBOX:
                 if self.m_hover_insert_idx < len(self.m_items):
                     b = self.m_items[self.m_hover_insert_idx]
@@ -944,7 +933,9 @@ class CanvasContainer(QGraphicsObject):
                 )
 
         # 5. Subtle resize grip marks at bottom-right corner
-        painter.setPen(QPen(QColor(180, 190, 210, 80), 1.2))
+        grip = QColor(theme.color_muted)
+        grip.setAlpha(80)
+        painter.setPen(QPen(grip, 1.2))
         rw, rh = rect.width(), rect.height()
         painter.drawLine(QPointF(rw - 12, rh - 4), QPointF(rw - 4, rh - 12))
         painter.drawLine(QPointF(rw - 8, rh - 4), QPointF(rw - 4, rh - 8))

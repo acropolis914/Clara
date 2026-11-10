@@ -79,6 +79,12 @@ def adjust_text_for_contrast(text_color_val, bg_color_val, min_contrast=4.5):
     return f"#{target_rgb[0]:02x}{target_rgb[1]:02x}{target_rgb[2]:02x}"
 
 
+def _with_alpha(color_val, alpha):
+    """Return a #rrggbbaa string with the given alpha byte."""
+    r, g, b = parse_rgb(color_val)
+    return "#%02x%02x%02x%02x" % (r, g, b, int(alpha))
+
+
 def parse_color(c):
     """Parse color from hex string, list/tuple, or QColor."""
     if isinstance(c, QColor):
@@ -249,6 +255,25 @@ def load_themes_data(reload=False):
     return _CACHED_THEMES_RAW
 
 
+def get_swatch_colors():
+    """User-facing tint choices, resolved from the active theme."""
+    try:
+        from styles.theme_manager import theme_manager
+        t = theme_manager.engine.active_tokens or {}
+    except Exception:
+        t = {}
+    return [
+        (t.get("red", "#f38ba8"), "Red"),
+        (t.get("orange", "#fab387"), "Peach"),
+        (t.get("yellow", "#f9e2af"), "Yellow"),
+        (t.get("green", "#a6e3a1"), "Green"),
+        (t.get("cyan", "#94e2d5"), "Teal"),
+        (t.get("blue", "#89b4fa"), "Blue"),
+        (t.get("purple", "#cba6f7"), "Mauve"),
+        (t.get("magenta", "#f5c2e7"), "Pink"),
+    ]
+
+
 def getThemeNames():
     """Return list of all theme names loaded from themes.json."""
     return list(load_themes_data().keys())
@@ -318,21 +343,56 @@ class Theme(object):
 
             active_tokens = theme_manager.engine.active_tokens
             if active_tokens and not theme_manager.is_using_system():
+                # The canvas follows the app theme: every colour comes from the
+                # resolved tokens, so all Catppuccin canvas themes look the same
+                # apart from structure (fonts, port mode, header size).
+                t = active_tokens
+                background = t.get("bg-primary", "#1e1e2e")
+                surface = t.get("bg-surface", background)
+                text = t.get("text-primary", "#cdd6f4")
+                accent = t.get("accent", "#89b4fa")
+                line = t.get("border-dim", surface)
                 adapted_raw = dict(theme_raw)
-                # Map core background, surfaces and accents from active tokens
-                if "bg-primary" in active_tokens:
-                    adapted_raw["canvas_bg"] = active_tokens["bg-primary"]
-                if "bg-surface" in active_tokens:
-                    adapted_raw["box_bg_1"] = active_tokens["bg-surface"]
-                    adapted_raw["box_bg_2"] = active_tokens["bg-surface"]
-                if "text-primary" in active_tokens:
-                    adapted_raw["box_text"] = active_tokens["text-primary"]
-                    adapted_raw["port_text"] = active_tokens["text-primary"]
-                if "accent" in active_tokens:
-                    adapted_raw["box_pen_sel_color"] = active_tokens["accent"]
-                    adapted_raw["box_text_sel"] = active_tokens["accent"]
-                if "border-dim" in active_tokens:
-                    adapted_raw["box_pen_color"] = active_tokens["border-dim"]
+                adapted_raw.update({
+                    "canvas_bg": background,
+                    "box_bg_1": surface,
+                    "box_bg_2": surface,
+                    "box_text": text,
+                    "box_text_sel": accent,
+                    "port_text": text,
+                    "port_text_sel": accent,
+                    "box_pen_color": line,
+                    "box_pen_sel_color": accent,
+                    "box_shadow": _with_alpha(background, 0xb4),
+                    "rubberband_pen_color": accent,
+                    "rubberband_brush": _with_alpha(accent, 0x40),
+                })
+                # Port / cable colours keep their meaning across themes.
+                port_tokens = {
+                    "audio_jack": t.get("blue", accent),
+                    "midi_jack": t.get("purple", accent),
+                    "midi_alsa": t.get("green", accent),
+                    "parameter": t.get("red", accent),
+                }
+                glow_tokens = {
+                    "audio_jack": t.get("cyan", accent),
+                    "midi_jack": t.get("pink", t.get("magenta", accent)),
+                    "midi_alsa": t.get("teal", t.get("green", accent)),
+                    "parameter": t.get("orange", accent),
+                }
+                for ptype, colour in port_tokens.items():
+                    adapted_raw["port_%s_bg" % ptype] = colour
+                    adapted_raw["port_%s_bg_sel" % ptype] = accent
+                    adapted_raw["port_%s_pen_color" % ptype] = line
+                    adapted_raw["port_%s_pen_sel_color" % ptype] = accent
+                    adapted_raw["port_%s_text" % ptype] = text
+                    adapted_raw["port_%s_text_sel" % ptype] = accent
+                    adapted_raw["line_%s" % ptype] = colour
+                    adapted_raw["line_%s_sel" % ptype] = accent
+                    adapted_raw["line_%s_glow" % ptype] = glow_tokens[ptype]
+                # Keep titles readable on whatever surface the theme provides.
+                adapted_raw["box_text"] = adjust_text_for_contrast(text, surface, 4.5)
+                adapted_raw["port_text"] = adjust_text_for_contrast(text, surface, 4.5)
                 theme_raw = adapted_raw
             elif theme_manager.is_using_system():
                 app = QApplication.instance()
@@ -368,6 +428,21 @@ class Theme(object):
         theme_data = parse_theme_dict(theme_raw)
         for key, value in theme_data.items():
             setattr(self, key, value)
+
+        # Ready-to-use colours for canvas items that paint themselves, all derived
+        # from the same parsed theme (and therefore from the app tokens).
+        text_pen = theme_data.get("box_text")
+        self.color_text = text_pen.color() if isinstance(text_pen, QPen) else QColor("#cdd6f4")
+        accent_pen = theme_data.get("box_pen_sel")
+        self.color_accent = (accent_pen.color() if isinstance(accent_pen, QPen)
+                             else QColor("#89b4fa"))
+        self.color_surface = parse_color(theme_data.get("box_bg_1", "#181825"))
+        self.color_canvas = parse_color(theme_data.get("canvas_bg", "#11111b"))
+        self.color_muted = QColor(self.color_text)
+        self.color_muted.setAlpha(160)
+        self.color_danger = parse_color(theme_data.get("port_parameter_bg", "#f38ba8"))
+        self.color_ok = parse_color(theme_data.get("port_midi_alsa_bg", "#a6e3a1"))
+        self.color_info = parse_color(theme_data.get("line_audio_jack_glow", "#94e2d5"))
 
     def _get_themes_data(self):
         themes_dict = load_themes_data()

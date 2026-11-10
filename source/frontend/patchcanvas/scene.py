@@ -179,16 +179,15 @@ class PatchScene(QGraphicsScene):
 
         grid_step = max(5, int(round(step)))
 
-        # Determine subtle dot color with lowered opacity
-        bg_black = canvas.theme.canvas_bg.blackF()
-        is_dark = (bg_black >= 0.5)
-        # Low opacity for non-distracting background dots
-        base_alpha = 24 if is_dark else 20
+        # Grid marks are the theme text colour at low opacity, so they stay
+        # visible on both dark and light backgrounds.
+        line_color = QColor(canvas.theme.color_text)
+        line_color.setAlpha(10)
+        dot_color = QColor(canvas.theme.color_text)
+        dot_color.setAlpha(24)
 
         # Draw secondary major grid lines if zoomed in
         major_step = grid_step * 5
-        line_color = QColor(255, 255, 255, 10) if is_dark else QColor(0, 0, 0, 8)
-        dot_color = QColor(255, 255, 255, base_alpha) if is_dark else QColor(0, 0, 0, base_alpha)
 
         left = int(floor(rect.left() / grid_step) * grid_step)
         top = int(floor(rect.top() / grid_step) * grid_step)

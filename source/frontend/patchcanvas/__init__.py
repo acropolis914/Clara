@@ -338,12 +338,7 @@ def setOptions(new_options):
             if getThemeName(i) == options.theme_name:
                 canvas.theme = Theme(i)
                 break
-        if canvas.scene:
-            canvas.scene.updateTheme()
-        for g in getattr(canvas, "group_list", []):
-            for w in g.widgets:
-                if w and hasattr(w, "updateTheme"):
-                    w.updateTheme()
+        updateTheme()
 
     # 2. Line style, stroke, and opacity updates (apply to all live connections)
     line_widgets = set()
@@ -388,6 +383,26 @@ def setOptions(new_options):
                 v.viewport().update()
 
 
+
+
+def updateTheme():
+    """Re-read the current theme into every live canvas item."""
+    if canvas.scene is None:
+        return
+    canvas.scene.updateTheme()
+    for group in getattr(canvas, "group_list", []):
+        for widget in getattr(group, "widgets", []):
+            if widget is not None and hasattr(widget, "updateTheme"):
+                widget.updateTheme()
+        # Ports live in the scene, not inside the box, and cache their pens.
+        for port in getattr(group, "port_list", []):
+            if port is not None and hasattr(port, "updateTheme"):
+                port.updateTheme()
+    for connection in getattr(canvas, "connection_list", []):
+        widget = getattr(connection, "widget", None)
+        if widget is not None and hasattr(widget, "updateTheme"):
+            widget.updateTheme()
+    canvas.scene.update()
 
 
 def setFeatures(new_features):

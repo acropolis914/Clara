@@ -168,6 +168,14 @@ class CanvasLine(QGraphicsPathItem):
             return None
         return (pair[0], pair[1], DIRECTION_OUTPUT)
 
+    def updateTheme(self):
+        """Re-read theme colours after a theme switch."""
+        self._pulse_c1 = None
+        self._pulse_c2 = None
+        self.updateLineGradient()
+        self.updateLineSelected()
+        self.updateLinePos()
+
     def updateLinePos(self):
         pair = self._sceneEndpoints()
         if pair is None:
@@ -200,7 +208,7 @@ class CanvasLine(QGraphicsPathItem):
         # Scale alpha with user line opacity setting (20% - 100%)
         opacity_factor = max(0.2, min(1.0, float(self.m_opacity) / 100.0))
 
-        bg_color = getattr(canvas.theme, "canvas_bg", QColor("#1e1e2e"))
+        bg_color = canvas.theme.canvas_bg
         bg_lum = 0.2126 * (bg_color.redF() ** 2.2) + 0.7152 * (bg_color.greenF() ** 2.2) + 0.0722 * (bg_color.blueF() ** 2.2)
 
         def ensure_contrast(c):
@@ -365,8 +373,8 @@ class CanvasLine(QGraphicsPathItem):
         c1 = getattr(self, "_pulse_c1", None)
         c2 = getattr(self, "_pulse_c2", None)
         if c1 is None or c2 is None:
-            c1 = QColor(140, 200, 255)
-            c2 = QColor(140, 200, 255)
+            c1 = QColor(canvas.theme.color_accent)
+            c2 = QColor(canvas.theme.color_accent)
             try:
                 for port, attr in ((self.item1, "_pulse_c1"), (self.item2, "_pulse_c2")):
                     col = None
@@ -413,7 +421,9 @@ class CanvasLine(QGraphicsPathItem):
             a = int(alpha * frac * 0.6)
             tr, tg, tb = _interp_color(tt)
             tail_grad = QRadialGradient(tp, r)
-            tail_grad.setColorAt(0.0, QColor(255, 255, 255, a))
+            core = QColor(canvas.theme.color_text)
+            core.setAlpha(a)
+            tail_grad.setColorAt(0.0, core)
             tail_grad.setColorAt(0.5, QColor(tr, tg, tb, int(a * 0.6)))
             tail_grad.setColorAt(1.0, QColor(tr, tg, tb, 0))
             painter.setPen(Qt.NoPen)
@@ -429,7 +439,9 @@ class CanvasLine(QGraphicsPathItem):
 
         pr, pg, pb = _interp_color(t)
         gradient = QRadialGradient(point, head_radius)
-        gradient.setColorAt(0.0, QColor(255, 255, 255, alpha))
+        core = QColor(canvas.theme.color_text)
+        core.setAlpha(alpha)
+        gradient.setColorAt(0.0, core)
         gradient.setColorAt(0.35, QColor(min(255, pr + 60), min(255, pg + 60), min(255, pb + 60), int(alpha * 0.85)))
         gradient.setColorAt(0.7, QColor(pr, pg, pb, int(alpha * 0.5)))
         gradient.setColorAt(1.0, QColor(pr, pg, pb, 0))

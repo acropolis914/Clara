@@ -209,6 +209,11 @@ from .utils import (
 # ------------------------------------------------------------------------------------------------------------
 
 
+def _theme_color(name, fallback="#89b4fa"):
+    from styles.theme_manager import theme_manager
+    return theme_manager.engine.get_token(name, fallback) or fallback
+
+
 class cb_line_t(object):
     def __init__(self, line, connection_id):
         self.line = line
@@ -382,7 +387,7 @@ class BoxPropertiesDialog(QDialog):
 
         type_str = "Plugin Node" if self.box.m_plugin_id >= 0 else "Canvas Group"
         type_subtitle = QLabel(
-            f"<span style='color: #777; font-size: 11pt;'>{type_str}</span>"
+            f"<span style='color: {_theme_color('text-muted', '#777')}; font-size: 11pt;'>{type_str}</span>"
         )
         title_layout.addWidget(type_subtitle)
         title_layout.addStretch()
@@ -425,7 +430,7 @@ class BoxPropertiesDialog(QDialog):
                 pw_layout.addRow(
                     "Media Class:",
                     QLabel(
-                        f"<code style='color: #2b78e4; font-size: 10pt;'>{media_class}</code>"
+                        f"<code style='color: {_theme_color('blue', '#2b78e4')}; font-size: 10pt;'>{media_class}</code>"
                     ),
                 )
 
@@ -467,7 +472,7 @@ class BoxPropertiesDialog(QDialog):
         geo_layout.addRow(
             "Split Mode:",
             QLabel(
-                "<span style='color: #2e8b57; font-weight: bold;'>Active</span>"
+                f"<span style='color: {_theme_color('green', '#2e8b57')}; font-weight: bold;'>Active</span>"
                 if self.box.isSplit()
                 else "Inactive"
             ),
@@ -1360,32 +1365,35 @@ class CanvasBox(QGraphicsObject):
         palLayout.setContentsMargins(6, 4, 6, 4)
         palLayout.setSpacing(4)
 
-        catppuccin_colors = [
-            ("#f38ba8", "Red"),
-            ("#fab387", "Peach"),
-            ("#f9e2af", "Yellow"),
-            ("#a6e3a1", "Green"),
-            ("#94e2d5", "Teal"),
-            ("#89dceb", "Sky"),
-            ("#89b4fa", "Blue"),
-            ("#b4befe", "Lavender"),
-            ("#cba6f7", "Mauve"),
-            ("#f5c2e7", "Pink"),
-        ]
+        from .theme import get_swatch_colors
+        swatch_colors = get_swatch_colors()
+        theme = canvas.theme
 
         # Reset button
         btn_reset = QPushButton("✕")
         btn_reset.setToolTip("Reset to Default Color")
         btn_reset.setFixedSize(22, 22)
-        btn_reset.setStyleSheet("QPushButton { font-weight: bold; color: #888; background: transparent; border: 1px solid #555; border-radius: 3px; } QPushButton:hover { color: #fff; border-color: #888; background: #333; }")
+        btn_reset.setStyleSheet(
+            "QPushButton { font-weight: bold; color: %s; background: transparent;"
+            " border: 1px solid %s; border-radius: 3px; }"
+            "QPushButton:hover { color: %s; border-color: %s; background: %s; }"
+            % (theme.color_muted.name(), theme.color_muted.name(),
+               theme.color_text.name(), theme.color_text.name(),
+               theme.color_surface.name())
+        )
         btn_reset.clicked.connect(lambda: (self.setCustomColor(None), menu.close()))
         palLayout.addWidget(btn_reset)
 
-        for col_hex, col_name in catppuccin_colors:
+        for col_hex, col_name in swatch_colors:
             btn_col = QPushButton()
             btn_col.setToolTip(col_name)
             btn_col.setFixedSize(22, 22)
-            btn_col.setStyleSheet(f"QPushButton {{ background-color: {col_hex}; border: 1px solid rgba(0,0,0,0.4); border-radius: 3px; }} QPushButton:hover {{ border: 2px solid #ffffff; }}")
+            btn_col.setStyleSheet(
+                "QPushButton { background-color: %s; border: 1px solid %s;"
+                " border-radius: 3px; }"
+                "QPushButton:hover { border: 2px solid %s; }"
+                % (col_hex, theme.color_muted.name(), theme.color_text.name())
+            )
             btn_col.clicked.connect(lambda checked=False, c=col_hex: (self.setCustomColor(c), menu.close()))
             palLayout.addWidget(btn_col)
 
@@ -1396,7 +1404,7 @@ class CanvasBox(QGraphicsObject):
 
         def pickCustomColor():
             menu.close()
-            initial = self.m_custom_color if self.m_custom_color else QColor(47, 47, 47)
+            initial = self.m_custom_color if self.m_custom_color else QColor(canvas.theme.color_surface)
             chosen = QColorDialog.getColor(initial, None, "Select Node Color")
             if chosen.isValid():
                 self.setCustomColor(chosen.name())
@@ -1940,9 +1948,9 @@ class CanvasBox(QGraphicsObject):
             activity = 0.0
 
         if getattr(self, "m_search_highlight", 0) == 2:
-            pen = QPen(QColor(137, 180, 250), max(3.0, 3.0 / scale))
+            pen = QPen(QColor(canvas.theme.color_accent), max(3.0, 3.0 / scale))
         elif getattr(self, "m_search_highlight", 0) == 1:
-            pen = QPen(QColor(116, 199, 236), max(2.0, 2.0 / scale))
+            pen = QPen(QColor(canvas.theme.color_info), max(2.0, 2.0 / scale))
         elif self.isSelected():
             pen = QPen(canvas.theme.box_pen_sel)
             pen.setWidthF(max(2.5, 2.5 / scale))
@@ -1952,7 +1960,7 @@ class CanvasBox(QGraphicsObject):
 
         if activity > 0.03 and not getattr(self, "m_search_highlight", 0):
             base = pen.color()
-            glow = QColor(150, 230, 255)
+            glow = QColor(canvas.theme.color_info)
             mix = min(1.0, 0.35 + 0.65 * activity)
             pen = QPen(QColor(
                 int(base.red() * (1.0 - mix) + glow.red() * mix),
@@ -1991,8 +1999,10 @@ class CanvasBox(QGraphicsObject):
         # Loudness glow: light up the whole node body while it is processing audio
         if activity > 0.03:
             glow_alpha = int(min(100.0, 25.0 + 90.0 * activity))
+            glow = QColor(canvas.theme.color_info)
+            glow.setAlpha(glow_alpha)
             painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(140, 210, 255, glow_alpha))
+            painter.setBrush(glow)
             if radius > 0:
                 painter.drawRoundedRect(rect, radius, radius)
             else:
@@ -2028,7 +2038,7 @@ class CanvasBox(QGraphicsObject):
             else:
                 if self.m_custom_color:
                     # Tint header cleanly: blend 35% custom color with 65% base header background
-                    base_h = canvas.theme.box_bg_2 if canvas.theme.box_bg_2 else QColor(36, 39, 58)
+                    base_h = canvas.theme.box_bg_2
                     c = self.m_custom_color
                     header_bg = QColor(
                         int(0.65 * base_h.red() + 0.35 * c.red()),
@@ -2060,7 +2070,7 @@ class CanvasBox(QGraphicsObject):
 
         if self.m_custom_color:
             # High-contrast readable title text against tinted header
-            base_h = canvas.theme.box_bg_2 if canvas.theme.box_bg_2 else QColor(36, 39, 58)
+            base_h = canvas.theme.box_bg_2
             c = self.m_custom_color
             lum = (0.299 * (0.65 * base_h.red() + 0.35 * c.red()) +
                    0.587 * (0.65 * base_h.green() + 0.35 * c.green()) +
@@ -2096,17 +2106,18 @@ class CanvasBox(QGraphicsObject):
                 pinfo = gCarla.gui.host.get_plugin_info(self.m_plugin_id)
                 cat = pinfo.get("category", 0)
                 if cat in CATEGORY_BADGES:
-                    badge_info = CATEGORY_BADGES[cat]
+                    label, token = CATEGORY_BADGES[cat]
+                    badge_info = (label, _theme_color(token))
                 else:
                     # Fallback for plugins with category NONE/0
                     hints = pinfo.get("hints", 0)
                     from carla_backend import PLUGIN_IS_SYNTH
                     if hints & PLUGIN_IS_SYNTH:
-                        badge_info = ("SYNTH", "#f38ba8")
+                        badge_info = ("SYNTH", _theme_color("red", "#f38ba8"))
                     else:
-                        badge_info = ("PLUGIN", "#89b4fa")
+                        badge_info = ("PLUGIN", _theme_color("blue", "#89b4fa"))
             except Exception:
-                badge_info = ("PLUGIN", "#89b4fa")
+                badge_info = ("PLUGIN", _theme_color("blue", "#89b4fa"))
         else:
             # Determine badge for sinks, sources, hardware, apps, and split I/O
             has_ins = False
@@ -2122,20 +2133,20 @@ class CanvasBox(QGraphicsObject):
             low_name = self.m_group_name.lower()
             if self.m_split_mode == PORT_MODE_INPUT or (has_ins and not has_outs):
                 if any(k in low_name for k in ("sink", "playback", "speaker", "headphone")):
-                    badge_info = ("SINK", "#a6e3a1")  # Green
+                    badge_info = ("SINK", _theme_color("green", "#a6e3a1"))
                 else:
-                    badge_info = ("IN", "#89dceb")    # Sky
+                    badge_info = ("IN", _theme_color("cyan", "#89dceb"))
             elif self.m_split_mode == PORT_MODE_OUTPUT or (has_outs and not has_ins):
                 if any(k in low_name for k in ("source", "capture", "mic")):
-                    badge_info = ("SOURCE", "#fab387")  # Peach
+                    badge_info = ("SOURCE", _theme_color("orange", "#fab387"))
                 else:
-                    badge_info = ("OUT", "#f9e2af")     # Yellow
+                    badge_info = ("OUT", _theme_color("yellow", "#f9e2af"))
             elif getattr(self, "m_icon", None) == 1 or any(k in low_name for k in ("system", "hardware", "alsa", "hw:")):
-                badge_info = ("HW", "#b4befe")          # Lavender
+                badge_info = ("HW", _theme_color("base07", "#b4befe"))
             elif has_ins and has_outs:
-                badge_info = ("APP", "#cba6f7")         # Mauve
+                badge_info = ("APP", _theme_color("purple", "#cba6f7"))
             else:
-                badge_info = ("NODE", "#6c7086")        # Slate
+                badge_info = ("NODE", _theme_color("text-muted", "#6c7086"))
 
         # Check if plugin actually supports active/bypass
         has_rack_pair = self.m_plugin_id >= 0
@@ -2217,10 +2228,14 @@ class CanvasBox(QGraphicsObject):
             subbar_rect = QRectF(lineHinting, subbar_y, self.p_width - 2 * lineHinting, subbar_h)
             painter.save()
             painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(0, 0, 0, 45))
+            strip = QColor(canvas.theme.color_text)
+            strip.setAlpha(18)
+            painter.setBrush(strip)
             painter.drawRect(subbar_rect)
             # Subtle bottom separator line
-            painter.setPen(QPen(QColor(255, 255, 255, 18), 1.0))
+            separator = QColor(canvas.theme.color_text)
+            separator.setAlpha(18)
+            painter.setPen(QPen(separator, 1.0))
             painter.drawLine(QPointF(subbar_rect.left(), subbar_rect.bottom()), QPointF(subbar_rect.right(), subbar_rect.bottom()))
             painter.restore()
 
@@ -2310,28 +2325,38 @@ class CanvasBox(QGraphicsObject):
                 is_hovered = (getattr(self, "m_hover_btn_id", None) == btn_id and st != "disabled")
                 is_pressed = (getattr(self, "m_pressed_btn_id", None) == btn_id and st != "disabled")
 
+                theme = canvas.theme
+                text = QColor(theme.color_text)
+                muted = QColor(theme.color_muted)
+
+                def _tinted(base, alpha, solid=False):
+                    col = QColor(base)
+                    col.setAlpha(255 if solid else alpha)
+                    return col
+
                 if st == "disabled":
-                    btn_bg = QColor(255, 255, 255, 4)
-                    icon_pen = QColor(140, 145, 160, 60)
+                    btn_bg = _tinted(text, 4)
+                    icon_pen = _tinted(muted, 60)
                 elif is_pressed:
-                    btn_bg = QColor(255, 255, 255, 55)
-                    icon_pen = QColor(255, 255, 255, 255)
+                    btn_bg = _tinted(text, 55)
+                    icon_pen = _tinted(text, 255, True)
                 elif is_hovered:
-                    btn_bg = QColor(255, 255, 255, 28)
-                    icon_pen = QColor(250, 250, 255, 250)
+                    btn_bg = _tinted(text, 28)
+                    icon_pen = _tinted(text, 250)
                 elif st == "active":
                     if btn_id == "power":
-                        btn_bg = QColor(137, 180, 250, 35)
-                        icon_pen = QColor(137, 180, 250, 255)
+                        btn_bg = _tinted(theme.color_accent, 35)
+                        icon_pen = _tinted(theme.color_accent, 255, True)
                     elif btn_id == "bypass":
-                        btn_bg = QColor(250, 179, 135, 35)
-                        icon_pen = QColor(250, 179, 135, 255)
+                        bypass = QColor(_theme_color("orange", "#fab387"))
+                        btn_bg = _tinted(bypass, 35)
+                        icon_pen = _tinted(bypass, 255, True)
                     else:
-                        btn_bg = QColor(255, 255, 255, 18)
-                        icon_pen = QColor(230, 235, 245, 240)
+                        btn_bg = _tinted(text, 18)
+                        icon_pen = _tinted(text, 240)
                 else: # inactive
-                    btn_bg = QColor(255, 255, 255, 10)
-                    icon_pen = QColor(180, 185, 200, 170)
+                    btn_bg = _tinted(text, 10)
+                    icon_pen = _tinted(muted, 170)
 
                 painter.setPen(Qt.NoPen)
                 painter.setBrush(btn_bg)

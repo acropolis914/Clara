@@ -50,6 +50,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(rack)**: the rack list is transparent again, so the theme background shows through instead of a `palette(base)` panel one step lighter than the window. The existing transparent rule targeted the plugin-list dialog's object name, so the rack never matched it; `rackListWidget` is now covered too.
 - **refactor(rack)**: dropped the `QOpenGLWidget` viewport swap, which bypassed style painting, and the empty `paintEvent` override. The rack keeps drag-to-reorder, selection, smooth scrolling and the floating Add Plugin button.
 
+#### 2026-11-10 — Patchbay follows the theme and updates live
+
+- **fix(patchbay)**: theme changes never reached the canvas. `canvas.clear()` (run on every patchbay refresh) set `initiated = False`, so every live-update guard bailed out for the rest of the session. `clear()` now only drops items.
+- **fix(patchbay)**: a theme switch now re-reads every canvas item, including the cached port pens and the cached cable pulse colours, through a single `patchcanvas.updateTheme()`.
+- **refactor(patchbay)**: all canvas colours come from the resolved theme: node fill/header/text/outline, shadows, ports and cables, selection, rubberband, grid dots, drag ghosts, container chrome and node toolbar, role badges and the info panel. The canvas theme now only supplies structure (fonts, port mode, sizes) while the app theme supplies the colours.
+- **fix(patchbay)**: node category badges were never shown because `CATEGORY_BADGES` did not exist in `carla_skin`; they now resolve from the category tokens.
+
 ### Style
 
 #### 2026-11-05 — No boxes around the CLI banner and Ctrl+C prompt

@@ -353,8 +353,8 @@ def clear():
         canvas.scene.removeItem(item)
         del item
 
-    canvas.initiated = False
-
+    # clear() only drops items; the canvas itself stays initialised, otherwise
+    # every live update (theme, options) silently stops working after a refresh.
     QTimer.singleShot(0, canvas.scene.update)
 
 
@@ -3037,20 +3037,26 @@ class CanvasGhost(QGraphicsObject):
 
         painter.setRenderHint(QPainter.Antialiasing, True)
 
-        bg = QColor(getattr(canvas.theme, "box_bg_1", "#313244"))
+        accent = QColor(canvas.theme.color_accent)
+        bg = QColor(canvas.theme.box_bg_1)
         bg.setAlpha(150)
+        accent.setAlpha(130)
         painter.setBrush(bg)
-        painter.setPen(QPen(QColor(137, 180, 250, 130), 1.2, Qt.DashLine))
+        painter.setPen(QPen(accent, 1.2, Qt.DashLine))
         painter.drawRoundedRect(QRectF(1, 1, self._width - 2, self._height - 2), 6, 6)
 
         font = QFont()
         font.setPointSize(9)
         painter.setFont(font)
-        painter.setPen(QColor(205, 214, 244, 200))
+        ghost_text = QColor(canvas.theme.color_text)
+        ghost_text.setAlpha(200)
+        painter.setPen(ghost_text)
         painter.drawText(QRectF(9, 4, self._width - 18, 16), Qt.AlignLeft | Qt.AlignVCenter, self.m_group_name)
 
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(137, 180, 250, 160))
+        port_dot = QColor(canvas.theme.color_accent)
+        port_dot.setAlpha(160)
+        painter.setBrush(port_dot)
         y = 24.0
         for i in range(len(self.m_left)):
             painter.drawRoundedRect(QRectF(5, y + i * 10.0, 9, 6), 2, 2)
@@ -3130,7 +3136,9 @@ class CanvasGhostCable(QGraphicsObject):
             pen_style = Qt.DotLine
         elif getattr(options, "line_stroke", "solid") == "dashed":
             pen_style = Qt.DashLine
-        painter.setPen(QPen(QColor(137, 180, 250, 90), 1.2, pen_style))
+        preview = QColor(canvas.theme.color_accent)
+        preview.setAlpha(90)
+        painter.setPen(QPen(preview, 1.2, pen_style))
         painter.setBrush(Qt.NoBrush)
         if self._path is not None:
             painter.drawPath(self._path)
