@@ -407,18 +407,21 @@ QTableCornerButton::section {
 }
 
 /* Transparent List Widget Items (removes OS selection fringe on custom item widgets) */
+QListWidget#rackListWidget,
 QListWidget#pluginRackListWidget, QListWidget#pluginCardsListWidget {
     background: transparent;
     border: none;
     outline: none;
 }
 
+QListWidget#rackListWidget::item,
 QListWidget#pluginRackListWidget::item, QListWidget#pluginCardsListWidget::item {
     background: transparent;
     border: none;
     padding: 1px 0px;
 }
 
+QListWidget#rackListWidget::item:selected,
 QListWidget#pluginRackListWidget::item:selected, QListWidget#pluginCardsListWidget::item:selected {
     background: transparent;
     border: none;

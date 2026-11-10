@@ -45,6 +45,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(rack)**: the Appearance > Color swatches and the inline rename box use the active palette too.
 - **fix(canvas)**: the minimap's floating "Map" button uses theme tokens instead of fixed dark colors.
 
+#### 2026-11-10 — Rack inherits the theme background
+
+- **fix(rack)**: the rack list is transparent again, so the theme background shows through instead of a `palette(base)` panel one step lighter than the window. The existing transparent rule targeted the plugin-list dialog's object name, so the rack never matched it; `rackListWidget` is now covered too.
+- **refactor(rack)**: dropped the `QOpenGLWidget` viewport swap, which bypassed style painting, and the empty `paintEvent` override. The rack keeps drag-to-reorder, selection, smooth scrolling and the floating Add Plugin button.
+
 ### Style
 
 #### 2026-11-05 — No boxes around the CLI banner and Ctrl+C prompt

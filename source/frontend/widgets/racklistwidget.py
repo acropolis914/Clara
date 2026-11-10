@@ -249,12 +249,6 @@ class RackListWidget(QListWidget):
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         self.setSortingEnabled(False)
 
-        try:
-            from qt_compat import QOpenGLWidget
-            self.setViewport(QOpenGLWidget(self))
-        except Exception:
-            pass
-
         # Smooth scrolling configuration
         scroll_mode = getattr(QAbstractItemView.ScrollMode, "ScrollPerPixel", getattr(QAbstractItemView, "ScrollPerPixel", None))
         if scroll_mode is not None:
@@ -573,12 +567,6 @@ class RackListWidget(QListWidget):
         self._smooth_target_val = new_target
         if not self._smooth_timer.isActive():
             self._smooth_timer.start()
-
-    def paintEvent(self, event):
-        # The rack surface comes from the active theme QSS/palette. Do not paint
-        # a second background rectangle or inset outline here; it ignored the
-        # theme and required rebuilding the canvas Theme on every repaint.
-        QListWidget.paintEvent(self, event)
 
     def selectionChanged(self, selected, deselected):
         for index in deselected.indexes():
