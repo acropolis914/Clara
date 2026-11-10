@@ -583,6 +583,16 @@ class _MsgParser(argparse.ArgumentParser):
         raise SystemExit(2)
 
 
+def _instance_pid(socket_path):
+    """Return the pid registered for a socket path, if we know it."""
+    from clara_instance_core import list_instances
+    for entry in list_instances():
+        if entry.get("socket") == socket_path:
+            pid = entry.get("pid")
+            return pid if isinstance(pid, int) else None
+    return None
+
+
 def _resolve_instance_socket(selector, default_socket):
     """Pick a socket from an --instance selector, or None when it is unknown."""
     if not selector:
@@ -785,6 +795,18 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
         reply = _send(socket_path, build_request("quit", force=bool(args.force)))
         if reply is None:
             return 1
+        # Wait for the process to actually disappear. Its cleanup unlinks the
+        # socket path, so restarting too early can delete the new instance's
+        # socket (and lock) from under it.
+        pid = _instance_pid(socket_path)
+        if pid is not None:
+            deadline = time.time() + 10.0
+            while time.time() < deadline:
+                try:
+                    os.kill(pid, 0)
+                except OSError:
+                    break
+                time.sleep(0.1)
         print("OK")
         return 0
 

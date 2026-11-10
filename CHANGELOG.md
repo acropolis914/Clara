@@ -70,6 +70,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **fix(settings)**: the canvas settings were never copied into the live canvas options, so shadow spread/distance/opacity and the drag toggle appeared to do nothing. They now apply immediately.
 - **feat(msg)**: `claramsg settings` drives the settings dialog: `open`, `pages`, `page <name>`, `fields [page] [-j]`, `get <id>`, `set <id> <value>`, `apply`, `close`, `reset --force`. `claramsg canvas zoom <scale|in|out|fit|reset>` and `canvas state [-j]` control and report the patchbay view, so visual changes can be scripted and verified with `claramsg shot`.
 
+#### 2026-11-10 — Nested project state is never destroyed on save
+
+- **fix(engine)**: a nested Carla-Patchbay project that fails to load is now detected (the loader returned false and the child had zero plugins). Saving then returns the state that was originally loaded instead of serializing the empty child engine, so nested data is no longer wiped. Reproduced with upstream #1715's `layer 2/3` projects: the saved chunks keep every inner plugin.
+- **fix(msg)**: `claramsg quit` waits for the process to exit, because its cleanup unlinks the socket, and a fast restart could delete the new instance's socket and lock.
+
 #### 2026-11-10 — One tray icon only
 
 - **fix(window)**: nested plugin windows and control instances no longer add their own system-tray item; the tray is reserved for the standalone app. `claramsg status` now reports `tray`, so scripts can verify it.

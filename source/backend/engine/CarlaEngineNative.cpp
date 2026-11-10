@@ -105,7 +105,9 @@ public:
           fLastScaleFactor(1.0f),
           fLastProjectFolder(),
           fPluginDeleterMutex(),
-          fOptionsForced(false)
+          fOptionsForced(false),
+          fLastStateLoadFailed(false),
+          fLastState()
     {
         carla_debug("CarlaEngineNative::CarlaEngineNative()");
 
@@ -1493,6 +1495,15 @@ protected:
 
     char* getState() const
     {
+        // After a failed nested load, hand back the state we were given instead
+        // of the empty project the child engine would serialize. If the user has
+        // since added plugins in the empty child, keep their edits instead.
+        if (fLastStateLoadFailed && fLastState.isNotEmpty() && pData->curPluginCount == 0)
+        {
+            carla_stderr2("CarlaEngineNative::getState() - keeping previously loaded state after a failed load");
+            return strdup(fLastState.toRawUTF8());
+        }
+
         MemoryOutputStream out;
         saveProjectInternal(out);
         return strdup(out.toString().toRawUTF8());
@@ -1520,8 +1531,20 @@ protected:
 
         fOptionsForced = true;
         const water::String state(data);
+        fLastState = state;
+
         XmlDocument xml(state);
-        loadProjectInternal(xml, true);
+        const bool loaded = loadProjectInternal(xml, true);
+        const bool stateHadPlugins = std::strstr(data, "<Plugin>") != nullptr;
+        fLastStateLoadFailed = ! loaded || (stateHadPlugins && pData->curPluginCount == 0);
+
+        if (fLastStateLoadFailed)
+            carla_stderr2("CarlaEngineNative::setState() - project did not load (%u plugins, %s parse), keeping the stored state",
+                          pData->curPluginCount, loaded ? "valid" : "invalid");
+        else
+        {
+            carla_debug("CarlaEngineNative::setState() - loaded %u plugins", pData->curPluginCount);
+        }
 
         reloadFromUI();
     }
@@ -1723,6 +1746,11 @@ private:
     CarlaMutex fPluginDeleterMutex;
 
     bool fOptionsForced;
+
+    // A nested project that failed to load must keep its stored state, or the
+    // next save overwrites the user's data with the empty child engine.
+    bool fLastStateLoadFailed;
+    water::String fLastState;
 
     CarlaPluginPtr _getPluginForParameterIndex(uint32_t& index) const noexcept
     {
