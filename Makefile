@@ -434,7 +434,6 @@ ifeq ($(HAVE_FRONTEND),true)
 	install -d $(DESTDIR)$(DATADIR)/carla/common
 	install -d $(DESTDIR)$(DATADIR)/carla/patchcanvas
 	install -d $(DESTDIR)$(DATADIR)/carla/styles
-	install -d $(DESTDIR)$(DATADIR)/carla/styles/themes
 	install -d $(DESTDIR)$(DATADIR)/carla/utils
 	install -d $(DESTDIR)$(DATADIR)/carla/widgets
 endif
@@ -612,13 +611,9 @@ endif
 		$(DESTDIR)$(DATADIR)/carla/pluginlist/
 
 	install -d $(DESTDIR)$(DATADIR)/carla/styles
-	install -d $(DESTDIR)$(DATADIR)/carla/styles/themes
 	install -m 644 \
 		source/frontend/styles/*.py \
 		$(DESTDIR)$(DATADIR)/carla/styles/
-	install -m 644 \
-		source/frontend/styles/themes/*.qss \
-		$(DESTDIR)$(DATADIR)/carla/styles/themes/
 
 	# Adjust LIBDIR and DATADIR value in python code
 	sed $(SED_ARGS) 's?X_LIBDIR_X = None?X_LIBDIR_X = "$(LIBDIR)"?' \
