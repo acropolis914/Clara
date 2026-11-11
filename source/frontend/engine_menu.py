@@ -24,6 +24,8 @@ class EngineMenuMixin:
 
     @pyqtSlot()
     def slot_engineStart(self):
+        if hasattr(self, "_noteActivity"):
+            self._noteActivity("engine started")
         from host_app import setEngineSettings  # lazy: host_app imports this mixin
 
         audioDriver = setEngineSettings(self.host, self.fSavedSettings)
@@ -67,6 +69,8 @@ class EngineMenuMixin:
 
     @pyqtSlot()
     def slot_engineStop(self, forced=False):
+        if hasattr(self, "_noteActivity"):
+            self._noteActivity("engine stopped")
         self.ui.text_logs.appendPlainText("======= Stopping engine =======")
 
         if self.fPluginCount == 0 or not self.host.is_engine_running():

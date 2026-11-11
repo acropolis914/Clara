@@ -61,6 +61,7 @@ _CLARA_PROCESS_START = time.time()
 # Imports (PyQt)
 # ------------------------------------------------------------------------------------------------------------
 from qt_compat import (
+    Qt,
     PYQT_VERSION,
     QT_VERSION,
     QAction,
@@ -1026,6 +1027,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         self.label_save_status.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         self.label_save_status.setMinimumWidth(0)
         self.ui.horizontalLayout_3.addWidget(self.label_save_status)
+        # All status bar widgets exist now; rebuild the row from code.
+        self._buildStatusBar()
 
         self.label_autosave_status = QLabel(self.ui.tw_statusbar)
         self.label_autosave_status.setObjectName("label_autosave_status")
@@ -1035,25 +1038,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         self.ui.horizontalLayout_3.addWidget(self.label_autosave_status)
 
         # Allow statusbar controls to flex on narrow screens (e.g. half-screen tiling)
-        if hasattr(self.ui, "pb_dsp_load") and self.ui.pb_dsp_load is not None:
-            # Replace the flat bar with the sparkline DSP meter
-            from widgets.dsploadbar import DspLoadBar
-            old_bar = self.ui.pb_dsp_load
-            new_bar = DspLoadBar(old_bar.parentWidget())
-            new_bar.setObjectName("pb_dsp_load")
-            new_bar.setFormat("DSP Load: %p%")
-            new_bar.setMinimumWidth(40)
-            new_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            lay = old_bar.parentWidget().layout()
-            idx = lay.indexOf(old_bar) if lay else -1
-            if lay is not None and idx >= 0:
-                lay.insertWidget(idx, new_bar)
-                lay.removeWidget(old_bar)
-            else:
-                new_bar.setParent(old_bar.parentWidget())
-            old_bar.hide()
-            old_bar.deleteLater()
-            self.ui.pb_dsp_load = new_bar
+        if hasattr(self.ui, "tw_statusbar") and self.ui.tw_statusbar is not None:
+            self._buildStatusBar()
         if hasattr(self.ui, "cb_buffer_size") and self.ui.cb_buffer_size is not None:
             self.ui.cb_buffer_size.setMinimumWidth(40)
             self.ui.cb_buffer_size.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
@@ -1432,6 +1418,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         self.ui.cb_buffer_size.blockSignals(False)
 
     def slot_bufferSizeChanged(self, text):
+        if hasattr(self, "_noteActivity"):
+            self._noteActivity("buffer size changed: %s" % text)
         """Apply a buffer size change to the running engine."""
         try:
             value = int(text)
@@ -1444,6 +1432,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         # updateBufferSize arrives via the engine callback if accepted
 
     def slot_sampleRateChanged(self, text):
+        if hasattr(self, "_noteActivity"):
+            self._noteActivity("sample rate change requested: %s" % text)
         """Sample rate needs an engine restart; offer one and reload."""
         try:
             value = int(text)
@@ -2137,8 +2127,11 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
 
     def projectLoadingFinished(self, refreshCanvas, restore_positions=True):
         self._finalizePluginTiming()
-        if getattr(self, "fLoadingDialog", None) is not None and hasattr(self.fLoadingDialog, "setSegment"):
-            self.fLoadingDialog.setSegment(getattr(self, "fLoadingPluginTotal", 0) + 3)
+        if getattr(self, "fLoadingDialog", None) is not None:
+            if hasattr(self.fLoadingDialog, "setSegment"):
+                self.fLoadingDialog.setSegment(getattr(self, "fLoadingPluginTotal", 0) + 3)
+            if hasattr(self.fLoadingDialog, "setDone"):
+                self.fLoadingDialog.setDone()
         if self.ui.listWidget is not None:
             self.ui.listWidget.setUpdatesEnabled(True)
             self.ui.listWidget.blockSignals(False)
@@ -2382,6 +2375,91 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         self.ui.cb_transport_link.setChecked(":link:" in transportExtra)
 
     @pyqtSlot(int)
+    def _buildStatusBar(self):
+        """Flat semantic status bar: hide separators, swap the DSP bar for a
+        sparkline, add the current/average label. Box-model friendly: the
+        ui-file layout stays, only the pieces change."""
+        from qt_compat import QLabel, QSizePolicy
+        from widgets.dsploadbar import DspLoadBar
+
+        # hide the vertical separator lines (flat row)
+        for name in ("line_1", "line_2", "line_3", "line_4", "line_5"):
+            sep = getattr(self.ui, name, None)
+            if sep is not None:
+                sep.hide()
+
+        # swap the flat DSP progress bar for the sparkline meter
+        old_bar = getattr(self.ui, "pb_dsp_load", None)
+        if old_bar is not None:
+            spark = DspLoadBar(old_bar.parentWidget())
+            spark.setObjectName("pb_dsp_load")
+            spark.setMinimumWidth(90)
+            spark.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            lay = old_bar.parentWidget().layout()
+            idx = lay.indexOf(old_bar) if lay else -1
+            if lay is not None and idx >= 0:
+                lay.insertWidget(idx, spark)
+                lay.removeWidget(old_bar)
+            old_bar.hide()
+            old_bar.deleteLater()
+            self.ui.pb_dsp_load = spark
+
+        # current/average text right after the save-status chip
+        self._lblDspLoad = QLabel("DSP", self.ui.tw_statusbar)
+        self._lblDspLoad.setStyleSheet(
+            "font-family: 'JetBrains Mono', monospace; font-size: 11px;")
+        lay = self.ui.tw_statusbar.layout()
+        anchor = getattr(self, "label_save_status", None)
+        if anchor is not None and lay is not None:
+            lay.insertWidget(lay.indexOf(anchor), self._lblDspLoad)
+        else:
+            lay.addWidget(self._lblDspLoad)
+
+        from collections import deque
+        self._dspSamples = deque(maxlen=240)
+        self._lastDspPush = 0.0
+        self._lastXruns = 0
+
+    def _noteActivity(self, description):
+        """Record a user/engine event for xrun context (what happened just before)."""
+        ring = getattr(self, "_activityRing", None)
+        if ring is None:
+            from collections import deque
+            ring = self._activityRing = deque(maxlen=20)
+        ring.append((time.monotonic(), str(description)))
+
+    def _onXrunsIncreased(self, new_total, count):
+        """Log + store context for xruns that just happened."""
+        now = time.monotonic()
+        last = None
+        ring = getattr(self, "_activityRing", None)
+        if ring:
+            at, desc = ring[-1]
+            last = "%s (+%.1fs before)" % (desc, now - at)
+        line = "XRUN #%d (total %d)%s" % (
+            count, new_total, (" · last activity: %s" % last) if last else "")
+        logger.warning("XRUN", line)
+        ring2 = getattr(self, "_xrunRing", None)
+        if ring2 is None:
+            from collections import deque
+            ring2 = self._xrunRing = deque(maxlen=12)
+        ring2.append({"time": time.strftime("%H:%M:%S"), "total": new_total,
+                      "context": last or "unknown"})
+
+    def _showXrunReport(self):
+        ring = getattr(self, "_xrunRing", None)
+        if not ring:
+            QMessageBox.information(self, self.tr("Xruns"),
+                                    self.tr("No xruns recorded this session."))
+            return
+        lines = []
+        for entry in reversed(ring):
+            lines.append("%s · total %d · %s" % (
+                entry["time"], entry["total"], entry["context"]))
+        QMessageBox.information(
+            self, self.tr("Xruns this session"),
+            self.tr("Last xruns and the activity that preceded them:\n\n") + "\n".join(lines))
+
     def slot_handleBufferSizeChangedCallback(self, newBufferSize):
         self.updateBufferSize(newBufferSize)
 
@@ -2687,6 +2765,7 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
 
     @pyqtSlot(int, int, str)
     def slot_handlePluginAddedCallback(self, pluginId, pluginType, pluginName):
+        self._noteActivity("plugin loaded: %s" % pluginName)
         state = getattr(self, "_rewireState", None)
         if state is not None and pluginId == state.get("pluginId"):
             state["plugin_added_at"] = time.monotonic()

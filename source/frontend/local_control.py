@@ -43,24 +43,40 @@ class ControlMixin:
 
     _SHOT_TARGETS = {
         "banner": ("fLoadingDialog", None),
+        "loading": ("fLoadingDialog", None),
         "statusbar": (None, "tw_statusbar"),
+        "sparkline": (None, "tw_statusbar"),
         "toolbar": (None, "toolBar"),
         "context-toolbar": (None, "contextToolBar"),
         "canvas": (None, "graphicsView"),
         "rack": (None, "listWidget"),
+        "rack-slot": (None, "listWidget"),
         "minimap": (None, "miniCanvasOverlay"),
         "minimap-map": (None, "modernMiniCanvas"),
+        "plugins": (None, "centralwidget"),
+        "settings": (None, "centralwidget"),
         "dialog": (None, None),  # resolved dynamically
     }
 
     def _shotTargetWidget(self, part):
-        """Resolve a named UI region for `clarammsg shot <part>`."""
+        """Resolve a named UI region for `claramsg shot <part>`."""
         part = (part or "window").strip().lower()
         if part in ("window", "full", ""):
             return self
         if part == "dialog":
             from qt_compat import QApplication
             return QApplication.activeModalWidget() or QApplication.activeWindow() or self
+        if part == "banner" or part == "loading":
+            banner = getattr(self, "fLoadingDialog", None)
+            if banner is None:
+                return "no active project load - the banner only exists while loading"
+            return banner
+        if part == "rack-slot":
+            lw = getattr(self.ui, "listWidget", None)
+            if lw is None or lw.count() == 0:
+                return "rack is empty"
+            row = lw.currentRow() if lw.currentRow() >= 0 else 0
+            return lw.itemWidget(lw.item(row))
         spec = self._SHOT_TARGETS.get(part)
         if spec is None:
             return None
@@ -72,16 +88,63 @@ class ControlMixin:
             return widget
         return getattr(self.ui, attr_ui, None)
 
-    def msgScreenshot(self, path=None, dialog=False, part="window"):
+    def _shotPrepare(self, part):
+        """Semantic automation: put the UI into the state the shot needs."""
+        if part == "plugins":
+            shown = 0
+            count = int(getattr(self, "fPluginCount", 0))
+            for pid in range(count):
+                if shown >= 3:
+                    break
+                from carla_backend import PLUGIN_HAS_CUSTOM_UI
+                if self.host.get_plugin_info(pid)["hints"] & PLUGIN_HAS_CUSTOM_UI:
+                    self.host.show_custom_ui(pid, True)
+                    shown += 1
+            return 900
+        if part == "settings":
+            self.msgSettings("open")
+            return 900
+        if part == "context-toolbar":
+            import patchcanvas
+            picked = 0
+            for group in patchcanvas.canvas.group_list:
+                for widget in getattr(group, "widgets", []):
+                    if widget is not None and picked < 3:
+                        widget.setSelected(True)
+                        picked += 1
+            return 700
+        if part == "statusbar" or part == "sparkline":
+            return 300  # give the sparkline a moment of history
+        return 0
+
+    def msgScreenshot(self, path=None, dialog=False, part="window", auto=True):
         try:
-            from qt_compat import QApplication
+            from qt_compat import QApplication, QEventLoop, QTimer
+            part = (part or "window").strip().lower()
+            if part and part not in ("window", "full", "") and                     part not in self._SHOT_TARGETS and part != "dialog":
+                return {"ok": False,
+                        "error": "no such shot target: %s (valid: %s)" % (
+                            part, ", ".join(sorted(self._SHOT_TARGETS)))}
+
+            wait_ms = 0
+            if auto:
+                wait_ms = self._shotPrepare(part)
+
             target = self
             if part and part not in ("window", "full", ""):
                 target = self._shotTargetWidget(part)
+                if isinstance(target, str):
+                    return {"ok": False, "error": target}
                 if target is None:
                     return {"ok": False, "error": "no such shot target: %s" % part}
             elif dialog:
                 target = QApplication.activeModalWidget() or QApplication.activeWindow() or self
+
+            if wait_ms > 0:
+                # let the automation render before the grab
+                loop = QEventLoop()
+                QTimer.singleShot(wait_ms, loop.quit)
+                loop.exec()
             import tempfile
             if path is None:
                 # mkstemp gives a private 0600 regular file, so a predictable /tmp path

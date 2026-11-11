@@ -230,6 +230,26 @@ class SettingsMixin:
                 CARLA_DEFAULT_MAIN_REFRESH_INTERVAL,
                 int,
             ),
+            CARLA_KEY_STATUSBAR_SPARKLINE: settings.value(
+                CARLA_KEY_STATUSBAR_SPARKLINE,
+                CARLA_DEFAULT_STATUSBAR_SPARKLINE,
+                bool,
+            ),
+            CARLA_KEY_STATUSBAR_SPARKLINE_WINDOW: settings.value(
+                CARLA_KEY_STATUSBAR_SPARKLINE_WINDOW,
+                CARLA_DEFAULT_STATUSBAR_SPARKLINE_WINDOW,
+                int,
+            ),
+            CARLA_KEY_STATUSBAR_SPARKLINE: settings.value(
+                CARLA_KEY_STATUSBAR_SPARKLINE,
+                CARLA_DEFAULT_STATUSBAR_SPARKLINE,
+                bool,
+            ),
+            CARLA_KEY_STATUSBAR_SPARKLINE_WINDOW: settings.value(
+                CARLA_KEY_STATUSBAR_SPARKLINE_WINDOW,
+                CARLA_DEFAULT_STATUSBAR_SPARKLINE_WINDOW,
+                int,
+            ),
             CARLA_KEY_MAIN_SYSTEM_ICONS: settings.value(
                 CARLA_KEY_MAIN_SYSTEM_ICONS, CARLA_DEFAULT_MAIN_SYSTEM_ICONS, bool
             ),

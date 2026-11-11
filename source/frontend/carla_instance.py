@@ -697,8 +697,15 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     shot_parser = sub.add_parser("shot", aliases=["screenshot"],
                                  help="save a PNG of the window, a UI region or the active dialog")
     shot_parser.add_argument("part", nargs="?", default="window",
-                             help="UI region: window, banner, statusbar, toolbar, "
-                                  "context-toolbar, canvas, rack, minimap, dialog")
+                             choices=("window", "banner", "loading", "statusbar",
+                                      "sparkline", "toolbar", "context-toolbar",
+                                      "canvas", "rack", "rack-slot", "minimap",
+                                      "minimap-map", "plugins", "settings", "dialog"),
+                             help="UI region to capture; semantic targets automate "
+                                  "their state first (plugins opens UIs, settings "
+                                  "opens the dialog, context-toolbar selects nodes)")
+    shot_parser.add_argument("--no-auto", action="store_true",
+                             help="disable the per-target automation")
     shot_parser.add_argument("loc", nargs="?", default=None,
                              help="output file or directory (default: current directory)")
     shot_parser.add_argument("--dialog", action="store_true")
@@ -794,7 +801,7 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
 
     if args.cmd in ("shot", "screenshot"):
         payload = build_request("screenshot", dialog=bool(args.dialog),
-                                part=args.part)
+                                part=args.part, auto=not args.no_auto)
         payload["path"] = _screenshot_path(args.loc or args.path)
         reply = _send(socket_path, payload)
         if reply is None:

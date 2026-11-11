@@ -6,6 +6,9 @@
 # host_app.py. HostWindow inherits this mixin.
 
 import os
+import time
+
+from carla_logger import logger
 
 from carla_app import (
     CARLA_DEFAULT_MAIN_USE_PRO_THEME,
@@ -26,6 +29,10 @@ from carla_backend import (
 from carla_shared import (
     CARLA_DEFAULT_MAIN_MINIMIZE_TO_TRAY,
     CARLA_KEY_MAIN_CONFIRM_EXIT,
+    CARLA_KEY_STATUSBAR_SPARKLINE,
+    CARLA_KEY_STATUSBAR_SPARKLINE_WINDOW,
+    CARLA_DEFAULT_STATUSBAR_SPARKLINE,
+    CARLA_DEFAULT_STATUSBAR_SPARKLINE_WINDOW,
     CARLA_KEY_MAIN_MINIMIZE_TO_TRAY,
     log_carla,
 )
@@ -110,11 +117,59 @@ class EventsMixin:
     def refreshRuntimeInfo(self, load, xruns):
         txt1 = str(xruns) if (xruns >= 0) else "--"
         txt2 = "" if (xruns == 1) else "s"
+
+        # Xruns chip: semantic dot color + context logging on increase
+        try:
+            x = int(xruns) if xruns >= 0 else 0
+            last = getattr(self, "_lastSeenXruns", None)
+            if last is not None and x > last:
+                for _ in range(min(5, x - last)):
+                    self._onXrunsIncreased(x, x - last)
+            self._lastSeenXruns = x
+            chip = self.ui.b_xruns
+            from styles.theme_manager import theme_manager
+            token = theme_manager.engine.get_token
+            color = (token("green") if x == 0
+                     else token("yellow") if x <= 5
+                     else token("red"))
+            chip.setStyleSheet(
+                "QToolButton { color: %s; background: transparent;"
+                " border: none; border-radius: 4px; padding: 2px 8px;"
+                " font-size: 11px; }" % color)
+            if self._xrunRing:
+                chip.setToolTip(self.tr(
+                    "%d xruns this session\nClick for details and context" % x))
+        except Exception:
+            pass
+
         self.ui.b_xruns.setText("%s Xrun%s" % (txt1, txt2))
-        if hasattr(self.ui.pb_dsp_load, "push"):
-            self.ui.pb_dsp_load.push(load)
-        else:
-            self.ui.pb_dsp_load.setValue(int(load))
+
+        # DSP sparkline: settings-driven (enabled, window), decimated pushes
+        try:
+            enabled = self.fSavedSettings.get(CARLA_KEY_STATUSBAR_SPARKLINE, True)
+            window = int(self.fSavedSettings.get(
+                CARLA_KEY_STATUSBAR_SPARKLINE_WINDOW,
+                CARLA_DEFAULT_STATUSBAR_SPARKLINE_WINDOW))
+            spark = getattr(self.ui, "pb_dsp_load", None)
+            spark.setVisible(bool(enabled) and spark is not None)
+            if enabled and spark is not None and hasattr(spark, "push"):
+                if getattr(spark, "window", lambda: None)() != window:
+                    spark.setWindow(window)
+                now = time.monotonic()
+                if now - getattr(self, "_lastDspPush", 0.0) >= 0.25:
+                    self._lastDspPush = now
+                    spark.push(load)
+                cur, avg, mx, win = spark.stats()
+                self._lblDspLoad.setText(
+                    "<b style='color: %s'>%d%%</b> <span style='color: %s'>"
+                    "· avg %.1f%%</span>" % (
+                        token("text-primary"),
+                        int(cur), token("text-muted"), avg))
+                self._lblDspLoad.setToolTip(self.tr(
+                    "Current: %d%% · average (%ds window): %.1f%% · max: %d%%"
+                    % (int(cur), win, avg, int(mx))))
+        except Exception as ex:
+            logger.warning("APP", "statusbar sparkline update failed: %s" % ex)
 
     def getAndRefreshRuntimeInfo(self):
         if not self.ui.pb_dsp_load.isVisible():

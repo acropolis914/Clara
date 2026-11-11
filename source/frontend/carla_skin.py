@@ -1802,6 +1802,11 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
 
     @pyqtSlot(bool)
     def slot_showCustomUi(self, show):
+        try:
+            gCarla.gui._noteActivity("%s UI %s" % (
+                self.fPluginInfo['name'], "opened" if show else "closed"))
+        except Exception:
+            pass
         self.host.show_custom_ui(self.fPluginId, show)
 
     @pyqtSlot(bool)
