@@ -905,6 +905,15 @@ def toList(value):
 # Get Icon from user theme, using our own as backup (Oxygen)
 
 def getIcon(icon, size, qrcformat):
+    # Lucide icons (when vendored locally) take precedence over theme icons so
+    # the whole app draws one consistent icon set.
+    try:
+        from widgets.lucide import theme_icon
+        lucide = theme_icon(icon, size)
+        if lucide is not None:
+            return lucide
+    except Exception:
+        pass
     return QIcon.fromTheme(icon, QIcon(":/%ix%i/%s.%s" % (size, size, icon, qrcformat)))
 
 # ------------------------------------------------------------------------------------------------------------

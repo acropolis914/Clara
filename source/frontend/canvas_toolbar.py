@@ -128,19 +128,19 @@ class CanvasToolBarOverlay(QFrame):
         if not font_family:
             font.setPointSize(11)
 
-        # Icons: Sensible Nerd Font glyphs or clean unicode symbols
-        self.icon_pointer = "\uf245" if font_family else "↖"  # nf-fa-mouse-pointer
-        self.icon_select = "\uf247" if font_family else "⛶"  # nf-fa-object-group
-        self.icon_hand = "\uf256" if font_family else ","  # nf-fa-hand-paper-o
-        self.icon_zoomin = "\uf00e" if font_family else "+"  # nf-fa-search-plus
-        self.icon_zoomout = "\uf010" if font_family else "-"  # nf-fa-search-minus
-        self.icon_fit = "\uf0b2" if font_family else "⛶"  # nf-fa-arrows-alt
-        self.icon_grid = "\uf00a" if font_family else "#"  # nf-fa-th
-        self.icon_snap = "\uf076" if font_family else ""  # nf-fa-magnet
-        self.icon_flow = "\uf21e" if font_family else "∿"  # nf-fa-heartbeat
-        self.icon_help = "\uf059" if font_family else "?"  # nf-fa-question-circle
+        # Icons: Lucide (vendored); bind_icon attaches palette-driven QIcons.
+        self.icon_pointer = "mouse-pointer"
+        self.icon_select = "box-select"
+        self.icon_hand = "hand"
+        self.icon_zoomin = "zoom-in"
+        self.icon_zoomout = "zoom-out"
+        self.icon_fit = "maximize-2"
+        self.icon_grid = "grid-3x3"
+        self.icon_snap = "magnet"
+        self.icon_flow = "activity"
+        self.icon_help = "circle-help"
         # Main Application Menu Button (Accessible when Menubar is hidden)
-        self.btnMenu = CanvasToolButton("☰", self)
+        self.btnMenu = CanvasToolButton("", self)
         self.btnMenu.setObjectName("canvasMenuButton")
         self.btnMenu.setToolTip("Main Menu (Ctrl+M to toggle menubar)")
         self.btnMenu.setFont(font)
@@ -149,15 +149,15 @@ class CanvasToolBarOverlay(QFrame):
         layout.addWidget(self.btnMenu)
 
         # Mode Selection Buttons (Checkable, Mutually Exclusive)
-        self.btnPointer = CanvasToolButton(self.icon_pointer, self)
+        self.btnPointer = CanvasToolButton("", self)
         self.btnPointer.setToolTip("Pointer Tool (Q / Esc)")
         self.btnPointer.setFont(font)
 
-        self.btnSelect = CanvasToolButton(self.icon_select, self)
+        self.btnSelect = CanvasToolButton("", self)
         self.btnSelect.setToolTip("Marquee Selection (V)")
         self.btnSelect.setFont(font)
 
-        self.btnHand = CanvasToolButton(self.icon_hand, self)
+        self.btnHand = CanvasToolButton("", self)
         self.btnHand.setToolTip("Hand / Pan Canvas (H / Space)")
         self.btnHand.setFont(font)
 
@@ -181,21 +181,21 @@ class CanvasToolBarOverlay(QFrame):
         add_sep()
 
         # Zoom & View Tools
-        self.btnZoomIn = CanvasToolButton(self.icon_zoomin, self)
+        self.btnZoomIn = CanvasToolButton("", self)
         self.btnZoomIn.setToolTip("Zoom In (+)")
         self.btnZoomIn.setFont(font)
         self.btnZoomIn.setFixedSize(28, 28)
         self.btnZoomIn.clicked.connect(lambda: self._zoom(120))
         layout.addWidget(self.btnZoomIn)
 
-        self.btnZoomOut = CanvasToolButton(self.icon_zoomout, self)
+        self.btnZoomOut = CanvasToolButton("", self)
         self.btnZoomOut.setToolTip("Zoom Out (-)")
         self.btnZoomOut.setFont(font)
         self.btnZoomOut.setFixedSize(28, 28)
         self.btnZoomOut.clicked.connect(lambda: self._zoom(-120))
         layout.addWidget(self.btnZoomOut)
 
-        self.btnFit = CanvasToolButton(self.icon_fit, self)
+        self.btnFit = CanvasToolButton("", self)
         self.btnFit.setToolTip("Zoom to Fit All Nodes (F)")
         self.btnFit.setFont(font)
         self.btnFit.setFixedSize(28, 28)
@@ -205,7 +205,7 @@ class CanvasToolBarOverlay(QFrame):
         add_sep()
 
         # Canvas Dot Grid Toggle
-        self.btnGrid = CanvasToolButton(self.icon_grid, self)
+        self.btnGrid = CanvasToolButton("", self)
         self.btnGrid.setToolTip("Toggle Dot Grid Visibility")
         self.btnGrid.setFont(font)
         self.btnGrid.setFixedSize(28, 28)
@@ -215,7 +215,7 @@ class CanvasToolBarOverlay(QFrame):
         layout.addWidget(self.btnGrid)
 
         # Coordinate Snapping Toggle
-        self.btnSnap = CanvasToolButton(self.icon_snap, self)
+        self.btnSnap = CanvasToolButton("", self)
         self.btnSnap.setToolTip("Toggle Coordinate Snapping to Grid")
         self.btnSnap.setFont(font)
         self.btnSnap.setFixedSize(28, 28)
@@ -228,7 +228,7 @@ class CanvasToolBarOverlay(QFrame):
 
         # Signal / Event Flow Animation Toggle
         self._signalflow_external = True
-        self.btnSignalFlow = CanvasToolButton(self.icon_flow, self)
+        self.btnSignalFlow = CanvasToolButton("", self)
         self.btnSignalFlow.setToolTip(
             "Toggle animated signal/event flow over the patchbay\n(right-click for options)"
         )
@@ -243,7 +243,7 @@ class CanvasToolBarOverlay(QFrame):
         add_sep()
 
         # Patchbay Shortcuts Help Tooltip
-        self.btnHelp = CanvasToolButton(self.icon_help, self)
+        self.btnHelp = CanvasToolButton("", self)
         self.btnHelp.setFont(font)
         self.btnHelp.setFixedSize(28, 28)
         self.btnHelp.setToolTip("""<b>Patchbay Shortcuts:</b><br/>
@@ -255,6 +255,23 @@ class CanvasToolBarOverlay(QFrame):
 • <b>Middle-Click</b>: Disconnect Wire/Port<br/>
 • <b>Right-Click Node</b>: Node Actions & Align""")
         layout.addWidget(self.btnHelp)
+
+        # Attach Lucide icons to every toolbar button
+        from widgets.lucide import bind_icon
+        for btn, name in (
+            (self.btnMenu, "menu"),
+            (self.btnPointer, self.icon_pointer),
+            (self.btnSelect, self.icon_select),
+            (self.btnHand, self.icon_hand),
+            (self.btnZoomIn, self.icon_zoomin),
+            (self.btnZoomOut, self.icon_zoomout),
+            (self.btnFit, self.icon_fit),
+            (self.btnGrid, self.icon_grid),
+            (self.btnSnap, self.icon_snap),
+            (self.btnSignalFlow, self.icon_flow),
+            (self.btnHelp, self.icon_help),
+        ):
+            bind_icon(btn, name, size=16)
 
         self.updateActiveButton(0)
         self.adjustSize()

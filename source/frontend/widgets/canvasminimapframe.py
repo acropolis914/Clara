@@ -735,7 +735,11 @@ class CanvasMinimapOverlay(QFrame):
 
         self._collapseBtn = QToolButton(self)
         self._collapseBtn.setObjectName("miniCanvasCollapse")
-        self._collapseBtn.setText("\u25be")
+        try:
+            from widgets.lucide import bind_icon
+            bind_icon(self._collapseBtn, "chevron-down", size=12)
+        except Exception:
+            self._collapseBtn.setText("\u25be")
         self._collapseBtn.setToolTip("Collapse / expand minimap")
         self._collapseBtn.setAutoRaise(True)
         self._collapseBtn.clicked.connect(lambda *_: self.toggleCollapsed())
@@ -765,7 +769,11 @@ class CanvasMinimapOverlay(QFrame):
             return
         self._collapsed = collapsed
         self.map.setVisible(not collapsed)
-        self._collapseBtn.setText("\u25b8" if collapsed else "\u25be")
+        if getattr(self._collapseBtn, "_lucide_bound", False):
+            self._collapseBtn._lucide_name = "chevron-up" if collapsed else "chevron-down"
+            self._collapseBtn._lucide_refresh()
+        else:
+            self._collapseBtn.setText("\u25b8" if collapsed else "\u25be")
         self.adjustSize()
         self.updateGeometry()
         self.collapsedChanged.emit(collapsed)

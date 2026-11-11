@@ -208,3 +208,7 @@ aur/*/*.pkg.tar.*
 /logs/
 /aur/clara-git/
 PKGBUILD.local
+
+# Vendored Lucide icons are fetched locally (scripts/fetch-lucide.sh); the
+# loader falls back to theme icons when the files are absent.
+source/frontend/resources/lucide/

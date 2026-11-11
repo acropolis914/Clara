@@ -55,6 +55,7 @@ from qt_compat import (
 from widgets.digitalpeakmeter import DigitalPeakMeter
 from widgets.paramspinbox import CustomInputDialog
 from widgets.scalabledial import ScalableDial
+from widgets.lucide import bind_icon
 
 # ------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------
@@ -2604,9 +2605,10 @@ class PluginSlot_Minimal(PluginSlot_Default):
         text_color = colors['text']
         text_disabled = colors['text_disabled']
 
-        # Create clean QPushButton instances with FontAwesome Nerd Font glyphs for minimal style
-        # Power / DSP Active: \uf011
-        btn_power = QPushButton("\uf011", parent=self.ui.w_buttons)
+        # Create clean QPushButton instances; Lucide icons follow the theme palette
+        # Power / DSP Active
+        btn_power = QPushButton("", parent=self.ui.w_buttons)
+        bind_icon(btn_power, "power", size=16, color=p['overlay0'], checked_color=p['green'])
         btn_power.setObjectName("btn_power")
         btn_power.setCheckable(True)
         btn_power.setChecked(self.fIsActive)
@@ -2616,8 +2618,9 @@ class PluginSlot_Minimal(PluginSlot_Default):
         btn_power.setToolTip("Power / DSP Active (Toggle DSP processing)")
         btn_power.clicked.connect(self.slot_enableClicked)
 
-        # Bypass (Dry/Wet): \uf05e
-        self.b_bypass = QPushButton("\uf05e", parent=self.ui.w_buttons)
+        # Bypass (Dry/Wet)
+        self.b_bypass = QPushButton("", parent=self.ui.w_buttons)
+        bind_icon(self.b_bypass, "ban", size=16, color=p['overlay0'], checked_color=p['peach'])
         self.b_bypass.setObjectName("btn_bypass")
         self.b_bypass.setMinimumSize(22, 22)
         self.b_bypass.setMaximumSize(22, 22)
@@ -2638,9 +2641,10 @@ class PluginSlot_Minimal(PluginSlot_Default):
             self.b_bypass.setEnabled(False)
             self.b_bypass.setToolTip("Bypass: Not supported for this plugin")
 
-        # Custom UI: \uf2d0
+        # Custom UI
         has_custom_ui = bool(self.getHints() & PLUGIN_HAS_CUSTOM_UI)
-        btn_gui = QPushButton("\uf2d0", parent=self.ui.w_buttons)
+        btn_gui = QPushButton("", parent=self.ui.w_buttons)
+        bind_icon(btn_gui, "monitor", size=16, color=p['overlay0'], checked_color=p['lavender'])
         btn_gui.setObjectName("btn_gui")
         btn_gui.setCheckable(True)
         btn_gui.setChecked(getattr(self.b_gui, "isChecked", lambda: False)())
@@ -2654,8 +2658,9 @@ class PluginSlot_Minimal(PluginSlot_Default):
         else:
             btn_gui.setToolTip("Custom UI: Not available for this plugin")
 
-        # Edit Parameters: \uf013
-        btn_edit = QPushButton("\uf013", parent=self.ui.w_buttons)
+        # Edit Parameters
+        btn_edit = QPushButton("", parent=self.ui.w_buttons)
+        bind_icon(btn_edit, "sliders-horizontal", size=16, color=p['overlay0'], checked_color=p['mauve'])
         btn_edit.setObjectName("btn_edit")
         btn_edit.setCheckable(True)
         btn_edit.setChecked(getattr(self.b_edit, "isChecked", lambda: False)())
@@ -2758,7 +2763,8 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.ui.layout_top.setContentsMargins(0, 0, 0, 0)
 
         # 4. Row 1 right controls: Slider mode toggle, and unified chevron minimize
-        self.b_slider_mode = QPushButton("\uf0c9" if not self.is_slider_mode else "\uf1de", parent=self)
+        self.b_slider_mode = QPushButton("", parent=self)
+        bind_icon(self.b_slider_mode, "list" if not self.is_slider_mode else "sliders-horizontal", size=16, color=p['blue'])
         self.b_slider_mode.setObjectName("btn_slider_mode")
         self.b_slider_mode.setMinimumSize(22, 22)
         self.b_slider_mode.setMaximumSize(22, 22)
@@ -2767,7 +2773,8 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.b_slider_mode.clicked.connect(self.slot_toggleSliderMode)
         self.ui.layout_top.addWidget(self.b_slider_mode)
 
-        self.b_minimize = QPushButton("\uf077", parent=self)
+        self.b_minimize = QPushButton("", parent=self)
+        bind_icon(self.b_minimize, "chevron-up", size=16, color=p['subtext0'])
         self.b_minimize.setFlat(True)
         self.b_minimize.setObjectName("btn_minimize")
         self.b_minimize.setMinimumSize(22, 22)
@@ -3560,7 +3567,9 @@ class PluginSlot_Minimal(PluginSlot_Default):
             return
         self.b_bypass.blockSignals(True)
         self.b_bypass.setChecked(is_bypassed)
-        self.b_bypass.setText("\uf05e")
+        self.b_bypass.setText("")
+        if hasattr(self.b_bypass, "_lucide_refresh"):
+            self.b_bypass._lucide_refresh()
         if is_bypassed:
             self.b_bypass.setToolTip("Bypassed (Dry/Wet = 0%) - Click to activate audio")
         else:
@@ -3648,6 +3657,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 pitem.fOptions['skin'] = newSkin
 
         pref_policy = getattr(QSizePolicy, "Preferred", None) or getattr(getattr(QSizePolicy, "Policy", None), "Preferred", None)
+        p = get_active_skin_palette(self.is_dark)
 
         if self.is_slider_mode:
             self._ensure_sliders_created()
@@ -3661,7 +3671,8 @@ class PluginSlot_Minimal(PluginSlot_Default):
             if self.scroll_area is not None:
                 self.scroll_area.setVisible(True)
                 self.syncSliderValues()
-            self.b_slider_mode.setText("\uf1de")
+            self.b_slider_mode.setText("")
+            bind_icon(self.b_slider_mode, "sliders-horizontal", size=16, color=p['blue'])
             self.b_slider_mode.setToolTip("Switch to Knobs view")
         else:
             if self.scroll_area is not None:
@@ -3675,7 +3686,8 @@ class PluginSlot_Minimal(PluginSlot_Default):
             ))
             if self.spacer_knobs is not None and pref_policy is not None:
                 self.spacer_knobs.changeSize(6 if has_right_knobs else 0, 1 if has_right_knobs else 0, pref_policy, pref_policy)
-            self.b_slider_mode.setText("\uf0c9")
+            self.b_slider_mode.setText("")
+            bind_icon(self.b_slider_mode, "list", size=16, color=p['blue'])
             self.b_slider_mode.setToolTip("Switch to Sliders view")
 
         self.updateRackItemSize()
@@ -3730,7 +3742,9 @@ class PluginSlot_Minimal(PluginSlot_Default):
             if hasattr(self, 'b_slider_mode') and self.b_slider_mode is not None:
                 self.b_slider_mode.setVisible(False)
             if hasattr(self, 'b_minimize') and self.b_minimize is not None:
-                self.b_minimize.setText("\uf078")
+                self.b_minimize.setText("")
+                if hasattr(self.b_minimize, "_lucide_refresh"):
+                    self.b_minimize._lucide_refresh()
                 self.b_minimize.setToolTip("Expand Rack Slot")
         else:
             w = self.width() if hasattr(self, 'width') and self.width() > 0 else 300
@@ -3757,7 +3771,9 @@ class PluginSlot_Minimal(PluginSlot_Default):
                     self.w_knobs_right.setVisible(True)
 
             if hasattr(self, 'b_minimize') and self.b_minimize is not None:
-                self.b_minimize.setText("\uf077")
+                self.b_minimize.setText("")
+                if hasattr(self.b_minimize, "_lucide_refresh"):
+                    self.b_minimize._lucide_refresh()
                 self.b_minimize.setToolTip("Minimize / Collapse Rack Slot")
 
         self._reflowResponsiveLayout()

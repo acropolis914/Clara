@@ -227,6 +227,18 @@ Refer to the [upstream Carla website](https://kx.studio/Applications:Carla) for 
 
 ---
 
+## Thanks & Credits
+
+Clara stands on the shoulders of a great ecosystem:
+
+- **[falkTX](https://github.com/falkTX)** and the upstream **[Carla](https://github.com/falkTX/Carla)** project — Clara's audio engine, plugin hosting core and OSC surface are built on Carla. Original author of the codebase.
+- **[Lucide](https://lucide.dev)** — the icon set used across the UI. ISC license, vendored via `scripts/fetch-lucide.sh`.
+- **[Catppuccin](https://github.com/catppuccin/catppuccin)** — the pastel palettes behind the default themes (Macchiato, Mocha, Latte & friends).
+- **The plugin ecosystems** that make a host worth using: the LSP plugin suite, sfizz, Cardinal, Dexed, Helm, u-he, and every LADSPA/LV2/VST/CLAP developer whose work loads inside Clara.
+- **Everyone who reports bugs, tests large routing setups, and hangs out in the issue tracker** — an early-alpha project lives on your reports.
+
+---
+
 <div align="center">
   <sub>Maintained by <a href="https://github.com/acropolis914">acropolis914</a>. Original Carla host by <a href="https://github.com/falkTX">falkTX</a>.</sub>
 </div>

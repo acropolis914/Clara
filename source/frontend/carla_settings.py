@@ -350,15 +350,16 @@ class CarlaSettingsW(QDialog):
             self.tr("Wine"),
             self.tr("Experimental"),
         ]
+        # Lucide icon per settings page
         tab_glyphs = [
-            "\uf013",  # nf-fa-cog          General
-            "\uf0e8",  # nf-fa-sitemap      Patchbay
-            "\uf085",  # nf-fa-cogs         Engine
-            "\uf0ac",  # nf-fa-globe        OSC
-            "\uf07b",  # nf-fa-folder       File Paths
-            "\uf12e",  # nf-fa-puzzle-piece Plugin Paths
-            "\uf000",  # nf-fa-glass        Wine
-            "\uf0eb",  # nf-fa-lightbulb    Experimental
+            "settings",           # General
+            "network",            # Patchbay
+            "settings-2",         # Engine
+            "globe",              # OSC
+            "folder",             # File Paths
+            "puzzle",             # Plugin Paths
+            "wine",               # Wine
+            "lightbulb",          # Experimental
         ]
         try:
             from carla_shared import getBestNerdFont
@@ -373,8 +374,16 @@ class CarlaSettingsW(QDialog):
         for row in range(self.ui.lw_page.rowCount()):
             item = self.ui.lw_page.item(row, 0)
             if item is not None and row < len(tab_titles):
-                if nerd_family and row < len(tab_glyphs):
-                    item.setIcon(self._make_glyph_icon(tab_glyphs[row]))
+                if row < len(tab_glyphs):
+                    try:
+                        from widgets.lucide import lucide_icon
+                        icon = lucide_icon(tab_glyphs[row], 16)
+                    except Exception:
+                        icon = None
+                    if icon is not None:
+                        item.setIcon(icon)
+                    elif nerd_family and row < len(tab_glyphs):
+                        item.setIcon(self._make_glyph_icon(tab_glyphs[row]))
                 item.setText(tab_titles[row])
                 item.setFont(sidebar_font)
 
@@ -642,20 +651,26 @@ class CarlaSettingsW(QDialog):
 
         if _nerd:
             # Modern Nerd Font glyph buttons with optical centering
-            for _btn, _glyph in (
-                (self.ui.b_main_proj_folder_open, "\uf07c"),  # nf-fa-folder-open
-                (self.ui.b_filepaths_add, "\uf067"),          # nf-fa-plus
-                (self.ui.b_filepaths_change, "\uf040"),       # nf-fa-pencil
-                (self.ui.b_filepaths_remove, "\uf068"),       # nf-fa-minus
-                (self.ui.b_paths_add, "\uf067"),
-                (self.ui.b_paths_change, "\uf040"),
-                (self.ui.b_paths_remove, "\uf068"),
+            for _btn, _name in (
+                (self.ui.b_main_proj_folder_open, "folder-open"),
+                (self.ui.b_filepaths_add, "plus"),
+                (self.ui.b_filepaths_change, "pencil"),
+                (self.ui.b_filepaths_remove, "minus"),
+                (self.ui.b_paths_add, "plus"),
+                (self.ui.b_paths_change, "pencil"),
+                (self.ui.b_paths_remove, "minus"),
             ):
                 if _btn is not None:
                     _btn.setText("")
-                    from styles.theme_manager import theme_manager
-                    _btn.setIcon(self._make_glyph_icon(
-                        _glyph, 16, color=theme_manager.engine.get_token("text-primary", "#cdd6f4")))
+                    try:
+                        from styles.theme_manager import theme_manager
+                        from widgets.lucide import lucide_icon
+                        _icon = lucide_icon(_name, 16,
+                                            color=theme_manager.engine.get_token("text-primary", "#cdd6f4"))
+                    except Exception:
+                        _icon = None
+                    if _icon is not None:
+                        _btn.setIcon(_icon)
         elif self.ui.ch_main_system_icons.isChecked():
             self.ui.b_main_proj_folder_open.setIcon(
                 getIcon("document-open", 16, "svgz")

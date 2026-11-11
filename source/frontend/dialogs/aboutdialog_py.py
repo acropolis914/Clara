@@ -50,6 +50,9 @@ _ABOUT_HTML = (
     "<p style='margin: 12px 0 0 0; font-size: 10px; color: {muted};'>"
     "Copyright &copy; 2011-2026 falkTX &amp; acropolis914<br>Licensed under GPLv2+"
     "</p>"
+    "<p style='margin: 8px 0 0 0; font-size: 10px; color: {muted};'>"
+    "UI icons by <a style='color: {muted}; text-decoration: underline;' href='https://lucide.dev'>Lucide</a> (ISC)"
+    "</p>"
     "</div>"
 )
 

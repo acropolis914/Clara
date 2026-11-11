@@ -2277,25 +2277,29 @@ class CanvasBox(QGraphicsObject):
             btn_defs = [
                 {
                     "id": "power",
-                    "icon": "\uf011",
+                    "icon": "power",
+                    "glyph": "\uf011",
                     "state": power_state,
                     "tip": power_tip,
                 },
                 {
                     "id": "bypass",
-                    "icon": "\uf05e",
+                    "icon": "ban",
+                    "glyph": "\uf05e",
                     "state": bypass_state,
                     "tip": bypass_tip,
                 },
                 {
                     "id": "hide_ports",
-                    "icon": "\uf066" if hide_ports_active else "\uf065",
+                    "icon": "eye-off" if hide_ports_active else "eye",
+                    "glyph": "\uf066" if hide_ports_active else "\uf065",
                     "state": hide_ports_state,
                     "tip": hide_ports_tip,
                 },
                 {
                     "id": "jump",
-                    "icon": "\uf08e",
+                    "icon": "external-link",
+                    "glyph": "\uf08e",
                     "state": jump_state,
                     "tip": jump_tip,
                 },
@@ -2365,11 +2369,16 @@ class CanvasBox(QGraphicsObject):
 
                 draw_rect = b_rect.translated(0, 0.8) if is_pressed else b_rect
                 painter.setPen(icon_pen)
-                # Fallback to standard unicode icon if nerd font glyph not present
                 try:
-                    painter.drawText(draw_rect, Qt.AlignCenter, b["icon"])
+                    from widgets.lucide import lucide_paint
                 except Exception:
-                    pass
+                    lucide_paint = None
+                # Lucide SVG when vendored; fall back to the unicode glyph
+                if lucide_paint is None or not lucide_paint(painter, draw_rect.adjusted(2, 2, -2, -2), b["icon"], icon_pen):
+                    try:
+                        painter.drawText(draw_rect, Qt.AlignCenter, b["glyph"])
+                    except Exception:
+                        pass
 
                 cur_x += btn_size + btn_spacing
 

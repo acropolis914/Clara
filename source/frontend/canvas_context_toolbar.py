@@ -140,9 +140,13 @@ class CanvasContextToolBarOverlay(QFrame):
         self._items.append(line)
 
     def addButton(self, icon, tooltip, callback, checkable=False, checked=False):
-        btn = CanvasToolButton(icon, self)
+        btn = CanvasToolButton("", self)
         btn.setToolTip(tooltip)
-        btn.setFont(self.font)
+        try:
+            from widgets.lucide import bind_icon
+            bind_icon(btn, icon, size=14)
+        except Exception:
+            btn.setText(icon)
         btn.setFixedSize(26, 26)
         if checkable:
             btn.setCheckable(True)
@@ -175,32 +179,31 @@ class CanvasContextToolBarOverlay(QFrame):
             self._items.append(search)
             self.addSeparator()
 
-        nf = bool(self.font_family)
-        # Nerd Font glyphs (FontAwesome / Material exact match)
-        icon_arr = "\uf0e8" if nf else "🔀"  # nf-fa-sitemap
-        icon_repel = "\uf0b2" if nf else "↔"  # nf-fa-arrows-alt
-        icon_aside = "\uf08d" if nf else "⏭"  # nf-fa-thumb-tack
-        icon_sel = "\uf046" if nf else "⛶"  # nf-fa-check-square-o
-        icon_desel = "\uf00d" if nf else "✕"  # nf-fa-times
-        icon_inv = "\uf0ec" if nf else "⇄"  # nf-fa-exchange
-        icon_edit = "\uf1de" if nf else "⚙"  # nf-fa-sliders
-        icon_ui = "\uf108" if nf else "🖥"  # nf-fa-desktop
-        icon_rack = "\uf1b3" if nf else "📦"  # nf-fa-cubes
-        icon_clone = "\uf24d" if nf else "⧉"  # nf-fa-clone
-        icon_ren = "\uf040" if nf else "✎"  # nf-fa-pencil
-        icon_del = "\uf1f8" if nf else "🗑"  # nf-fa-trash
-        icon_cut = "\uf127" if nf else "✂"  # nf-fa-chain-broken
-        icon_split = "\uf0db" if nf else "⚯"  # nf-fa-columns
-        icon_color = "\uf1fc" if nf else "🎨"  # nf-fa-paint-brush
-        icon_prop = "\uf05a" if nf else "ℹ"  # nf-fa-info-circle
-        icon_power = "\uf011" if nf else "⏻"  # nf-fa-power-off
-        icon_bypass = "\uf205" if nf else "⮀"  # nf-fa-toggle-on
-        icon_ports = "\uf070" if nf else ""  # nf-fa-eye-slash
-        icon_al_h = "󱇆" if nf else "═"  # nf-fa-align-center
-        icon_al_v = "󱇃" if nf else "║"  # nf-fa-align-center
-        icon_dist_h = "\uf07e" if nf else "⬌"  # nf-fa-arrows-h
-        icon_dist_v = "\uf07d" if nf else "⬍"  # nf-fa-arrows-v
-        icon_tools = "\uf085" if nf else "🧰"  # nf-fa-cogs
+        # Icons: Lucide names (bound as recolored QIcons in addButton)
+        icon_arr = "network"
+        icon_repel = "move"
+        icon_aside = "pin"
+        icon_sel = "square-check"
+        icon_desel = "x"
+        icon_inv = "arrow-right-left"
+        icon_edit = "sliders-horizontal"
+        icon_ui = "monitor"
+        icon_rack = "boxes"
+        icon_clone = "copy"
+        icon_ren = "pencil"
+        icon_del = "trash-2"
+        icon_cut = "unlink"
+        icon_split = "columns-2"
+        icon_color = "brush"
+        icon_prop = "info"
+        icon_power = "power"
+        icon_bypass = "ban"
+        icon_ports = "eye-off"
+        icon_al_h = "align-center-horizontal"
+        icon_al_v = "align-center-vertical"
+        icon_dist_h = "move-horizontal"
+        icon_dist_v = "move-vertical"
+        icon_tools = "settings-2"
 
         # Check for selected containers in the scene
         selected_containers = []
@@ -233,7 +236,7 @@ class CanvasContextToolBarOverlay(QFrame):
 
             # Collapse / Expand
             is_col = getattr(c, "m_collapsed", False)
-            col_icon = "\uf067" if is_col else "\uf068" if nf else ("[+]" if is_col else "[-]")
+            col_icon = "plus" if is_col else "minus"
             col_tip = "Expand Group" if is_col else "Collapse Group"
             self.addButton(col_icon, col_tip, lambda: (c.toggleCollapse(), self.updateSelection()))
 

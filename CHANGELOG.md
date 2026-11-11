@@ -22,6 +22,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+#### 2026-11-11 — Lucide icon set
+
+- **feat(ui)**: all UI icons now come from [Lucide](https://lucide.dev) (ISC), replacing the FontAwesome/Nerd-Font glyph texts and FreeDesktop theme icon lookups: rack slot header buttons (power, bypass, custom UI, edit, slider-mode, minimize chevron), canvas toolbar, canvas context toolbar, canvas node action buttons, settings dialog sidebar and path buttons, minimap collapse, and every menu/toolbar icon routed through `getIcon()` (theme names mapped to Lucide in `widgets/lucide.py`, theme icons remain the fallback when the vendored set is absent).
+- **feat(build)**: Lucide SVGs are vendored locally and gitignored; `scripts/fetch-lucide.sh` fetches the pinned set (add an icon name and rerun). Icons load with `stroke="currentColor"` recolored to the active theme palette, so they follow light/dark themes.
+- **docs**: About dialog and README credit Lucide, Catppuccin, upstream Carla and plugin ecosystem; new README "Thanks & Credits" section.
+
 #### 2026-11-11 — Exit confirmation and UI regression harness
 
 - **fix(ui)**: quitting never prompts when the exit is programmatic — `shouldIgnoreClose` now returns immediately when `fForceQuit` is set (claramsg quit, tray quit, SIGINT handling), so a non-interactive exit no longer spawns the "Are you sure you want to quit Carla?" dialog. The redundant clean-quit confirmation is also off by default now (`Main/ConfirmExit` defaults to false); the Save/Discard/Cancel prompt for unsaved changes remains and covers data safety.
