@@ -169,23 +169,31 @@ class ProjectLoadSummaryDialog(QDialog):
 # ------------------------------------------------------------------------------------------------------------
 # Modern Project Loading Dialog with indeterminate animation and detailed status text
 
-class ProjectLoadingDialog(QDialog):
-    def __init__(self, parent=None, filename="", offer_mode=False, on_load_accepted=None, on_load_declined=None,
+def _themeColor(name, fallback):
+    from styles.theme_manager import theme_manager
+    return theme_manager.engine.get_token(name, fallback) or fallback
+
+
+class ProjectSessionOfferDialog(QDialog):
+    """Session offer/recover prompt ("Recent Session:" / "Recover Session:").
+
+    Sunset note: this used to be the legacy ProjectLoadingDialog, which also
+    doubled as the project loading UI. Loading progress lives exclusively in
+    InlineLoadingBanner now - do not reintroduce dialog-based loading here.
+    """
+
+    def __init__(self, parent=None, filename="", offer_mode=True, on_load_accepted=None, on_load_declined=None,
                  recover_mode=False, offer_detail=None):
         super().__init__(parent)
         from qt_compat import QTimer, QPushButton, QCheckBox
 
         self.setWindowTitle(self.tr("Loading Project..."))
-        self.setFixedSize(460, 180 if offer_detail else (150 if offer_mode else 120))
+        self.setFixedSize(460, 180 if offer_detail else 150)
         app_modal = getattr(Qt, "ApplicationModal", None) or getattr(getattr(Qt, "WindowModality", object), "ApplicationModal", None)
         if app_modal is not None:
             self.setWindowModality(app_modal)
 
-        self._start_time = 0
-        self._current_progress = 12.0
-        self._target_progress = 20.0
-        self._explicit_progress = False
-        self._offer_mode = offer_mode
+        self._offer_mode = True
         self._recover_mode = recover_mode
         self._offer_detail = offer_detail
         self._on_load_accepted = on_load_accepted
@@ -196,76 +204,33 @@ class ProjectLoadingDialog(QDialog):
         layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(8)
 
-        # 1. Top row: Filename & Percentage
         header_layout = QHBoxLayout()
         header_layout.setSpacing(8)
 
         basename = os.path.basename(filename) if filename else self.tr("Project")
-        if recover_mode:
-            title_prefix = self.tr("Recover Session:")
-        elif offer_mode:
-            title_prefix = self.tr("Recent Session:")
-        else:
-            title_prefix = self.tr("Loading:")
+        title_prefix = self.tr("Recover Session:") if recover_mode else self.tr("Recent Session:")
         self.lbl_title = QLabel(f"<b>{title_prefix}</b> {basename}", self)
         header_layout.addWidget(self.lbl_title, 1)
-
-        self.lbl_percent = QLabel(f"{int(self._current_progress)}%", self)
-        self.lbl_percent.setStyleSheet("font-weight: bold; color: %s;" % _themeColor("blue", "#89b4fa"))
-        if offer_mode:
-            self.lbl_percent.hide()
-        header_layout.addWidget(self.lbl_percent)
         layout.addLayout(header_layout)
 
-        # 2. Glowing gradient progress bar (never frozen)
-        self.progressBar = QProgressBar(self)
-        self.progressBar.setRange(0, 100)
-        self.progressBar.setValue(int(self._current_progress))
-        self.progressBar.setTextVisible(False)
-        self.progressBar.setFixedHeight(6)
-        self.progressBar.setStyleSheet("""
-            QProgressBar {
-                background-color: %s;
-                border: none;
-                border-radius: 3px;
-            }
-            QProgressBar::chunk {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 %s, stop:0.5 %s, stop:1 %s);
-                border-radius: 3px;
-            }
-        """ % (_themeColor("border-dim", "#313244"), _themeColor("blue", "#89b4fa"),
-               _themeColor("purple", "#cba6f7"), _themeColor("magenta", "#f5c2e7")))
-        if offer_mode:
-            self.progressBar.hide()
-        layout.addWidget(self.progressBar)
-
-        # 3. Status detail label
-        if offer_mode and offer_detail:
-            initial_detail = offer_detail
-        elif offer_mode:
-            initial_detail = self.tr("No project is currently open. Would you like to restore this session?")
-        else:
-            initial_detail = self.tr("Reading project file & canvas geometry...")
+        initial_detail = offer_detail or self.tr("No project is currently open. Would you like to restore this session?")
         self.lbl_detail = QLabel(initial_detail, self)
         self.lbl_detail.setStyleSheet("color: %s; font-size: 11px;" % _themeColor("text-secondary", "#a6adc8"))
         self.lbl_detail.setWordWrap(True)
         layout.addWidget(self.lbl_detail)
 
-        # 4. Offer button container (visible only in offer_mode)
-        self.offer_widget = QWidget(self)
-        offer_layout = QVBoxLayout(self.offer_widget)
+        offer_layout = QVBoxLayout()
         offer_layout.setContentsMargins(0, 4, 0, 0)
         offer_layout.setSpacing(6)
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
-        self.cb_autoload = QCheckBox(self.tr("Always load last save on startup"), self.offer_widget)
+        self.cb_autoload = QCheckBox(self.tr("Always load last save on startup"), self)
         self.cb_autoload.setStyleSheet("color: %s; font-size: 11px;" % _themeColor("text-muted", "#6c7086"))
         btn_row.addWidget(self.cb_autoload, 1)
 
-        self.b_skip = QPushButton(self.tr("Start Empty"), self.offer_widget)
+        self.b_skip = QPushButton(self.tr("Start Empty"), self)
         self.b_skip.setStyleSheet("""
             QPushButton {
                 background-color: %s;
@@ -283,7 +248,7 @@ class ProjectLoadingDialog(QDialog):
         self.b_skip.clicked.connect(self._on_skip_clicked)
         btn_row.addWidget(self.b_skip)
 
-        self.b_load = QPushButton(self.tr("Recover Session") if recover_mode else self.tr("Load Session"), self.offer_widget)
+        self.b_load = QPushButton(self.tr("Recover Session") if recover_mode else self.tr("Load Session"), self)
         self.b_load.setStyleSheet("""
             QPushButton {
                 background-color: %s;
@@ -303,17 +268,7 @@ class ProjectLoadingDialog(QDialog):
         btn_row.addWidget(self.b_load)
 
         offer_layout.addLayout(btn_row)
-        layout.addWidget(self.offer_widget)
-
-        if not offer_mode:
-            self.offer_widget.hide()
-
-        # Smooth auto-crawler timer so progress bar NEVER looks frozen during long tasks
-        self._anim_timer = QTimer(self)
-        self._anim_timer.setInterval(40)
-        self._anim_timer.timeout.connect(self._on_tick)
-        if not offer_mode:
-            self._anim_timer.start()
+        layout.addLayout(offer_layout)
 
     def _on_load_clicked(self):
         self._accepted = True
@@ -324,7 +279,7 @@ class ProjectLoadingDialog(QDialog):
                 gCarla.autoload_lastsave = True
             except Exception:
                 pass
-        self.startLoading()
+        self.dismiss()
         if callable(self._on_load_accepted):
             self._on_load_accepted()
 
@@ -335,95 +290,17 @@ class ProjectLoadingDialog(QDialog):
             self._on_load_declined()
 
     def closeEvent(self, event):
-        if self._offer_mode and not self._accepted:
+        if not self._accepted:
             if callable(self._on_load_declined):
                 self._on_load_declined()
         super().closeEvent(event)
 
-    def startLoading(self, detail=None):
-        self._offer_mode = False
-        self.offer_widget.hide()
-        self.progressBar.show()
-        self.lbl_percent.show()
-        title_text = self.lbl_title.text()
-        self.lbl_title.setText(
-            title_text.replace(self.tr("Recent Session:"), self.tr("Loading:"))
-                      .replace(self.tr("Recover Session:"), self.tr("Loading:"))
-        )
-        self.lbl_detail.setText(detail or self.tr("Preparing project file & engine..."))
-        self._explicit_progress = False
-        self._target_progress = 22.0
-        self.setFixedSize(450, 120)
-        self._anim_timer.start()
-        self.repaint()
-        QApplication.processEvents()
-
-    def _on_tick(self):
-        if self._offer_mode:
-            return
-        if self._current_progress < self._target_progress:
-            step = max(0.5, (self._target_progress - self._current_progress) * 0.28)
-            self._current_progress = min(self._target_progress, self._current_progress + step)
-        elif not self._explicit_progress and self._current_progress < 93.0:
-            # Background crawl only while the real progress is unknown
-            self._current_progress += 0.12
-
-        val_int = int(self._current_progress)
-        self.progressBar.setValue(val_int)
-        self.lbl_percent.setText(f"{val_int}%")
-
-    def show(self):
-        import time
-        self._start_time = time.time()
-        self._current_progress = 12.0
-        self._target_progress = 22.0
-        self._explicit_progress = False
-        super().show()
-        QApplication.processEvents()
-
-    def setDetail(self, text):
-        if text:
-            self.lbl_detail.setText(str(text))
-            self.repaint()
-            QApplication.processEvents()
-
-    def setProgress(self, value, detail=None):
-        """Set real progress (0-99). Once set, the bar stops crawling on its own."""
-        try:
-            value = float(value)
-        except (TypeError, ValueError):
-            return
-        self._explicit_progress = True
-        self._target_progress = max(0.0, min(99.0, value))
-        if detail:
-            self.lbl_detail.setText(str(detail))
-        self.repaint()
-        QApplication.processEvents()
-
     def dismiss(self, min_dwell_ms=0):
-        try:
-            self._anim_timer.stop()
-        except Exception:
-            pass
-        self._current_progress = 100.0
-        self.progressBar.setValue(100)
-        self.lbl_percent.setText("100%")
-        self.lbl_detail.setText(self.tr("Ready!"))
-        self.repaint()
-        QApplication.processEvents()
         self.close()
         self.deleteLater()
 
 
 
-
-def _themeColor(name, fallback):
-    from styles.theme_manager import theme_manager
-    return theme_manager.engine.get_token(name, fallback) or fallback
-
-
-# ------------------------------------------------------------------------------------------------------------
-# Inline project loading banner (part of the main window, not a dialog)
 
 class InlineLoadingBanner(QWidget):
     def __init__(self, parent=None, filename=""):

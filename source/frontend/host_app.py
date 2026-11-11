@@ -2219,22 +2219,16 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         if started:
             if not hasattr(self, "fLoadingDialog") or self.fLoadingDialog is None:
                 fn = getattr(self, "fProjectFilename", "")
-                self.fLoadingDialog = ProjectLoadingDialog(self.fParentOrSelf, fn)
+                self.fLoadingDialog = InlineLoadingBanner(self.ui.centralwidget, fn)
+                layout = self.ui.centralwidget.layout()
+                if layout is not None:
+                    layout.insertWidget(0, self.fLoadingDialog)
                 self.fLoadingDialog.show()
             if action:
                 self.fLoadingDialog.setDetail(action)
             QApplication.processEvents()
         else:
-            if hasattr(self, "fLoadingDialog") and self.fLoadingDialog is not None:
-                try:
-                    if hasattr(self.fLoadingDialog, "dismiss"):
-                        self.fLoadingDialog.dismiss(500)
-                    else:
-                        self.fLoadingDialog.close()
-                        self.fLoadingDialog.deleteLater()
-                except Exception:
-                    pass
-                self.fLoadingDialog = None
+            self._dismissLoadingDialog()
 
     @pyqtSlot()
     def slot_canlableActionBoxClicked(self):
@@ -2546,7 +2540,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             else:
                 percent = min(90.0, 8.0 + done * 2.0)
                 detail = f"Loading plugin: {pluginName}{suffix}..."
-            self.fLoadingDialog.setProgress(percent, detail)
+            if hasattr(self.fLoadingDialog, "setProgress"):
+                self.fLoadingDialog.setProgress(percent, detail)
 
         while len(self.fPluginList) <= pluginId:
             self.fPluginList.append(None)

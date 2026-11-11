@@ -10,7 +10,7 @@ from datetime import datetime
 
 from carla_app import QSafeSettings, gCarla
 from carla_shared import CARLA_KEY_MAIN_PROJECT_FOLDER, CustomMessageBox
-from carla_widgets import ProjectLoadingDialog
+from carla_widgets import ProjectSessionOfferDialog
 from project_storage import storage_manager
 from qt_compat import QAction, QFileDialog, QMessageBox, QTimer, pyqtSlot
 
@@ -150,7 +150,7 @@ class ProjectMenuMixin:
                     f"('{os.path.basename(recent_file)}')."
                 )
 
-            self.fLoadingDialog = ProjectLoadingDialog(
+            self.fLoadingDialog = ProjectSessionOfferDialog(
                 self.fParentOrSelf,
                 recent_file,
                 offer_mode=True,
