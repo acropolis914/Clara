@@ -22,6 +22,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+#### 2026-11-11 — Exit confirmation and UI regression harness
+
+- **fix(ui)**: quitting never prompts when the exit is programmatic — `shouldIgnoreClose` now returns immediately when `fForceQuit` is set (claramsg quit, tray quit, SIGINT handling), so a non-interactive exit no longer spawns the "Are you sure you want to quit Carla?" dialog. The redundant clean-quit confirmation is also off by default now (`Main/ConfirmExit` defaults to false); the Save/Discard/Cancel prompt for unsaved changes remains and covers data safety.
+- **feat(tests)**: `source/tests/test_rack_layout.py` — a UI regression harness that launches a real Clara instance headless (PulseAudio driver, isolated QSettings, offscreen platform, its own instance key), loads the rack fixture project (`source/tests/fixtures/rack_probe.carxp`) and asserts the layout invariants that regressed this week: no item wider than the rack viewport, square LED tiles opted out of button chrome, unpinned dials (size hint == minimum hint), fixed heights honored, and zero tracebacks in the app log. `claramsg rack detail` dumps per-slot LED/dial geometry.
+
 #### 2026-11-11 — Rack item fixes (LEDs and knobs)
 
 - **fix(ui)**: root cause of the clipped LED "traffic lights" was the global theme QSS (`QPushButton { min-height: 22px; padding: 4px 12px; }`) inflating every `LEDButton` to 14x32 inside a 30px grid. LED tiles now opt out of button chrome via a `ledTile` property exemption in the theme QSS, so they are exactly their hint size.

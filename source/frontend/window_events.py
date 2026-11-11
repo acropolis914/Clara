@@ -453,6 +453,11 @@ class EventsMixin:
         if self.fWindowCloseHideGui:
             return False
 
+        # Explicit quit paths (claramsg quit, tray quit, SIGINT handling) set
+        # fForceQuit; a programmatic exit must never prompt.
+        if getattr(self, "fForceQuit", False):
+            return False
+
         # If project has unsaved changes, offer Save, Discard, Cancel
         if getattr(self, "fHasUnsavedChanges", False):
             proj_name = os.path.basename(self.fProjectFilename) if self.fProjectFilename else self.tr("Untitled Project")

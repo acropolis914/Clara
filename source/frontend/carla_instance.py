@@ -656,7 +656,7 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     instances_parser = sub.add_parser("instances", help="list running Clara instances")
     instances_parser.add_argument("-j", "--json", action="store_true")
     rack_parser = sub.add_parser("rack", help="inspect rack layout (debug)")
-    rack_parser.add_argument("action", nargs="?", default="dump", choices=("dump",))
+    rack_parser.add_argument("action", nargs="?", default="dump", choices=("dump", "detail"))
     plugin_parser = sub.add_parser("plugin", help="control a plugin")
     plugin_parser.add_argument("action", choices=("ui",))
     plugin_parser.add_argument("plugin_id", type=int)

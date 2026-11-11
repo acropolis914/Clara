@@ -444,6 +444,36 @@ class ControlMixin:
                     "fixed_h": widget.getFixedHeight() if hasattr(widget, "getFixedHeight") else None,
                     "visual": [lw.visualItemRect(item).width(), lw.visualItemRect(item).height()],
                 }
+                if action == "detail":
+                    leds = []
+                    for attr in ("led_control", "led_midi", "led_audio_in", "led_audio_out"):
+                        led = getattr(widget, attr, None)
+                        if led is None:
+                            continue
+                        leds.append({
+                            "attr": attr,
+                            "size": [led.width(), led.height()],
+                            "min": [led.minimumSize().width(), led.minimumSize().height()],
+                            "max": [led.maximumSize().width(), led.maximumSize().height()],
+                            "minimal": bool(getattr(led, "fMinimalMode", False)),
+                            "tile_prop": bool(led.property("ledTile")),
+                        })
+                    dials = []
+                    for _, pw in (getattr(widget, "fParameterList", None) or []):
+                        from widgets.scalabledial import ScalableDial
+                        if isinstance(pw, ScalableDial):
+                            dials.append({
+                                "size": [pw.width(), pw.height()],
+                                "minhint": [pw.minimumSizeHint().width(), pw.minimumSizeHint().height()],
+                                "hint": [pw.sizeHint().width(), pw.sizeHint().height()],
+                                "custom": bool(getattr(pw, "fCustomSize", False)),
+                            })
+                    grid = getattr(widget, "_led_grid_container", None)
+                    entry["widget"]["detail"] = {
+                        "leds": leds,
+                        "dials": dials,
+                        "grid": [grid.width(), grid.height()] if grid is not None else None,
+                    }
             items.append(entry)
         return {"ok": True, "viewport": [lw.viewport().width(), lw.viewport().height()],
                 "contents": [lw.contentsRect().width(), lw.contentsRect().height()],
