@@ -85,7 +85,10 @@ class CanvasContextToolBarOverlay(QFrame):
         self.searchEdit.setPlaceholderText("Search nodes…")
         self.searchEdit.setClearButtonEnabled(True)
         self.searchEdit.setFixedHeight(24)
-        self.searchEdit.setFixedWidth(170)
+        # Shrinkable rather than fixed: when the toolbar clamps to a narrow
+        # canvas viewport the field compresses instead of overflowing the bar.
+        self.searchEdit.setMinimumWidth(120)
+        self.searchEdit.setMaximumWidth(170)
         self.searchEdit.textChanged.connect(self._slot_search_changed)
         self.searchEdit.returnPressed.connect(self._slot_search_accept)
         self.searchEdit.installEventFilter(self)
@@ -834,10 +837,14 @@ class CanvasContextToolBarOverlay(QFrame):
         super().mouseReleaseEvent(event)
 
     def reposition(self):
-        if getattr(self, "_userMoved", False):
-            return
         parent = self.parentWidget()
         if parent is None:
+            return
+        if getattr(self, "_userMoved", False):
+            # Keep the dragged position, but never let it leave the canvas.
+            x = max(12, min(self.x(), parent.width() - self.width() - 12))
+            y = max(12, min(self.y(), parent.height() - self.height() - 12))
+            self.move(x, y)
             return
         # Top toolbar: pinned to the patchbay's top edge, horizontally centered.
         x = max(12, (parent.width() - self.width()) // 2)
