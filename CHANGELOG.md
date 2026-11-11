@@ -24,6 +24,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 #### 2026-11-11 — Everforest themes
 
+- **feat(tests)**: `test_polish_contract.py` — asserts that after theme polish, every pinned widget renders exactly the size its code requested and no widget ends with minimum above maximum. This is the systematic guard for the QSS-overrides-setFixedSize bug class (toolbar buttons, dial, search field all regressed through it).
+- **feat(tests)**: the rack layout harness now also asserts every slot's polished minimum height fits its fixed height and its minimum width fits the rack viewport; fixing the exposed offender: the plugin badge label drove ~60px of hidden minimum width in every slot (minimums dropped 281→222px).
+- **feat(msg)**: `claramsg status` now reports a `code_version` stamp (newest frontend .py mtime) and `claramsg` warns loudly whenever the running instance predates the code on disk - stale-code debugging no longer masquerades as broken fixes.
+- **fix(theming)**: `ThemeEngine.resolve_tokens()` derives the mode from the theme definition when the argument is omitted, instead of silently applying the "dark" default and inverting light themes.
+- **fix(ui)**: removed arbitrary width floors that kept rack slots from shrinking to narrow viewports: knobs column (120px floor), rename edit (80px floor), plugin badge label, and tightened the header row spacing.
+
 - **feat(theming)**: new builtin themes "Everforest Dark" and "Everforest Light" (by sainnhe, MIT), using the exact medium-variant palettes from the upstream source; they flow through the standard Base16 pipeline (tokens, QSS, rack skins, patchbay) with the everforest blue `#7fbbb3` / `#3a94c5` as the app accent.
 
 #### 2026-11-11 — Lucide icon set

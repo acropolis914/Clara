@@ -723,7 +723,8 @@ class CanvasContainer(QGraphicsObject):
         btn_reset.setFixedSize(22, 22)
         btn_reset.setStyleSheet(
             "QPushButton { font-weight: bold; color: %s; background: transparent;"
-            " border: 1px solid %s; border-radius: 3px; }"
+            " border: 1px solid %s; border-radius: 3px;"
+            " padding: 0px; min-height: 0px; min-width: 0px; }"
             "QPushButton:hover { color: %s; border-color: %s; background: %s; }"
             % (theme.color_muted.name(), theme.color_muted.name(),
                theme.color_text.name(), theme.color_text.name(),
@@ -740,7 +741,7 @@ class CanvasContainer(QGraphicsObject):
             btn_col.setFixedSize(22, 22)
             btn_col.setStyleSheet(
                 "QPushButton { background-color: %s; border: 1px solid %s;"
-                " border-radius: 3px; }"
+                " border-radius: 3px; padding: 0px; min-height: 0px; min-width: 0px; }"
                 "QPushButton:hover { border: 2px solid %s; }"
                 % (col_hex, theme.color_muted.name(), theme.color_text.name())
             )

@@ -146,6 +146,20 @@ def main():
                 if widget is None:
                     continue
                 det = widget.get("detail") or {}
+                # The magic numbers in getFixedHeight() must always leave room
+                # for the slot's real (polished) minimums - this is the class
+                # of bug that clipped LED tiles inside fixed rows.
+                _assert(widget["min"][1] <= widget["fixed_h"] + 1,
+                        "row %d minimum height %d fits fixed height %s" % (
+                            entry["row"], widget["min"][1], widget["fixed_h"]),
+                        failed)
+                _assert(widget["min"][0] <= vw + 1,
+                        "row %d minimum width %d fits viewport %d (wide: %s)" % (
+                            entry["row"], widget["min"][0], vw,
+                            ", ".join("%s#%s=%s" % (c["cls"], c["name"], c["min"][0])
+                                      for c in det.get("wide_children", [])
+                                      if not c["name"].startswith("qt_"))),
+                        failed)
                 for led in det.get("leds", []):
                     _assert(led["size"][0] == led["size"][1],
                             "row %d %s is square %s" % (entry["row"], led["attr"], led["size"]),

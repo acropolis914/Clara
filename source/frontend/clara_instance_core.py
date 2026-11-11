@@ -55,6 +55,36 @@ def runtime_dir():
     return tempfile.gettempdir()
 
 
+def code_stamp(frontend_dir=None):
+    """Stamp of the frontend code this process loaded (newest .py mtime).
+
+    Used to detect a running Clara instance that predates the code on disk:
+    edits never reach a live process, so commands against it test stale
+    behavior and the fixes look broken.
+    """
+    import time as _time
+    if frontend_dir is None:
+        frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+    newest = 0.0
+    try:
+        for root, _dirs, files in os.walk(frontend_dir):
+            if "__pycache__" in root:
+                continue
+            for f in files:
+                if f.endswith(".py"):
+                    try:
+                        mt = os.path.getmtime(os.path.join(root, f))
+                    except OSError:
+                        continue
+                    if mt > newest:
+                        newest = mt
+    except Exception:
+        return "unknown"
+    if not newest:
+        return "unknown"
+    return _time.strftime("%Y%m%d-%H%M%S", _time.localtime(newest))
+
+
 def instance_paths(app_id=DEFAULT_APP_ID):
     key = instance_key(app_id=app_id)
     base = runtime_dir()

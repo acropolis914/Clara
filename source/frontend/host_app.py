@@ -1634,9 +1634,15 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             version = CLARA_VERSION_STRING
         except Exception:
             version = ""
+        try:
+            from clara_instance_core import code_stamp
+            code_version = code_stamp()
+        except Exception:
+            code_version = "unknown"
         return {
             "pid": os.getpid(),
             "version": version,
+            "code_version": code_version,
             "mode": "nogui" if gCarla.nogui else "gui",
             "project": self.fProjectFilename or "",
             "dirty": bool(getattr(self, "fHasUnsavedChanges", False)),

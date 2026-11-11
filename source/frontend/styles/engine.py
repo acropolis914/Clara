@@ -218,7 +218,7 @@ class ThemeEngine:
     def resolve_tokens(
         self,
         theme_def: Dict[str, Any],
-        mode: str = "dark",
+        mode: Optional[str] = None,
         structural_overrides: Optional[Dict[str, str]] = None,
     ) -> Dict[str, str]:
         """Strict cascade resolution:
@@ -232,6 +232,10 @@ class ThemeEngine:
         palette = {k: str(v) for k, v in raw_palette.items() if k.startswith("base")}
 
         # 3. Determine if palette needs light inversion
+        # The theme definition itself knows its mode; an omitted mode argument
+        # must never silently invert a light theme through the "dark" default.
+        if mode is None:
+            mode = str(theme_def.get("mode", "dark"))
         target_mode = mode.lower()
         is_already_light = theme_def.get("mode", "dark").lower() == "light"
         if target_mode == "light" and not is_already_light:

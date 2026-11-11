@@ -469,10 +469,46 @@ class ControlMixin:
                                 "custom": bool(getattr(pw, "fCustomSize", False)),
                             })
                     grid = getattr(widget, "_led_grid_container", None)
+                    children = []
+                    def _walk(item, depth=0):
+                        if depth > 4:
+                            return
+                        from qt_compat import QLayout
+                        if isinstance(item, QLayout) or hasattr(item, "minimumSize"):
+                            pass
+                        wid = item.widget() if hasattr(item, "widget") else None
+                        lay = item.layout() if hasattr(item, "layout") else None
+                        if wid is not None:
+                            mh = wid.minimumSizeHint()
+                            if mh.width() >= 60:
+                                children.append({
+                                    "cls": type(wid).__name__,
+                                    "name": wid.objectName(),
+                                    "min": [mh.width(), mh.height()],
+                                })
+                            if wid.layout() is not None:
+                                for i in range(wid.layout().count()):
+                                    _walk(wid.layout().itemAt(i), depth + 1)
+                        elif lay is not None:
+                            lm = lay.minimumSize()
+                            if lm.width() >= 60:
+                                children.append({
+                                    "cls": type(lay).__name__,
+                                    "name": getattr(lay, "objectName", lambda: "")(),
+                                    "min": [lm.width(), lm.height()],
+                                })
+                            for i in range(lay.count()):
+                                _walk(lay.itemAt(i), depth + 1)
+                    top = widget.layout()
+                    if top is not None:
+                        for i in range(top.count()):
+                            _walk(top.itemAt(i))
+                    children.sort(key=lambda c: -c["min"][0])
                     entry["widget"]["detail"] = {
                         "leds": leds,
                         "dials": dials,
                         "grid": [grid.width(), grid.height()] if grid is not None else None,
+                        "wide_children": children[:6],
                     }
             items.append(entry)
         return {"ok": True, "viewport": [lw.viewport().width(), lw.viewport().height()],

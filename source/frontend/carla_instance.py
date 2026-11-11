@@ -359,6 +359,18 @@ def _send(socket_path, request):
     if not reply.get("ok"):
         _emit_error((reply.get("error") or {}).get("message", "request failed"))
         return None
+    # The running instance loaded its code at startup; edits on disk never
+    # reach it. Warn loudly instead of letting fixes "not work" mysteriously.
+    try:
+        from clara_instance_core import code_stamp
+        theirs = ((reply.get("data") or {}).get("code_version"))
+        mine = code_stamp()
+        if theirs and mine and theirs != mine and not os.environ.get("CLARA_SKIP_STALE_CHECK"):
+            print("warning: the running Clara instance predates the code on "
+                  "disk (instance %s, disk %s); restart it to test recent "
+                  "changes." % (theirs, mine))
+    except Exception:
+        pass
     return reply
 
 
@@ -980,7 +992,7 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
             _emit_error((reply.get("error") or {}).get("message", "failed"))
             return 1
         data = reply.get("data") or {}
-        for key in ("pid", "version", "mode", "project", "dirty", "plugins", "tray", "uptime"):
+        for key in ("pid", "version", "code_version", "mode", "project", "dirty", "plugins", "tray", "uptime"):
             value = data.get(key, "")
             if key in ("dirty", "tray") and key in data:
                 value = "yes" if value else "no"

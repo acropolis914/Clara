@@ -839,7 +839,8 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
             flowLayout = FlowLayout(self.w_knobs_left, hSpacing=4, vSpacing=2)
             flowLayout.setContentsMargins(4, 2, 4, 2)
             layout = flowLayout
-            self.w_knobs_left.setMinimumWidth(120)
+            # No minimum width floor: the FlowLayout wraps, so the knob column
+            # must be free to shrink on narrow rack viewports.
             self.w_knobs_left.setMaximumWidth(16777215)
 
             exp_policy = getattr(QSizePolicy, "Expanding", None) or getattr(getattr(QSizePolicy, "Policy", None), "Expanding", None)
@@ -1133,7 +1134,9 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         self.line_rename.setObjectName("inline_plugin_rename")
         self.line_rename.setFont(self.label_name.font())
         self.line_rename.setMaximumHeight(22)
-        self.line_rename.setMinimumWidth(80)
+        # No width floor: the rename edit is hidden except during edits and
+        # must not inflate the title stack's minimum width.
+        self.line_rename.setMinimumWidth(0)
         self.line_rename.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         p = get_active_skin_palette(getattr(self, "is_dark", True))
         self.line_rename.setStyleSheet(
@@ -1504,7 +1507,8 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
         btn_reset.setFixedSize(22, 22)
         btn_reset.setStyleSheet(
             "QPushButton { font-weight: bold; color: %s; background: transparent;"
-            " border: 1px solid %s; border-radius: 3px; }"
+            " border: 1px solid %s; border-radius: 3px;"
+            " padding: 0px; min-height: 0px; min-width: 0px; }"
             "QPushButton:hover { color: %s; border-color: %s; background: %s; }"
             % (p['overlay0'], p['surface2'], p['text'], p['overlay1'], p['surface1']))
         btn_reset.clicked.connect(lambda: (gCarla.gui.changePluginColor(self.fPluginId, (255, 255, 255), "255;255;255"), menu.close()))
@@ -1516,7 +1520,7 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
             btn_col.setFixedSize(22, 22)
             btn_col.setStyleSheet(
                 "QPushButton { background-color: %s; border: 1px solid %s;"
-                " border-radius: 3px; }"
+                " border-radius: 3px; padding: 0px; min-height: 0px; min-width: 0px; }"
                 "QPushButton:hover { border: 2px solid %s; }"
                 % (col_hex, _rgba(p['base'], 102), p['text']))
             c = QColor(col_hex)
@@ -2715,6 +2719,9 @@ class PluginSlot_Minimal(PluginSlot_Default):
 
         self.label_badge = QLabel(type_sub, parent=self.w_title_stack)
         self.label_badge.setObjectName("label_badge")
+        # The badge is secondary info and must not drive the row's minimum
+        # width on narrow rack viewports.
+        self.label_badge.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.label_badge.setAutoFillBackground(False)
         self.label_badge.setToolTip(f"Plugin: {self.fFullTitle} ({type_sub})")
         self._applyBadgeStyle()
@@ -2752,14 +2759,16 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.ui.layout_top.insertWidget(1, self.w_title_stack)
 
         # 3. <auto-expanding spacer> (index 2) pushing right controls to the right
-        self.spacer_flex = QSpacerItem(8, 1, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.spacer_flex = QSpacerItem(0, 1, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.ui.layout_top.insertItem(2, self.spacer_flex)
 
         self.setMinimumWidth(160)
         # The title must never drive the slot's minimum width: rack items are
         # sized to the list viewport and the label already elides to fit.
         self.label_name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        self.ui.layout_top.setSpacing(4)
+        # Tight row spacing keeps the single-row minimum under narrow rack
+        # viewports (~260px), so slots can always shrink to the list width.
+        self.ui.layout_top.setSpacing(2)
         self.ui.layout_top.setContentsMargins(0, 0, 0, 0)
 
         # 4. Row 1 right controls: Slider mode toggle, and unified chevron minimize

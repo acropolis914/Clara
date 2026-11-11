@@ -150,8 +150,8 @@ class CanvasContextToolBarOverlay(QFrame):
             bind_icon(btn, icon, size=14)
         except Exception:
             btn.setText(icon)
-        # Matches the QSS tile size for buttons inside the context toolbar
-        btn.setFixedSize(24, 24)
+        # Matches the QSS tile: 24px content + 1px border = 26px widget
+        btn.setFixedSize(26, 26)
         btn.ensurePolished()
         if checkable:
             btn.setCheckable(True)
