@@ -24,6 +24,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 #### 2026-11-11 — Rack item fixes (LEDs and knobs)
 
+- **fix(ui)**: root cause of the clipped LED "traffic lights" was the global theme QSS (`QPushButton { min-height: 22px; padding: 4px 12px; }`) inflating every `LEDButton` to 14x32 inside a 30px grid. LED tiles now opt out of button chrome via a `ledTile` property exemption in the theme QSS, so they are exactly their hint size.
+- **refactor(ui)**: the modernized slice is now hint-driven instead of pixel-pinned — no `setFixedSize` on the LED grid container, tiles or meters; `LEDButton` declares its own natural size (`MINIMAL_LED_SIZE` hint) in minimal mode, and the vertical meters honor their `minimumSizeHint` with free vertical stretch.
+
 - **fix(ui)**: rack knob rendering was broken — the raw SVG child widget painted itself over the custom-drawn knob (dark ghost + misplaced arc), knobs were forced to 68x54/52x48 while painting and layout hints stayed at 34px (overlapping knobs), and the value line under the label was clipped. The SVG child is now hidden (paint code renders it), forced dial sizes removed so layout matches painting, and dial height leaves room for the label + value lines.
 - **fix(ui)**: modernized-slice LED "traffic lights" didn't fit their container — the 2x2 LED grid grew from 8px tiles in an 18x18 box to 14px tiles in a 30x30 box (matching the LED icon size), and the vertical meters now match the slice height. Verified in expanded and compact slots.
 

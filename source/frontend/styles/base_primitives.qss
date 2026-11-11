@@ -93,6 +93,17 @@ QPushButton {
     min-height: 22px;
 }
 
+/* LED tiles paint themselves entirely; button chrome would inflate them
+   (min-height 22px made a 14px LED render 32px tall and clip in its grid). */
+QPushButton[ledTile="true"] {
+    background: transparent;
+    border: none;
+    padding: 0px;
+    margin: 0px;
+    min-height: 0px;
+    min-width: 0px;
+}
+
 QPushButton:hover {
     background-color: palette(alternate-base);
     border-color: palette(highlight);

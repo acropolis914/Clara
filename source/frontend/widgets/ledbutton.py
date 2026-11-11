@@ -11,6 +11,7 @@ from qt_compat import (
     QPainter,
     QPen,
     QPixmap,
+    QSize,
     QSvgWidget,
     QPushButton,
     Qt,
@@ -20,6 +21,10 @@ from qt_compat import (
 # Widget Class
 
 class LEDButton(QPushButton):
+    # Natural size of the LED tile drawn in minimal mode; layouts read this
+    # through sizeHint()/minimumSizeHint() instead of being pinned from outside.
+    MINIMAL_LED_SIZE = 14
+
     # unset
     UNSET  = -1
     # normal
@@ -45,15 +50,29 @@ class LEDButton(QPushButton):
 
         self.setCheckable(True)
         self.setText("")
-
-        self.setColor(self.BLUE)
+        # Opt out of the global QPushButton chrome (min-height/padding/border):
+        # this widget paints its own LED tile.
+        self.setProperty("ledTile", True)
 
         self.fCustomSize = False
         self.fMinimalMode = False
 
+        self.setColor(self.BLUE)
+
     def setMinimalMode(self, enabled):
         self.fMinimalMode = bool(enabled)
+        self.updateGeometry()
         self.update()
+
+    def sizeHint(self):
+        if self.fMinimalMode:
+            return QSize(self.MINIMAL_LED_SIZE, self.MINIMAL_LED_SIZE)
+        return super().sizeHint()
+
+    def minimumSizeHint(self):
+        if self.fMinimalMode:
+            return QSize(self.MINIMAL_LED_SIZE, self.MINIMAL_LED_SIZE)
+        return super().minimumSizeHint()
 
     def setFixedSize(self, *args):
         self.fCustomSize = True
@@ -67,7 +86,7 @@ class LEDButton(QPushButton):
 
         if self._loadImageNowIfNeeded():
             self.fRect = QRectF(self.fImage.rect())
-            if not getattr(self, 'fCustomSize', False):
+            if not getattr(self, 'fCustomSize', False) and not self.fMinimalMode:
                 super().setFixedSize(self.fImage.size())
 
     def paintEvent(self, event):

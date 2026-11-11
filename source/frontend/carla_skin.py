@@ -3474,7 +3474,6 @@ class PluginSlot_Minimal(PluginSlot_Default):
             self._led_grid_layout = QGridLayout(self._led_grid_container)
             self._led_grid_layout.setContentsMargins(0, 0, 0, 0)
             self._led_grid_layout.setSpacing(2)
-            self._led_grid_container.setFixedSize(30, 30)
             self._led_grid_container.setStyleSheet("")
 
             # Meter slice container
@@ -3482,7 +3481,6 @@ class PluginSlot_Minimal(PluginSlot_Default):
             self._meter_slice_layout = QHBoxLayout(self._meter_slice_container)
             self._meter_slice_layout.setContentsMargins(1, 0, 0, 0)
             self._meter_slice_layout.setSpacing(1)
-            self._meter_slice_container.setFixedHeight(30)
             self._meter_slice_container.setStyleSheet("")
 
             slice_layout.addWidget(self._led_grid_container)
@@ -3517,8 +3515,6 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 if led is not None:
                     if hasattr(led, 'setMinimalMode'):
                         led.setMinimalMode(True)
-                    led.setFixedSize(14, 14)
-                    led.setStyleSheet("background: transparent; border: none; padding: 0px; margin: 0px; border-radius: 1px;")
 
             # Place Peak Meters in modern vertical slice
             self._meter_slice_layout.addWidget(self.peak_in)
@@ -3526,7 +3522,8 @@ class PluginSlot_Minimal(PluginSlot_Default):
             for pm in (self.peak_in, self.peak_out):
                 if pm is not None:
                     pm.setMeterOrientation(DigitalPeakMeter.VERTICAL)
-                    pm.setFixedSize(6, 30)
+                    pm.setMinimumSize(10, 20)
+                    pm.setMaximumSize(10, 16777215)
                     pm.setStyleSheet("")
 
             self._applySliceColors()
