@@ -905,6 +905,9 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         host.BufferSizeChangedCallback.connect(
             self.slot_handleBufferSizeChangedCallback
         )
+        # User edits: apply buffer size live, sample rate via engine restart.
+        self.ui.cb_buffer_size.currentTextChanged.connect(self.slot_bufferSizeChanged)
+        self.ui.cb_sample_rate.currentTextChanged.connect(self.slot_sampleRateChanged)
         host.SampleRateChangedCallback.connect(
             self.slot_handleSampleRateChangedCallback
         )
@@ -1033,8 +1036,24 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
 
         # Allow statusbar controls to flex on narrow screens (e.g. half-screen tiling)
         if hasattr(self.ui, "pb_dsp_load") and self.ui.pb_dsp_load is not None:
-            self.ui.pb_dsp_load.setMinimumWidth(40)
-            self.ui.pb_dsp_load.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            # Replace the flat bar with the sparkline DSP meter
+            from widgets.dsploadbar import DspLoadBar
+            old_bar = self.ui.pb_dsp_load
+            new_bar = DspLoadBar(old_bar.parentWidget())
+            new_bar.setObjectName("pb_dsp_load")
+            new_bar.setFormat("DSP Load: %p%")
+            new_bar.setMinimumWidth(40)
+            new_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            lay = old_bar.parentWidget().layout()
+            idx = lay.indexOf(old_bar) if lay else -1
+            if lay is not None and idx >= 0:
+                lay.insertWidget(idx, new_bar)
+                lay.removeWidget(old_bar)
+            else:
+                new_bar.setParent(old_bar.parentWidget())
+            old_bar.hide()
+            old_bar.deleteLater()
+            self.ui.pb_dsp_load = new_bar
         if hasattr(self.ui, "cb_buffer_size") and self.ui.cb_buffer_size is not None:
             self.ui.cb_buffer_size.setMinimumWidth(40)
             self.ui.cb_buffer_size.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
@@ -1396,13 +1415,84 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         else:
             self.label_autosave_status.setText(self.tr("Autosave: Off"))
 
+    BUFFER_SIZE_CHOICES = (16, 32, 64, 128, 256, 512, 1024, 2048, 4096)
+    SAMPLE_RATE_CHOICES = (22050, 32000, 44100, 48000, 88200, 96000, 192000)
+
     def updateBufferSize(self, newBufferSize):
         if self.fBufferSize == newBufferSize:
             return
         self.fBufferSize = newBufferSize
+        choices = [str(v) for v in self.BUFFER_SIZE_CHOICES]
+        if str(newBufferSize) not in choices:
+            choices.insert(0, str(newBufferSize))
+        self.ui.cb_buffer_size.blockSignals(True)
         self.ui.cb_buffer_size.clear()
-        self.ui.cb_buffer_size.addItem(str(newBufferSize))
-        self.ui.cb_buffer_size.setCurrentIndex(0)
+        self.ui.cb_buffer_size.addItems(choices)
+        self.ui.cb_buffer_size.setCurrentText(str(newBufferSize))
+        self.ui.cb_buffer_size.blockSignals(False)
+
+    def slot_bufferSizeChanged(self, text):
+        """Apply a buffer size change to the running engine."""
+        try:
+            value = int(text)
+        except (TypeError, ValueError):
+            return
+        if value <= 0 or value == self.fBufferSize:
+            return
+        from carla_backend import ENGINE_OPTION_AUDIO_BUFFER_SIZE
+        self.host.set_engine_option(ENGINE_OPTION_AUDIO_BUFFER_SIZE, value, "")
+        # updateBufferSize arrives via the engine callback if accepted
+
+    def slot_sampleRateChanged(self, text):
+        """Sample rate needs an engine restart; offer one and reload."""
+        try:
+            value = int(text)
+        except (TypeError, ValueError):
+            return
+        if value <= 0 or value == self.fSampleRate:
+            return
+        from carla_backend import ENGINE_OPTION_AUDIO_SAMPLE_RATE
+        running = self.host.is_engine_running()
+        if not running:
+            self.host.set_engine_option(ENGINE_OPTION_AUDIO_SAMPLE_RATE, value, "")
+            return
+        res = QMessageBox.question(
+            self,
+            self.tr("Change Sample Rate"),
+            self.tr("Changing the sample rate requires restarting the audio "
+                    "engine and reloading the project. Restart now at %s Hz?") % value,
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if res != QMessageBox.Yes:
+            # restore the displayed value
+            self.ui.cb_sample_rate.blockSignals(True)
+            self.ui.cb_sample_rate.setCurrentText(str(int(self.fSampleRate)))
+            self.ui.cb_sample_rate.blockSignals(False)
+            return
+        self._restartEngineWithSampleRate(value)
+
+    def _restartEngineWithSampleRate(self, value):
+        from carla_backend import ENGINE_OPTION_AUDIO_SAMPLE_RATE
+        project = self.fProjectFilename or ""
+        self.slot_engineStop(forced=True)
+        self.host.set_engine_option(ENGINE_OPTION_AUDIO_SAMPLE_RATE, value, "")
+        self.slot_engineStart()
+        if project and os.path.isfile(project):
+            self.loadProjectNow()
+
+    def updateSampleRate(self, newSampleRate):
+        if self.fSampleRate == newSampleRate:
+            return
+        self.fSampleRate = newSampleRate
+        choices = [str(v) for v in self.SAMPLE_RATE_CHOICES]
+        if str(int(newSampleRate)) not in choices:
+            choices.insert(0, str(int(newSampleRate)))
+        self.ui.cb_sample_rate.blockSignals(True)
+        self.ui.cb_sample_rate.clear()
+        self.ui.cb_sample_rate.addItems(choices)
+        self.ui.cb_sample_rate.setCurrentText(str(int(newSampleRate)))
+        self.ui.cb_sample_rate.blockSignals(False)
+        self.refreshTransport(True)
 
     def updateSampleRate(self, newSampleRate):
         if self.fSampleRate == newSampleRate:
@@ -1701,6 +1791,14 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             root = storage_manager.get_project_root(load_source)
             if root is not None:
                 self.fLoadingPluginTotal = len(root.findall("Plugin"))
+                # The banner may exist already (queued-open/cancelable path
+                # creates it with total 0); resync the segment bar now that
+                # the real total is known.
+                dialog = getattr(self, "fLoadingDialog", None)
+                if dialog is not None and hasattr(dialog, "setPipeline"):
+                    expected = self.fLoadingPluginTotal + 3
+                    if len(getattr(dialog, "_segments", []) or []) != expected:
+                        dialog.setPipeline(self.fLoadingPluginTotal)
                 # Load plan: (format, name) per project plugin, in order. The
                 # ETA matches stored per-plugin averages against this plan.
                 plan = []
@@ -1954,6 +2052,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             try:
                 fn = filename or getattr(self, "fProjectFilename", "")
                 self.fLoadingDialog = InlineLoadingBanner(self.ui.centralwidget, fn)
+                if hasattr(self.fLoadingDialog, "setPipeline"):
+                    self.fLoadingDialog.setPipeline(getattr(self, "fLoadingPluginTotal", 0))
                 layout = self.ui.centralwidget.layout()
                 if layout is not None:
                     layout.insertWidget(0, self.fLoadingDialog)
@@ -2037,6 +2137,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
 
     def projectLoadingFinished(self, refreshCanvas, restore_positions=True):
         self._finalizePluginTiming()
+        if getattr(self, "fLoadingDialog", None) is not None and hasattr(self.fLoadingDialog, "setSegment"):
+            self.fLoadingDialog.setSegment(getattr(self, "fLoadingPluginTotal", 0) + 3)
         if self.ui.listWidget is not None:
             self.ui.listWidget.setUpdatesEnabled(True)
             self.ui.listWidget.blockSignals(False)
@@ -2058,6 +2160,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
 
             if source_for_positions and os.path.exists(source_for_positions):
                 self._setLoadingProgress(93, "Restoring node positions...")
+            if getattr(self, "fLoadingDialog", None) is not None and hasattr(self.fLoadingDialog, "setSegment"):
+                self.fLoadingDialog.setSegment(getattr(self, "fLoadingPluginTotal", 0) + 2)
                 positions_loaded = self.loadCanvasGroupPositionsFromProject(source_for_positions)
 
             if (
@@ -2291,6 +2395,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             if not hasattr(self, "fLoadingDialog") or self.fLoadingDialog is None:
                 fn = getattr(self, "fProjectFilename", "")
                 self.fLoadingDialog = InlineLoadingBanner(self.ui.centralwidget, fn)
+                if hasattr(self.fLoadingDialog, "setPipeline"):
+                    self.fLoadingDialog.setPipeline(getattr(self, "fLoadingPluginTotal", 0))
                 layout = self.ui.centralwidget.layout()
                 if layout is not None:
                     layout.insertWidget(0, self.fLoadingDialog)
@@ -2611,8 +2717,17 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             else:
                 percent = min(90.0, 8.0 + done * 2.0)
                 detail = f"Loading plugin: {pluginName}{suffix}..."
+            log_carla("load progress: dialog=%s has_segment=%s" % (
+                type(self.fLoadingDialog).__name__,
+                hasattr(self.fLoadingDialog, "setSegment")), level="debug")
             if hasattr(self.fLoadingDialog, "setProgress"):
                 self.fLoadingDialog.setProgress(percent, detail)
+            if hasattr(self.fLoadingDialog, "setSegment"):
+                dialog = self.fLoadingDialog
+                expected = total + 3
+                if total > 0 and len(getattr(dialog, "_segments", []) or []) != expected:
+                    dialog.setPipeline(total)
+                dialog.setSegment(1 + done)
 
             # Per-plugin timing: close out the previous plugin's duration and
             # start this one's, then refresh the stored-average ETA.

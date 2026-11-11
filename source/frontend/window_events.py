@@ -111,7 +111,10 @@ class EventsMixin:
         txt1 = str(xruns) if (xruns >= 0) else "--"
         txt2 = "" if (xruns == 1) else "s"
         self.ui.b_xruns.setText("%s Xrun%s" % (txt1, txt2))
-        self.ui.pb_dsp_load.setValue(int(load))
+        if hasattr(self.ui.pb_dsp_load, "push"):
+            self.ui.pb_dsp_load.push(load)
+        else:
+            self.ui.pb_dsp_load.setValue(int(load))
 
     def getAndRefreshRuntimeInfo(self):
         if not self.ui.pb_dsp_load.isVisible():

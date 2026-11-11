@@ -417,11 +417,12 @@ COMMANDS
       changes; save first. If the new load fails, the previous project is
       restored.
 
-  shot [LOC] [--dialog]
-      Save a PNG of the window (the patchbay is included) or the active
-      dialog. LOC may be a file or a directory; with no LOC the PNG lands
-      in the current directory. `screenshot --path PATH` still works.
-      Explicit paths may not be symlinks or special files.
+  shot [PART] [LOC] [--dialog]
+      Save a PNG of the window or a UI region. PART: window (default),
+      banner, statusbar, toolbar, context-toolbar, canvas, rack, minimap,
+      minimap-map, dialog. LOC may be a file or a directory; with no LOC
+      the PNG lands in the current directory. Explicit paths may not be
+      symlinks or special files.
 
   instances [--json]
       List running Clara instances (pid, kind, project, key) so commands can
@@ -694,7 +695,10 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     events_parser.add_argument("-j", "--json", action="store_true")
 
     shot_parser = sub.add_parser("shot", aliases=["screenshot"],
-                                 help="save a PNG of the window or active dialog")
+                                 help="save a PNG of the window, a UI region or the active dialog")
+    shot_parser.add_argument("part", nargs="?", default="window",
+                             help="UI region: window, banner, statusbar, toolbar, "
+                                  "context-toolbar, canvas, rack, minimap, dialog")
     shot_parser.add_argument("loc", nargs="?", default=None,
                              help="output file or directory (default: current directory)")
     shot_parser.add_argument("--dialog", action="store_true")
@@ -789,7 +793,8 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
         return 0
 
     if args.cmd in ("shot", "screenshot"):
-        payload = build_request("screenshot", dialog=bool(args.dialog))
+        payload = build_request("screenshot", dialog=bool(args.dialog),
+                                part=args.part)
         payload["path"] = _screenshot_path(args.loc or args.path)
         reply = _send(socket_path, payload)
         if reply is None:

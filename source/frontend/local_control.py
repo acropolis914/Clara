@@ -41,11 +41,46 @@ class ControlMixin:
             for entry in history
         ]
 
-    def msgScreenshot(self, path=None, dialog=False):
+    _SHOT_TARGETS = {
+        "banner": ("fLoadingDialog", None),
+        "statusbar": (None, "tw_statusbar"),
+        "toolbar": (None, "toolBar"),
+        "context-toolbar": (None, "contextToolBar"),
+        "canvas": (None, "graphicsView"),
+        "rack": (None, "listWidget"),
+        "minimap": (None, "miniCanvasOverlay"),
+        "minimap-map": (None, "modernMiniCanvas"),
+        "dialog": (None, None),  # resolved dynamically
+    }
+
+    def _shotTargetWidget(self, part):
+        """Resolve a named UI region for `clarammsg shot <part>`."""
+        part = (part or "window").strip().lower()
+        if part in ("window", "full", ""):
+            return self
+        if part == "dialog":
+            from qt_compat import QApplication
+            return QApplication.activeModalWidget() or QApplication.activeWindow() or self
+        spec = self._SHOT_TARGETS.get(part)
+        if spec is None:
+            return None
+        attr_owner, attr_ui = spec
+        if attr_owner is not None:
+            widget = getattr(self, attr_owner, None)
+            if widget is None:
+                widget = getattr(gCarla, attr_owner, None)
+            return widget
+        return getattr(self.ui, attr_ui, None)
+
+    def msgScreenshot(self, path=None, dialog=False, part="window"):
         try:
             from qt_compat import QApplication
             target = self
-            if dialog:
+            if part and part not in ("window", "full", ""):
+                target = self._shotTargetWidget(part)
+                if target is None:
+                    return {"ok": False, "error": "no such shot target: %s" % part}
+            elif dialog:
                 target = QApplication.activeModalWidget() or QApplication.activeWindow() or self
             import tempfile
             if path is None:
@@ -573,7 +608,8 @@ class ControlMixin:
             return {"v": 1, "ok": True, "data": {"events": self.msgEvents(
                 request.get("count", 50), request.get("tag"), request.get("level"))}}
         if cmd == "screenshot":
-            result = self.msgScreenshot(request.get("path"), bool(request.get("dialog")))
+            result = self.msgScreenshot(request.get("path"), bool(request.get("dialog")),
+                                        request.get("part", "window"))
             if not result.get("ok"):
                 return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
             return {"v": 1, "ok": True, "data": result}

@@ -303,73 +303,99 @@ class ProjectSessionOfferDialog(QDialog):
 
 
 class InlineLoadingBanner(QWidget):
+    """Pipeline-aware loading banner: phase chips, one segment per pipeline
+    step (engine, each plugin, canvas, session), mono detail + ETA."""
+
     def __init__(self, parent=None, filename=""):
         super().__init__(parent)
         from qt_compat import QTimer, QProgressBar, QHBoxLayout, QVBoxLayout, QLabel
 
         self.setObjectName("InlineLoadingBanner")
-        # The object name selector must match the widget class (QWidget), and
-        # the chunk uses a shimmering accent gradient so it is obvious the
-        # load is progressing even when the percent barely moves.
-        self.setStyleSheet("""
-            QWidget#InlineLoadingBanner {
-                background-color: %s;
-                border-bottom: 2px solid %s;
-            }
-            QLabel { color: %s; font-size: 11px; }
-            QProgressBar { background-color: %s; border: none; border-radius: 3px; }
-            QProgressBar::chunk {
-                border-radius: 3px;
-            }
-        """ % (_themeColor("bg-surface", "#181825"), _themeColor("accent", "#89b4fa"),
-               _themeColor("text-primary", "#cdd6f4"), _themeColor("border-dim", "#313244")))
-        self._accent = _themeColor("accent", "#89b4fa")
-        self._shimmer_phase = 0.0
-        self._shimmer_timer = QTimer(self)
-        self._shimmer_timer.setInterval(80)
-        self._shimmer_timer.timeout.connect(self._shimmer_step)
+        self.setStyleSheet(
+            "QWidget#InlineLoadingBanner { background-color: %s; border-bottom: 1px solid %s; }"
+            % (_themeColor("bg-surface", "#181825"), _themeColor("border-dim", "#313244")))
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 6, 10, 8)
-        layout.setSpacing(4)
+        layout.setContentsMargins(12, 7, 12, 8)
+        layout.setSpacing(6)
 
-        row = QHBoxLayout()
+        # Row 1: project name | phase chips | percent
+        row1 = QHBoxLayout()
+        row1.setSpacing(10)
         name = os.path.basename(filename) if filename else "Project"
-        self.lbl_title = QLabel(f"<b>Loading:</b> {name}", self)
-        self.lbl_percent = QLabel("8%", self)
-        row.addWidget(self.lbl_title, 1)
-        row.addWidget(self.lbl_percent)
+        self.lbl_title = QLabel(name, self)
+        self.lbl_title.setStyleSheet(
+            "font-weight: 650; font-size: 13px; color: %s;"
+            % _themeColor("text-primary", "#cdd6f4"))
+
+        self._phases_order = ("engine", "plugins", "canvas", "session")
+        self._phase_labels = {
+            "engine": "Engine", "plugins": "Plugins",
+            "canvas": "Canvas", "session": "Session",
+        }
+        self._current_phase = "engine"
+        self._phase_done = set()
+        self._phase_labels_widgets = {}
+        for key in self._phases_order:
+            chip = QLabel(self._phase_labels[key], self)
+            chip.setObjectName("loadPhase")
+            self._phase_labels_widgets[key] = chip
+            row1.addWidget(chip)
+
+        self.lbl_percent = QLabel("0%", self)
+        self.lbl_percent.setStyleSheet(
+            "font-family: 'JetBrains Mono', monospace; font-size: 13px; color: %s;"
+            % _themeColor("text-primary", "#cdd6f4"))
+        row1.addStretch(1)
+        row1.addWidget(self.lbl_title)
+        row1.addStretch(1)
+        row1.addWidget(self.lbl_percent)
+        layout.addLayout(row1)
+
+        # Row 2: the segment bar (built by setPipeline; hidden for unknown
+        # totals, where the plain shimmering bar takes over).
+        self._segments = []
+        self._active_segment = -1
+        self._segbar_widget = None
+        self._shimmer_phase = 0.0
+
+        self.progressBar = QProgressBar(self)
+        self.progressBar.setRange(0, 100)
+        self.progressBar.setValue(0)
+        self.progressBar.setTextVisible(False)
+        self.progressBar.setFixedHeight(6)
+        self.progressBar.setStyleSheet(
+            "QProgressBar { background: transparent; border: none; }"
+            "QProgressBar::chunk { background: %s; border-radius: 3px; }"
+            % _themeColor("text-primary", "#cdd6f4"))
+        layout.addWidget(self.progressBar)
+
+        # Row 3: READ-ONLY chip | detail | eta
+        row2 = QHBoxLayout()
+        row2.setSpacing(10)
+        self.lbl_readonly = QLabel("READ-ONLY", self)
+        self.lbl_readonly.setStyleSheet(
+            "color: %s; font-size: 10px; font-weight: bold; letter-spacing: 1px;"
+            " border: 1px solid %s; border-radius: 999px; padding: 1px 8px;"
+            % (_themeColor("text-secondary", "#a6adc8"),
+               _themeColor("border-dim", "#313244")))
+        self.lbl_readonly.setToolTip(
+            "Pan and zoom stay available, but nodes, plugins and cables cannot be "
+            "edited until the project has finished loading.")
+        row2.addWidget(self.lbl_readonly)
+
+        self.lbl_detail = QLabel("Preparing project & engine...", self)
+        self.lbl_detail.setStyleSheet(
+            "color: %s; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;"
+            % _themeColor("text-secondary", "#a6adc8"))
+        row2.addWidget(self.lbl_detail, 1)
+
         self.lbl_eta = QLabel("", self)
         self.lbl_eta.setStyleSheet(
             "color: %s; font-family: 'JetBrains Mono', monospace; font-size: 11px;"
             % _themeColor("text-muted", "#6c7086"))
-        row.addWidget(self.lbl_eta)
-
-        layout.addLayout(row)
-
-        self.lbl_readonly = QLabel(
-            "READ-ONLY · patchbay and rack are locked until loading finishes", self)
-        self.lbl_readonly.setStyleSheet(
-            "color: %s; font-size: 10px; font-weight: bold;" % _themeColor("yellow", "#f9e2af"))
-        self.lbl_readonly.setWordWrap(True)
-        self.lbl_readonly.setToolTip(
-            "Pan and zoom stay available, but nodes, plugins and cables cannot be "
-            "edited until the project has finished loading.")
-        layout.addWidget(self.lbl_readonly)
-
-        self.progressBar = QProgressBar(self)
-        self.progressBar.setRange(0, 100)
-        self.progressBar.setValue(8)
-        self.progressBar.setTextVisible(False)
-        self.progressBar.setFixedHeight(5)
-        layout.addWidget(self.progressBar)
-
-        # The shimmer needs the progress bar to exist; start it last.
-        self._apply_shimmer()
-        self._shimmer_timer.start()
-
-        self.lbl_detail = QLabel("Preparing project & engine...", self)
-        layout.addWidget(self.lbl_detail)
+        row2.addWidget(self.lbl_eta)
+        layout.addLayout(row2)
 
         self._current = 8.0
         self._target = 20.0
@@ -377,23 +403,149 @@ class InlineLoadingBanner(QWidget):
         self._timer = QTimer(self)
         self._timer.setInterval(40)
         self._timer.timeout.connect(self._tick)
-        self._timer.start()
+
+        self._shimmer_timer = QTimer(self)
+        self._shimmer_timer.setInterval(80)
+        self._shimmer_timer.timeout.connect(self._shimmer_step)
+        self._apply_shimmer()
+        self._shimmer_timer.start()
+
+    # ------------------------------------------------- color helpers
+
+    def _ink(self):
+        """Accent ink for filled segments and shimmer (highlight color)."""
+        return _themeColor("accent", "#89b4fa")
 
     def _apply_shimmer(self):
-        """Rebuild the chunk gradient with a moving highlight band."""
+        """Plain-bar fallback: white shimmer sweeping across the chunk."""
         phase = self._shimmer_phase
-        c0, c1 = self._accent, _themeColor("text-primary", "#cdd6f4")
+        ink = self._ink()
         a = max(0.0, phase - 0.35)
         b = min(1.0, phase + 0.35)
+        dim = _themeColor("border-dim", "#313244")
         self.progressBar.setStyleSheet(
-            "QProgressBar { background-color: %s; border: none; border-radius: 3px; }"
+            "QProgressBar { background: transparent; border: none; }"
             "QProgressBar::chunk { border-radius: 3px; background: qlineargradient("
             "x1:0, y1:0, x2:1, y2:0, stop:0 %s, stop:%.2f %s, stop:%.2f %s, stop:1 %s); }"
-            % (_themeColor("border-dim", "#313244"), c0, a, c1, b, c0, c0))
+            % (dim, a, ink, b, ink, dim))
 
     def _shimmer_step(self):
         self._shimmer_phase = (self._shimmer_phase + 0.08) % 1.35
-        self._apply_shimmer()
+        if not self._segments:
+            self._apply_shimmer()
+        else:
+            self._paint_active_segment()
+
+    # ------------------------------------------------- pipeline segments
+
+    def setPipeline(self, total_plugins):
+        """Build the segment bar: [engine] + plugins + [canvas] + [session]."""
+        from qt_compat import QWidget, QHBoxLayout
+        total_plugins = max(0, int(total_plugins))
+        count = total_plugins + 3
+
+        if self._segbar_widget is not None:
+            self._segbar_widget.setParent(None)
+            self._segbar_widget.deleteLater()
+            self._segbar_widget = None
+        self._segments = []
+
+        if total_plugins <= 0:
+            self.progressBar.show()
+            self._apply_shimmer()
+            return
+        self.progressBar.hide()
+
+        self._segbar_widget = QWidget(self)
+        self._segbar_widget.setObjectName("loadSegbar")
+        seg_layout = QHBoxLayout(self._segbar_widget)
+        seg_layout.setContentsMargins(0, 0, 0, 0)
+        seg_layout.setSpacing(4)
+        for _ in range(count):
+            seg = QLabel(self._segbar_widget)
+            seg.setFixedHeight(6)
+            seg_layout.addWidget(seg, 1)
+            self._segments.append(seg)
+        self._segbar_widget.setStyleSheet("QWidget#loadSegbar { background: transparent; }")
+        self.layout().insertWidget(1, self._segbar_widget)
+        self._segbar_widget.show()
+        self.setSegment(0)
+
+    def _paint_active_segment(self):
+        """The active segment: accent fill with a subtle lighter shimmer band."""
+        index = self._active_segment
+        if index < 0 or index >= len(self._segments):
+            return
+        seg = self._segments[index]
+        accent = self._ink()
+        tint = _themeColor("accent-tint-15", "#2a3550")
+        phase = self._shimmer_phase
+        a = max(0.0, phase - 0.25)
+        b = min(1.0, phase + 0.25)
+        seg.setStyleSheet(
+            "QLabel { background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
+            " stop:0 %s, stop:%.2f %s, stop:%.2f %s, stop:1 %s);"
+            " border: 1px solid %s; border-radius: 2px; }"
+            % (tint, a, accent, b, accent, tint, accent))
+
+    def setSegment(self, index):
+        """Mark the segment at `index` as in-progress (0-based over the pipeline)."""
+        total = len(self._segments)
+        if total == 0 or index < 0:
+            return
+        self._active_segment = index
+        accent = self._ink()
+        empty = _themeColor("bg-primary", "#11111b")
+        for i, seg in enumerate(self._segments):
+            if i < index:
+                seg.setStyleSheet(
+                    "QLabel { background: %s; border-radius: 2px; }" % accent)
+            elif i == index:
+                self._paint_active_segment()
+            else:
+                seg.setStyleSheet(
+                    "QLabel { background: %s; border-radius: 2px; }" % empty)
+        if index <= 0:
+            self.setPhase("engine")
+        elif total > 2 and index >= total - 2:
+            self.setPhase("canvas" if index == total - 2 else "session")
+        elif total > 2:
+            self.setPhase("plugins")
+
+    def setPhase(self, name):
+        """Highlight the active phase; earlier phases show as done."""
+        if name not in self._phases_order:
+            return
+        self._current_phase = name
+        order = self._phases_order
+        cur = order.index(name)
+        accent = _themeColor("accent", "#89b4fa")
+        muted = _themeColor("text-muted", "#6c7086")
+        soft_accent = _themeColor("accent-tint-15", "#2a3550")
+        for key in order:
+            chip = self._phase_labels_widgets[key]
+            k = order.index(key)
+            if k < cur or key in self._phase_done:
+                chip.setStyleSheet(
+                    "QLabel#loadPhase { color: %s; font-size: 10px; font-weight: bold;"
+                    " padding: 1px 8px; border-radius: 999px; background: transparent; }"
+                    % accent)
+            elif k == cur:
+                chip.setStyleSheet(
+                    "QLabel#loadPhase { color: %s; font-size: 10px; font-weight: bold;"
+                    " padding: 1px 8px; border-radius: 999px; background: %s; }"
+                    % (accent, soft_accent))
+            else:
+                chip.setStyleSheet(
+                    "QLabel#loadPhase { color: %s; font-size: 10px; font-weight: bold;"
+                    " padding: 1px 8px; border-radius: 999px; background: transparent; }"
+                    % muted)
+
+    def markPhaseDone(self, name):
+        self._phase_done.add(name)
+        self.setPhase(self._current_phase)
+
+    # ------------------------------------------------- existing API
 
     def _tick(self):
         if self._current < self._target:
@@ -401,15 +553,16 @@ class InlineLoadingBanner(QWidget):
         elif not self._explicit and self._current < 93.0:
             self._current += 0.12
         value = int(self._current)
-        self.progressBar.setValue(value)
         self.lbl_percent.setText(f"{value}%")
-
-    def setEta(self, text):
-        self.lbl_eta.setText(str(text) if text else "")
+        if self._segments:
+            self.progressBar.setValue(value)
 
     def setDetail(self, text):
         if text:
             self.lbl_detail.setText(str(text))
+
+    def setEta(self, text):
+        self.lbl_eta.setText(str(text) if text else "")
 
     def setProgress(self, value, detail=None):
         try:
@@ -418,6 +571,8 @@ class InlineLoadingBanner(QWidget):
             return
         self._explicit = True
         self._target = max(0.0, min(99.0, value))
+        self._current = max(self._current, min(self._target, self._current + 25))
+        self.lbl_percent.setText("%d%%" % int(min(self._target, self._current)))
         if detail:
             self.lbl_detail.setText(str(detail))
 
@@ -427,13 +582,11 @@ class InlineLoadingBanner(QWidget):
             self._shimmer_timer.stop()
         except Exception:
             pass
-        self.progressBar.setValue(100)
         self.lbl_percent.setText("100%")
         self.lbl_detail.setText("Ready!")
         self.hide()
         self.setParent(None)
         self.deleteLater()
-
 
 
 # ------------------------------------------------------------------------------------------------------------

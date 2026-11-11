@@ -306,7 +306,7 @@ class MiniCanvasMixin:
             zoom = settings.value("Minimap/Zoom", 1.0, float)
             collapsed = settings.value("Minimap/Collapsed", False, bool)
             visible = settings.value("Minimap/Visible", True, bool)
-            dock = str(settings.value("Minimap/Dock", "float") or "float")
+            dock = str(settings.value("Minimap/Dock", "float", str) or "float")
             pos_x = settings.value("Minimap/X", -1, int)
             pos_y = settings.value("Minimap/Y", -1, int)
 
