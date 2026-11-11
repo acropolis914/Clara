@@ -146,8 +146,8 @@ class CanvasContextToolBarOverlay(QFrame):
         btn = CanvasToolButton("", self)
         btn.setToolTip(tooltip)
         try:
-            from widgets.lucide import bind_icon
-            bind_icon(btn, icon, size=14)
+            from widgets.lucide import bind_icon, contrast_on_highlight
+            bind_icon(btn, icon, size=14, checked_color=contrast_on_highlight())
         except Exception:
             btn.setText(icon)
         # Matches the QSS tile: 24px content + 1px border = 26px widget

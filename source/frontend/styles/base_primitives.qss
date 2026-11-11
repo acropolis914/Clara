@@ -255,7 +255,8 @@ QFrame#canvas_toolbar_overlay, QFrame#canvas_context_toolbar_overlay {
 
 QFrame#canvas_toolbar_overlay QPushButton, QFrame#canvas_context_toolbar_overlay QPushButton {
     background-color: palette(base);
-    border: 1px solid palette(mid);
+    /* transparent 1px border preserves the tile box model without a border */
+    border: 1px solid transparent;
     border-radius: var(--radius-sm);
     color: palette(window-text);
     font-weight: bold;
@@ -322,7 +323,6 @@ QListWidget#canvasNodeSearchList::item:selected {
 QFrame#canvas_toolbar_overlay QPushButton:hover, QFrame#canvas_context_toolbar_overlay QPushButton:hover {
     background-color: palette(alternate-base);
     color: palette(window-text);
-    border: 1px solid palette(mid);
 }
 
 QFrame#canvas_toolbar_overlay QPushButton:checked, QFrame#canvas_context_toolbar_overlay QPushButton:checked {

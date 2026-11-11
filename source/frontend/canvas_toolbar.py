@@ -256,8 +256,10 @@ class CanvasToolBarOverlay(QFrame):
 • <b>Right-Click Node</b>: Node Actions & Align""")
         layout.addWidget(self.btnHelp)
 
-        # Attach Lucide icons to every toolbar button
-        from widgets.lucide import bind_icon
+        # Attach Lucide icons to every toolbar button; checked tiles fill
+        # with the highlight, so icons invert to the theme's background color.
+        from widgets.lucide import bind_icon, contrast_on_highlight
+        checked_ink = contrast_on_highlight()
         for btn, name in (
             (self.btnMenu, "menu"),
             (self.btnPointer, self.icon_pointer),
@@ -271,7 +273,7 @@ class CanvasToolBarOverlay(QFrame):
             (self.btnSignalFlow, self.icon_flow),
             (self.btnHelp, self.icon_help),
         ):
-            bind_icon(btn, name, size=16)
+            bind_icon(btn, name, size=16, checked_color=checked_ink)
 
         self.updateActiveButton(0)
         self.adjustSize()

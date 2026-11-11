@@ -130,6 +130,29 @@ def theme_icon(theme_name, size=16, color=None):
     return lucide_icon(lucide_name, size, color)
 
 
+def contrast_on_highlight():
+    """Icon color that stays readable on a checked (highlight-filled) tile.
+
+    Use the theme's own background token: it is at the opposite luminance end
+    from the accent that fills checked tiles, in dark and light themes alike.
+    """
+    try:
+        from styles.theme_manager import theme_manager
+        token = theme_manager.engine.get_token("bg-primary")
+        if token:
+            return token
+    except Exception:
+        pass
+    from qt_compat import QApplication, QPalette, QColor
+    app = QApplication.instance()
+    if app is not None:
+        role = QPalette.ColorRole.Highlight if hasattr(QPalette, "ColorRole") else QPalette.Highlight
+        c = app.palette().color(role)
+        if c.lightness() > 127:
+            return QColor(0, 0, 0).name()
+    return QColor(255, 255, 255).name()
+
+
 def bind_icon(button, name, size=16, color=None, checked_color=None):
     """Attach a Lucide icon to a button, following its check state.
 

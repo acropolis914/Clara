@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 #### 2026-11-11 — Everforest themes
 
+- **feat(ui)**: patchbay toolbar tiles are borderless; when a tool is toggled on, the icon ink inverts against the highlight fill via `contrast_on_highlight()` (theme background token, with a luminance-based black/white fallback), so checked tools stay readable in dark and light themes.
 - **feat(ui)**: ten UI polish enhancements: themed tooltips, hover border on rack slots, pointer/hand cursors on knobs/LEDs/sliders, keyboard focus rings, per-pixel rack scrolling, empty states (rack and node search), Lucide icons in canvas context menus (arrange/wire/repel, container layout, group), double-click affordance tooltips on slot titles, tooltips on the LED slice tiles and meters, and a 150ms color crossfade on the LED traffic lights.
 
 - **feat(tests)**: `test_polish_contract.py` — asserts that after theme polish, every pinned widget renders exactly the size its code requested and no widget ends with minimum above maximum. This is the systematic guard for the QSS-overrides-setFixedSize bug class (toolbar buttons, dial, search field all regressed through it).
