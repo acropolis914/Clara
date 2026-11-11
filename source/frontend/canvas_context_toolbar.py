@@ -158,7 +158,7 @@ class CanvasContextToolBarOverlay(QFrame):
 
     def addLabel(self, text, tooltip=""):
         lbl = QLabel(text, self)
-        lbl.setFont(self.font)
+        lbl.setObjectName("canvasContextLabel")
         if tooltip:
             lbl.setToolTip(tooltip)
         self.layout.addWidget(lbl)

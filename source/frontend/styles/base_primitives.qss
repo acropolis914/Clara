@@ -36,6 +36,45 @@ QMenuBar::item:selected {
     color: palette(highlight);
 }
 
+/* Main window toolbar: consistent icon/text scale and spacing */
+QToolBar#toolBar {
+    background-color: palette(base);
+    border: none;
+    border-bottom: 1px solid palette(mid);
+    padding: var(--space-xs) var(--space-sm);
+    spacing: var(--space-xs);
+}
+
+QToolBar#toolBar::separator {
+    background-color: palette(mid);
+    width: 1px;
+    margin: var(--space-xs) var(--space-xs);
+}
+
+QToolBar#toolBar QToolButton {
+    background-color: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    font-size: 13px;
+    color: palette(window-text);
+}
+
+QToolBar#toolBar QToolButton:hover {
+    background-color: palette(alternate-base);
+    color: palette(highlight);
+}
+
+QToolBar#toolBar QToolButton:pressed {
+    background-color: palette(mid);
+    color: palette(window-text);
+}
+
+QToolBar#toolBar QToolButton:checked {
+    background-color: palette(highlight);
+    color: palette(window);
+}
+
 QMenu {
     background-color: palette(base);
     color: palette(window-text);
@@ -218,6 +257,16 @@ QFrame#canvas_context_toolbar_overlay QPushButton {
     max-width: 24px;
     min-height: 24px;
     max-height: 24px;
+}
+
+/* Context toolbar section labels: small caps look, muted, vertically
+   centered next to the 24px icon tiles instead of a large bold font. */
+QLabel#canvasContextLabel {
+    background: transparent;
+    color: palette(midlight);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
 }
 
 QFrame#canvas_toolbar_overlay QPushButton:hover, QFrame#canvas_context_toolbar_overlay QPushButton:hover {
