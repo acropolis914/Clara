@@ -45,6 +45,7 @@ class ScalableDial(CommonDial):
         else:
             self.fImageOrientation = self.VERTICAL
 
+        self.setCursor(Qt.PointingHandCursor)
         self.updateSizes()
 
     def getBaseSize(self):

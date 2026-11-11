@@ -537,24 +537,43 @@ class CanvasContextToolBarOverlay(QFrame):
 
         has_selection = count > 0
 
+        try:
+            from widgets.lucide import lucide_icon
+        except Exception:
+            lucide_icon = None
+
+        def _act(menu_, text, icon_name=None):
+            act = menu_.addAction(text)
+            if lucide_icon is not None and icon_name:
+                icon = lucide_icon(icon_name, 14)
+                if icon is not None:
+                    act.setIcon(icon)
+            return act
+
         arrange_menu = menu.addMenu("Auto arrange")
+        if lucide_icon is not None:
+            icon = lucide_icon("move", 14)
+            if icon is not None:
+                arrange_menu.setIcon(icon)
         for algo_name, algo_label in patchcanvas.layout_algorithms():
             act = arrange_menu.addAction(algo_label)
             act.triggered.connect(
                 lambda checked=False, a=algo_name: self._slot_run_arrange(a)
             )
 
-        act_wire = menu.addAction("Auto wire")
+        act_wire = _act(menu, "Auto wire", "cable")
         act_wire.triggered.connect(lambda: patchcanvas.autoWire())
         act_wire.setEnabled(has_selection)
 
-        act_both = menu.addAction("Arrange + wire")
+        act_both = _act(menu, "Arrange + wire", "arrow-right-left")
         act_both.triggered.connect(lambda: patchcanvas.autoArrangeAndWire())
         act_both.setEnabled(has_selection)
 
         menu.addSeparator()
-        act_repel = menu.addAction(
-            "Auto repel all" if not has_selection else "Auto repel selection"
+        act_repel = _act(
+            menu,
+            "Auto repel all" if not has_selection else "Auto repel selection",
+            "move-vertical",
         )
         act_repel.triggered.connect(lambda: patchcanvas.autoRepelNodes())
 
@@ -607,8 +626,17 @@ class CanvasContextToolBarOverlay(QFrame):
             ("freeform", "Freeform (Unconstrained)"),
         ]
         cur = getattr(container, "m_layout_mode", "vbox")
+        mode_icons = {"vbox": "columns-2", "hbox": "menu", "grid": "grid-3x3", "freeform": "hand"}
+        try:
+            from widgets.lucide import lucide_icon
+        except Exception:
+            lucide_icon = None
         for mode_key, mode_name in modes:
             act = menu.addAction(mode_name)
+            if lucide_icon is not None and mode_key in mode_icons:
+                icon = lucide_icon(mode_icons[mode_key], 14)
+                if icon is not None:
+                    act.setIcon(icon)
             act.setCheckable(True)
             act.setChecked(cur == mode_key)
             act.triggered.connect(lambda checked=False, m=mode_key: (container.setLayoutMode(m), self.updateSelection()))
@@ -624,8 +652,17 @@ class CanvasContextToolBarOverlay(QFrame):
             ("grid", "Grid (Matrix)"),
             ("freeform", "Freeform (Unconstrained)"),
         ]
+        mode_icons = {"vbox": "columns-2", "hbox": "menu", "grid": "grid-3x3", "freeform": "hand"}
+        try:
+            from widgets.lucide import lucide_icon
+        except Exception:
+            lucide_icon = None
         for mode_key, mode_name in modes:
             act = menu.addAction(mode_name)
+            if lucide_icon is not None and mode_key in mode_icons:
+                icon = lucide_icon(mode_icons[mode_key], 14)
+                if icon is not None:
+                    act.setIcon(icon)
             act.triggered.connect(lambda checked=False, m=mode_key: (patchcanvas.createContainerFromSelected(m), self.updateSelection()))
 
         btn_pos = source_button.mapToGlobal(QPoint(0, source_button.height() + 4))

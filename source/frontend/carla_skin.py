@@ -1935,6 +1935,16 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
 
         QFrame.closeEvent(self, event)
 
+    def enterEvent(self, event):
+        self._hovered = True
+        self.update()
+        QFrame.enterEvent(self, event)
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self.update()
+        QFrame.leaveEvent(self, event)
+
     def resizeEvent(self, event):
         if not self.fAdjustViewableKnobCountScheduled:
             self.fAdjustViewableKnobCountScheduled = True
@@ -2361,6 +2371,10 @@ class PluginSlot_Compact(AbstractPluginSlot):
             painter.setPen(selPen)
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(rect, 6.0, 6.0)
+        elif getattr(self, "_hovered", False):
+            painter.setPen(QPen(get_active_skin_palette(self.is_dark)['text'], 1.0))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(rect, 6.0, 6.0)
 
         QFrame.paintEvent(self, event)
 
@@ -2431,6 +2445,7 @@ class SliderParamWidget(QWidget):
         self.slider.setPageStep(50)
         self.slider.setMinimumWidth(80)
         self.slider.setMaximumHeight(14)
+        self.slider.setCursor(Qt.SizeHorCursor)
         if accent_color:
             self.slider.setStyleSheet(f"""
                 QSlider::sub-page:horizontal {{
@@ -2729,6 +2744,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.layout_title_stack.addWidget(self.label_name)
         self.layout_title_stack.addWidget(self.label_badge)
 
+        self.w_title_stack.setToolTip("Double-click to collapse / expand this slot")
         self.w_title_stack.mouseDoubleClickEvent = lambda ev: self.slot_toggleExpandOrMini()
         self.label_name.mouseDoubleClickEvent = lambda ev: self.slot_toggleExpandOrMini()
         self.label_badge.mouseDoubleClickEvent = lambda ev: self.slot_toggleExpandOrMini()
@@ -2888,6 +2904,8 @@ class PluginSlot_Minimal(PluginSlot_Default):
             self.setSliderMode(True)
         else:
             self.setSliderMode(False)
+
+        self._hovered = False
 
         # Initialize modernized header layout mode (default True for minimal/sliders skin)
         self.is_modernized_slice = True
@@ -3528,6 +3546,19 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 self.ui.layout_leds.removeWidget(self.led_audio_out)
 
             # Place LEDs in a tight 2x2 grid (8x8 tiles with 2px spacing = 18x18 total)
+            led_tips = {
+                self.led_control: "Control status (yellow)",
+                self.led_midi: "MIDI activity (red)",
+                self.led_audio_in: "Audio input (green)",
+                self.led_audio_out: "Audio output (cyan)",
+            }
+            for led, tip in led_tips.items():
+                if led is not None:
+                    led.setToolTip(tip)
+            if self.peak_in is not None:
+                self.peak_in.setToolTip("Input peaks")
+            if self.peak_out is not None:
+                self.peak_out.setToolTip("Output peaks")
             self._led_grid_layout.addWidget(self.led_control, 0, 0)
             self._led_grid_layout.addWidget(self.led_midi, 0, 1)
             self._led_grid_layout.addWidget(self.led_audio_in, 1, 0)

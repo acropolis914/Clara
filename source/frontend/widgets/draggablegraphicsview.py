@@ -509,7 +509,20 @@ class DraggableGraphicsView(QGraphicsView):
             self.fSearchList.raise_()
             self.fSearchList.setCurrentRow(0)
         else:
-            self.fSearchList.hide()
+            # Empty state: show why nothing matched (disabled row)
+            self.fSearchList.clear()
+            no_match = QListWidgetItem("No nodes match")
+            no_match.setFlags(no_match.flags() & ~getattr(Qt.ItemFlag, "ItemIsEnabled", Qt.ItemIsEnabled))
+            self.fSearchList.addItem(no_match)
+            edit = self._searchWidget()
+            if edit is not None:
+                gp = edit.mapToGlobal(QPoint(0, edit.height() + 2))
+                top_left = self.mapFromGlobal(gp)
+                self.fSearchList.setGeometry(top_left.x(), top_left.y(), max(180, edit.width()), 30)
+            else:
+                self.fSearchList.setGeometry(12, 42, 260, 30)
+            self.fSearchList.show()
+            self.fSearchList.raise_()
 
     def _onSearchRowChanged(self, row):
         for i in range(self.fSearchList.count()):

@@ -18,6 +18,26 @@ QMainWindow, QDialog {
     background-color: palette(window);
 }
 
+/* Tooltips: themed, rounded, compact */
+QToolTip {
+    background-color: palette(base);
+    color: palette(window-text);
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+/* Keyboard focus: swap the border color instead of growing the widget */
+QPushButton:focus {
+    border-color: palette(highlight);
+}
+
+QToolButton:focus, QListWidget:focus, QComboBox:focus {
+    outline: 1px solid palette(highlight);
+    outline-offset: -1px;
+}
+
 /* ToolBar & Menus */
 QMenuBar {
     background-color: palette(base);

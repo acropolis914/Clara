@@ -238,6 +238,16 @@ class RackListItem(QListWidgetItem):
 class RackListWidget(QListWidget):
     def __init__(self, parent):
         QListWidget.__init__(self, parent)
+        self.setObjectName("rackListWidget")
+        # Per-pixel scrolling keeps the fixed-height slot rows aligned and smooth
+        try:
+            self.setVerticalScrollMode(
+                QAbstractItemView.ScrollMode.ScrollPerPixel
+                if hasattr(QAbstractItemView, "ScrollMode")
+                else QAbstractItemView.ScrollPerPixel
+            )
+        except Exception:
+            pass
         self.host = None
         self.fParent = None
 
@@ -284,6 +294,21 @@ class RackListWidget(QListWidget):
                 gCarla.gui.slot_pluginAdd()
             elif hasattr(gCarla.gui.ui, "act_plugin_add"):
                 gCarla.gui.ui.act_plugin_add.trigger()
+
+    def paintEvent(self, event):
+        QListWidget.paintEvent(self, event)
+        if self.count() == 0:
+            from qt_compat import QPainter, QRectF, QPalette
+            painter = QPainter(self.viewport())
+            painter.setPen(self.palette().color(
+                QPalette.ColorRole.Mid if hasattr(QPalette, "ColorRole") else QPalette.Mid))
+            f = painter.font()
+            f.setPointSize(10)
+            painter.setFont(f)
+            rect = self.viewport().rect().adjusted(16, 40, -16, -40)
+            painter.drawText(rect, 0x0084,  # Qt.TextWordWrap
+                             "No plugins yet\n\nAdd one with + Add Plugin")
+            painter.end()
 
     def resizeEvent(self, event):
         QListWidget.resizeEvent(self, event)

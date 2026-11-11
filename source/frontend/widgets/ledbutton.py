@@ -8,11 +8,13 @@
 from qt_compat import (
     QRectF,
     QColor,
+    QEasingCurve,
     QPainter,
     QPen,
     QPixmap,
     QSize,
     QSvgWidget,
+    QVariantAnimation,
     QPushButton,
     Qt,
 )
@@ -50,14 +52,59 @@ class LEDButton(QPushButton):
 
         self.setCheckable(True)
         self.setText("")
+        self.setCursor(Qt.PointingHandCursor)
         # Opt out of the global QPushButton chrome (min-height/padding/border):
         # this widget paints its own LED tile.
         self.setProperty("ledTile", True)
 
         self.fCustomSize = False
         self.fMinimalMode = False
+        self._anim_color = None
+
+        self.toggled.connect(lambda _checked: self._start_color_fade())
 
         self.setColor(self.BLUE)
+
+    def _minimal_colors(self):
+        """(solid, glow) colors for the current color role."""
+        color_map = {
+            self.YELLOW: (QColor(249, 226, 175), QColor(250, 204, 21, 80)),   # Amber / Gold
+            self.RED:    (QColor(243, 139, 168), QColor(248, 113, 113, 80)),  # Coral / Red
+            self.GREEN:  (QColor(166, 227, 161), QColor(74, 222, 128, 80)),   # Emerald / Green
+            self.BLUE:   (QColor(137, 220, 235), QColor(56, 189, 248, 80)),   # Sky / Cyan
+            self.CALF:   (QColor(166, 227, 161), QColor(74, 222, 128, 80)),
+        }
+        return color_map.get(self.fColor, (QColor(137, 220, 235), QColor(56, 189, 248, 80)))
+
+    def _start_color_fade(self):
+        """Animate the minimal tile between its off tint and on color (150ms)."""
+        if not getattr(self, "fMinimalMode", False):
+            return
+        solid_col, _glow = self._minimal_colors()
+        off_col = QColor(solid_col.red(), solid_col.green(), solid_col.blue(), 25)
+        start = getattr(self, "_anim_color", None) or (solid_col if not self.isChecked() else off_col)
+        end = solid_col if self.isChecked() else off_col
+        anim = QVariantAnimation(self)
+        anim.setDuration(150)
+        anim.setEasingCurve(QEasingCurve.Type.OutQuad if hasattr(QEasingCurve, "Type") else QEasingCurve.OutQuad)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+
+        def _step(t):
+            t = float(t)
+            c = QColor(
+                int(start.red() + (end.red() - start.red()) * t),
+                int(start.green() + (end.green() - start.green()) * t),
+                int(start.blue() + (end.blue() - start.blue()) * t),
+                int(start.alpha() + (end.alpha() - start.alpha()) * t),
+            )
+            self._anim_color = c
+            self.update()
+
+        anim.valueChanged.connect(_step)
+        anim.finished.connect(lambda: setattr(self, "_anim_color", None))
+        anim.start()
+        self._anim_obj = anim  # keep a reference for the animation lifetime
 
     def setMinimalMode(self, enabled):
         self.fMinimalMode = bool(enabled)
@@ -122,14 +169,9 @@ class LEDButton(QPushButton):
 
         # Resolve theme colors for signal types
         # Control (Yellow), MIDI (Red/Coral), Audio In (Green), Audio Out (Cyan/Blue)
-        color_map = {
-            self.YELLOW: (QColor(249, 226, 175), QColor(250, 204, 21, 80)),   # Amber / Gold
-            self.RED:    (QColor(243, 139, 168), QColor(248, 113, 113, 80)),  # Coral / Red
-            self.GREEN:  (QColor(166, 227, 161), QColor(74, 222, 128, 80)),   # Emerald / Green
-            self.BLUE:   (QColor(137, 220, 235), QColor(56, 189, 248, 80)),   # Sky / Cyan
-            self.CALF:   (QColor(166, 227, 161), QColor(74, 222, 128, 80)),
-        }
-        solid_col, glow_col = color_map.get(self.fColor, (QColor(137, 220, 235), QColor(56, 189, 248, 80)))
+        solid_col, glow_col = self._minimal_colors()
+        if getattr(self, "_anim_color", None) is not None:
+            solid_col = self._anim_color
 
         if is_on:
             # Active square pixel tile with crisp 1px bevel
