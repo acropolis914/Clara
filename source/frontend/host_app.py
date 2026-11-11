@@ -2429,7 +2429,13 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         lay = self.ui.tw_statusbar.layout()
         anchor = getattr(self, "label_save_status", None)
         if anchor is not None and lay is not None:
-            lay.addStretch(1)
+            # expanding spacer BEFORE the sparkline: everything after it
+            # (spark, dsp text, autosave, unsaved) flushes to the right
+            from qt_compat import QSpacerItem
+            lay.insertItem(lay.indexOf(anchor), QSpacerItem(
+                0, 0,
+                QSizePolicy.Policy.Expanding if hasattr(QSizePolicy, "Policy") else QSizePolicy.Expanding,
+                QSizePolicy.Policy.Minimum))
             lay.insertWidget(lay.indexOf(anchor), self._lblDspLoad)
         else:
             lay.addWidget(self._lblDspLoad)

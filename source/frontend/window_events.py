@@ -115,6 +115,23 @@ class EventsMixin:
     # timer event
 
     def refreshRuntimeInfo(self, load, xruns):
+        if not getattr(self, "_sbLayoutDumped", False):
+            self._sbLayoutDumped = True
+            try:
+                with open("/tmp/opencode/sb-layout.txt", "w") as f:
+                    lay = self.ui.tw_statusbar.layout()
+                    for i in range(lay.count()):
+                        it = lay.itemAt(i)
+                        w = it.widget()
+                        if w is None:
+                            f.write("%d LAYOUT %s\n" % (i, type(it).__name__))
+                            continue
+                        f.write("%d %s [%s] geom=%d,%d %dx%d visible=%s\n" % (
+                            i, type(w).__name__, w.objectName() or w.text()[:20],
+                            w.geometry().x(), w.geometry().y(),
+                            w.width(), w.height(), w.isVisible()))
+            except Exception:
+                pass
         txt1 = str(xruns) if (xruns >= 0) else "--"
         txt2 = "" if (xruns == 1) else "s"
 
