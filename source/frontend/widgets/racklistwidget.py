@@ -188,6 +188,7 @@ class RackListItem(QListWidgetItem):
         self.setSizeHint(QSize(self.kMinimumWidth, self.fWidget.getFixedHeight()))
 
         self.fParent.setItemWidget(self, self.fWidget)
+        self.fParent.fitItemWidgets()
 
         # Apply rack item color to patchbay canvas node
         try:
@@ -226,6 +227,7 @@ class RackListItem(QListWidgetItem):
         self.setSizeHint(QSize(self.kMinimumWidth, self.fWidget.getFixedHeight()))
 
         self.fParent.setItemWidget(self, self.fWidget)
+        self.fParent.fitItemWidgets()
 
         self.host.set_custom_data(self.fPluginId, CUSTOM_DATA_TYPE_PROPERTY,
                                   "CarlaSkinIsCompacted", "true" if wasCompacted else "false")
@@ -285,6 +287,7 @@ class RackListWidget(QListWidget):
 
     def resizeEvent(self, event):
         QListWidget.resizeEvent(self, event)
+        self.fitItemWidgets()
         if hasattr(self, "btn_floating_add") and self.btn_floating_add is not None:
             btn_w = self.btn_floating_add.width()
             btn_h = self.btn_floating_add.height()
@@ -295,6 +298,21 @@ class RackListWidget(QListWidget):
             self.btn_floating_add.raise_()
 
     # --------------------------------------------------------------------------------------------------------
+
+    def fitItemWidgets(self):
+        """Keep embedded slot widgets exactly as wide as the viewport.
+
+        Item widgets can end up wider than the list (initial sizing, minimum
+        widths from long titles) and then overflow to the right; the title
+        elides, so the width can always follow the viewport.
+        """
+        vw = self.viewport().width()
+        if vw <= 20:
+            return
+        for row in range(self.count()):
+            widget = self.itemWidget(self.item(row))
+            if widget is not None and widget.width() != vw:
+                widget.resize(vw, widget.height())
 
     def createItem(self, pluginId, useClassicSkin):
         return RackListItem(self, pluginId, useClassicSkin)

@@ -2751,6 +2751,9 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.ui.layout_top.insertItem(2, self.spacer_flex)
 
         self.setMinimumWidth(160)
+        # The title must never drive the slot's minimum width: rack items are
+        # sized to the list viewport and the label already elides to fit.
+        self.label_name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.ui.layout_top.setSpacing(4)
         self.ui.layout_top.setContentsMargins(0, 0, 0, 0)
 

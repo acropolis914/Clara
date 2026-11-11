@@ -540,7 +540,7 @@ TIPS
 
 
 _COMMANDS = ("status", "save", "show", "events", "list", "open", "shot", "screenshot",
-             "settings", "canvas", "plugin", "instances", "quit", "wait",
+             "settings", "canvas", "plugin", "rack", "instances", "quit", "wait",
              "dialogs", "dialog", "replace", "help", "examples")
 
 
@@ -655,6 +655,8 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
     sub.add_parser("show", help="raise the running window")
     instances_parser = sub.add_parser("instances", help="list running Clara instances")
     instances_parser.add_argument("-j", "--json", action="store_true")
+    rack_parser = sub.add_parser("rack", help="inspect rack layout (debug)")
+    rack_parser.add_argument("action", nargs="?", default="dump", choices=("dump",))
     plugin_parser = sub.add_parser("plugin", help="control a plugin")
     plugin_parser.add_argument("action", choices=("ui",))
     plugin_parser.add_argument("plugin_id", type=int)
@@ -791,6 +793,14 @@ def run_msg_cli(argv, socket_path, prog="claramsg"):
         data = reply.get("data") or {}
         print("%s %s" % (data.get("name", data.get("plugin")),
                          "shown" if data.get("shown") else "hidden"))
+        return 0
+
+    if args.cmd == "rack":
+        reply = _send(socket_path, build_request("rack", action=args.action))
+        if reply is None:
+            return 1
+        import json as _json
+        print(_json.dumps((reply.get("data") or {}), indent=1))
         return 0
 
     if args.cmd == "quit":

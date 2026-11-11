@@ -10,7 +10,7 @@ import os
 from qt_compat import QMessageBox, QTimer
 
 from carla_logger import logger, LEVEL_NAMES
-from carla_shared import log_carla
+from carla_shared import log_carla, gCarla
 
 
 class ControlMixin:
@@ -419,6 +419,39 @@ class ControlMixin:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
+    def msgRack(self, action="dump"):
+        """Inspect rack list geometry (debug aid for layout work)."""
+        gui = getattr(self, "fUi", None) or getattr(gCarla, "gui", None)
+        lw = getattr(getattr(gui, "ui", None), "listWidget", None)
+        if lw is None:
+            return {"ok": False, "error": "no rack list"}
+        items = []
+        for row in range(lw.count()):
+            item = lw.item(row)
+            widget = lw.itemWidget(item)
+            entry = {
+                "row": row,
+                "rect": [item.sizeHint().width(), item.sizeHint().height()],
+                "widget": None,
+            }
+            if widget is not None:
+                entry["widget"] = {
+                    "cls": type(widget).__name__,
+                    "size": [widget.width(), widget.height()],
+                    "min": [widget.minimumSizeHint().width(), widget.minimumSizeHint().height()],
+                    "min_set": [widget.minimumSize().width(), widget.minimumSize().height()],
+                    "hint": [widget.sizeHint().width(), widget.sizeHint().height()],
+                    "fixed_h": widget.getFixedHeight() if hasattr(widget, "getFixedHeight") else None,
+                    "visual": [lw.visualItemRect(item).width(), lw.visualItemRect(item).height()],
+                }
+            items.append(entry)
+        return {"ok": True, "viewport": [lw.viewport().width(), lw.viewport().height()],
+                "contents": [lw.contentsRect().width(), lw.contentsRect().height()],
+                "h_extent": lw.horizontalScrollBar().maximum(),
+                "list_w": lw.width(),
+                "frame": lw.frameWidth(),
+                "items": items}
+
     def msgPlugin(self, action, plugin_id=None, value=None):
         if action != "ui":
             return {"ok": False, "error": "unknown plugin action: %s" % action}
@@ -478,6 +511,8 @@ class ControlMixin:
             if not result.get("ok"):
                 return {"v": 1, "ok": False, "error": {"code": "internal", "message": result.get("error", "failed")}}
             return {"v": 1, "ok": True, "data": result}
+        if cmd == "rack":
+            return {"v": 1, "ok": True, "data": self.msgRack(request.get("action", "dump"))}
         if cmd == "plugin":
             result = self.msgPlugin(request.get("action"), request.get("plugin"),
                                     request.get("value"))
