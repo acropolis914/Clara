@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 #### 2026-11-11 — Lucide icon set
 
+- **fix(ui)**: canvas toolbar buttons are truly square — the theme QSS box model was overriding `setFixedSize` and squashing them to 28x~22; the scoped toolbar rules now pin equal min/max width and height (26x26 vertical toolbar, 24x24 context toolbar).
 - **feat(ui)**: canvas toolbar buttons (vertical toolbar and context toolbar) render as square tile containers — filled with the base palette, a `mid` border and rounded corners — instead of floating transparent icons; hover/checked states unchanged.
 - **feat(ui)**: menubar, transport and disk buttons always get icons from the app's own Lucide set. The icons were previously only applied when "Use system theme icons" was enabled (which was off by default, leaving menus iconless); the block is now unconditional.
 

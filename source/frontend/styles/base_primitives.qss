@@ -204,6 +204,22 @@ QFrame#canvas_toolbar_overlay QPushButton, QFrame#canvas_context_toolbar_overlay
     min-height: 0px;
 }
 
+/* Square tiles: equal min/max width and height, so the QSS box model can
+   never squash the buttons into rectangles (it overrides setFixedSize). */
+QFrame#canvas_toolbar_overlay QPushButton {
+    min-width: 26px;
+    max-width: 26px;
+    min-height: 26px;
+    max-height: 26px;
+}
+
+QFrame#canvas_context_toolbar_overlay QPushButton {
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+}
+
 QFrame#canvas_toolbar_overlay QPushButton:hover, QFrame#canvas_context_toolbar_overlay QPushButton:hover {
     background-color: palette(alternate-base);
     color: palette(window-text);
