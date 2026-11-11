@@ -1033,9 +1033,12 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         self.label_autosave_status = QLabel(self.ui.tw_statusbar)
         self.label_autosave_status.setObjectName("label_autosave_status")
         self.label_autosave_status.setStyleSheet("color: gray; margin-left: 4px; margin-right: 6px;")
-        self.label_autosave_status.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        self.label_autosave_status.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.label_autosave_status.setMinimumWidth(0)
-        self.ui.horizontalLayout_3.addWidget(self.label_autosave_status)
+        # before the save-status chip so "Unsaved" stays flushed right
+        _sb_lay = self.ui.horizontalLayout_3
+        _sb_lay.insertWidget(_sb_lay.indexOf(self.label_save_status),
+                             self.label_autosave_status)
 
         # Allow statusbar controls to flex on narrow screens (e.g. half-screen tiling)
         if hasattr(self.ui, "tw_statusbar") and self.ui.tw_statusbar is not None:
@@ -2395,7 +2398,7 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             spark.setObjectName("pb_dsp_load")
             # A couple of inches on the right; the stretch keeps room free
             # for more status info later.
-            spark.setFixedWidth(220)
+            spark.setFixedWidth(110)
             lay = old_bar.parentWidget().layout()
             idx = lay.indexOf(old_bar) if lay else -1
             if lay is not None and idx >= 0:
@@ -2430,6 +2433,23 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             lay.insertWidget(lay.indexOf(anchor), self._lblDspLoad)
         else:
             lay.addWidget(self._lblDspLoad)
+
+        # Xruns chip: clicking opens the context report (replaces the ui
+        # wiring's clear-on-click handler; typography matches the labels).
+        xrun_chip = getattr(self.ui, "b_xruns", None)
+        if xrun_chip is not None:
+            try:
+                xrun_chip.clicked.disconnect(self.slot_xrunClear)
+            except (TypeError, RuntimeError):
+                pass
+            ref = getattr(self.ui, "label_buffer_size", None)
+            if ref is not None:
+                xrun_chip.setFont(ref.font())
+            xrun_chip.clicked.connect(self._showXrunReport)
+
+        autosave = getattr(self, "label_autosave_status", None)
+        if autosave is not None and not autosave.text():
+            autosave.hide()
 
         from collections import deque
         self._dspSamples = deque(maxlen=240)

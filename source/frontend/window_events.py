@@ -136,6 +136,15 @@ class EventsMixin:
                 "QToolButton { color: %s; background: transparent;"
                 " border: none; border-radius: 4px; padding: 2px 8px;"
                 " font-size: 11px; }" % color)
+            # autosave label: fixed policy + hidden while empty so the right
+            # group stays flushed to the edge
+            au = getattr(self, "label_autosave_status", None)
+            if au is not None:
+                from qt_compat import QSizePolicy
+                au.setSizePolicy(
+                    QSizePolicy.Policy.Fixed if hasattr(QSizePolicy, "Policy") else QSizePolicy.Fixed,
+                    QSizePolicy.Fixed)
+                au.setVisible(bool(au.text()))
             if self._xrunRing:
                 chip.setToolTip(self.tr(
                     "%d xruns this session\nClick for details and context" % x))
