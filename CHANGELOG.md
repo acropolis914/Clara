@@ -24,6 +24,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 #### 2026-11-11 — Lucide icon set
 
+- **feat(ui)**: canvas toolbar buttons (vertical toolbar and context toolbar) render as square tile containers — filled with the base palette, a `mid` border and rounded corners — instead of floating transparent icons; hover/checked states unchanged.
+- **feat(ui)**: menubar, transport and disk buttons always get icons from the app's own Lucide set. The icons were previously only applied when "Use system theme icons" was enabled (which was off by default, leaving menus iconless); the block is now unconditional.
+
 - **feat(ui)**: all UI icons now come from [Lucide](https://lucide.dev) (ISC), replacing the FontAwesome/Nerd-Font glyph texts and FreeDesktop theme icon lookups: rack slot header buttons (power, bypass, custom UI, edit, slider-mode, minimize chevron), canvas toolbar, canvas context toolbar, canvas node action buttons, settings dialog sidebar and path buttons, minimap collapse, and every menu/toolbar icon routed through `getIcon()` (theme names mapped to Lucide in `widgets/lucide.py`, theme icons remain the fallback when the vendored set is absent).
 - **feat(build)**: Lucide SVGs are vendored locally and gitignored; `scripts/fetch-lucide.sh` fetches the pinned set (add an icon name and rerun). Icons load with `stroke="currentColor"` recolored to the active theme palette, so they follow light/dark themes.
 - **docs**: About dialog and README credit Lucide, Catppuccin, upstream Carla and plugin ecosystem; new README "Thanks & Credits" section.
