@@ -89,7 +89,9 @@ def lucide_icon(name, size=24, color=None):
         except Exception:
             pass
         if color is None:
-            color = "#dddddd"
+            # No application palette available (headless/resource contexts):
+            # report None so callers keep their non-Lucide fallback.
+            return None
 
     key = (name, int(size), color)
     cached = _icon_cache.get(key)
