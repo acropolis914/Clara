@@ -18,7 +18,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ---
 
 
-## [Unreleased]
+## [1.2.1] - 2026-11-11
+
+The UI polish release: every icon is Lucide, the toolbars and status bar follow a
+compact Win11-style design, the loading banner is a phase-aware segmented
+prototype, the DSP meter is a semantic sparkline, and a UI regression harness
+plus a polish contract keep it all from sliding back.
 
 ### Added
 

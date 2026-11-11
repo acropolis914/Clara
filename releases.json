@@ -1,6 +1,46 @@
 {
-  "latest": "1.2.0",
+  "latest": "1.2.1",
   "releases": {
+    "1.2.1": {
+      "version": "1.2.1",
+      "date": "2026-11-11",
+      "urgency": "suggested",
+      "summary": "The UI polish release: Lucide icons everywhere, Win11-style toolbars and status bar, a phase-aware loading banner with a learned ETA, a semantic DSP sparkline, Everforest themes, and a UI regression harness that keeps the fixes from sliding back.",
+      "highlights": [
+        "Lucide everywhere: every app icon is now Lucide (ISC), recolored to the active theme; the FontAwesome/Nerd-Font glyphs and system-theme icon lookups are gone, and vendored icons are one `scripts/fetch-lucide.sh` away.",
+        "Compact Win11-style chrome: main toolbar, canvas toolbars and status bar rebuilt with flat tiles, square icon containers, borderless checked states with inverted icon ink, themed tooltips and keyboard focus rings.",
+        "Phase-aware loading banner: Engine → Plugins → Canvas → Session chips, one segment per pipeline step with an in-segment shimmer, format badges, a learned per-plugin ETA from stored load statistics, and a smooth height animation on show/dismiss.",
+        "Semantic DSP sparkline: autoscaled to the visible range, colored per point by standard deviation (green calm, yellow warn, red spike), configurable window from Settings, with current/average readout in a fixed 2-inch block.",
+        "Xruns with context: an activity ring records what preceded each xrun, the chip is colored semantically and clicking it opens the report with an explicit Clear action.",
+        "Everforest Dark and Everforest Light join the builtin themes, and a surface-elevation pass separates background, surfaces and hovers so the UI stops reading as one flat shade.",
+        "The canvas minimap lost its header, floats its controls inside the map and docks to the top or bottom of the rack list; buffer size and sample rate are changeable from the status bar."
+      ],
+      "changes": [
+        "Icons: getIcon() resolves Lucide first with theme icons as fallback; glyph texts replaced in rack slots, toolbars, canvas node buttons, settings and menus.",
+        "Toolbars: Win11 command-bar styling, square tiles with equal min/max (the QSS box model was squashing buttons to 28x22), context toolbar in pure box-model autolayout, search field unclipped, and the bar can never leave the canvas.",
+        "Status bar: rebuilt flat with muted labels, borderless combos, accent scrollbars, per-pixel rack scrolling and the right group flushed to the edge; Xruns typography matches the labels and the chip is a clickable QLabel.",
+        "Loading: the legacy ProjectLoadingDialog is sunset (session offer prompt renamed ProjectSessionOfferDialog); the banner fixes the silent setPipeline(0) bug that disabled segments, and the old dialog fallback crash is gone.",
+        "ETA: per-plugin load durations are stored as exponentially weighted averages in QSettings and matched against the project's plugin plan; the first load seeds the stats.",
+        "Exit: programmatic quits never prompt, and the redundant clean-quit confirmation is off by default (unsaved-changes prompt stays).",
+        "Minimap: headerless with floating grip/collapse/menu buttons, dockable to the rack list, with observable state restore (QSafeSettings type-arg fix).",
+        "Rack: hint-driven modernized slice, SVG ghost-paint fix on knobs and LEDs, badge/policy minimum-width fixes (slot minimums 281 -> 222px), right-overflow fix via viewport-fitted item widgets, and semantically colored LED traffic lights with a crossfade.",
+        "Themes: surface-elevation pass separates background/surface/hover in every theme; light themes no longer invert when the mode argument is omitted.",
+        "claramsg: shot takes semantic targets with automation (plugins opens UIs, settings opens the dialog, context-toolbar selects nodes), rack detail dumps LED/dial geometry, status reports a code_version stamp and warns when the running instance predates the code on disk.",
+        "Tests: test_polish_contract.py (theme QSS must never override requested widget sizes) and the rack layout harness gains slot minimum-height/width guards.",
+        "Sunset: legacy FontAwesome glyph texts, the old project loading dialog, and dead canvas theme/LED code paths."
+      ],
+      "image": "docs/screenshots/clara-1.2.1.png",
+      "installation": {
+        "appimage": "Download `Clara-1.2.1-x86_64.AppImage`, then: `chmod +x Clara-1.2.1-x86_64.AppImage && ./Clara-1.2.1-x86_64.AppImage`",
+        "flatpak": "Download/run the Flatpak bundle: `flatpak install --user com.github.acropolis914.Clara.flatpak`",
+        "arch": "Install via AUR / PKGBUILD: `paru -S clara-bin` (or `clara-git`)",
+        "ubuntu": "Download `.deb` and run: `sudo dpkg -i clara-ubuntu-*.deb && sudo apt-get install -f`",
+        "fedora": "Download `.rpm` and run: `sudo dnf install clara-*.rpm`",
+        "void": "Extract tarball: `tar --zstd -xvf clara-void-*.tar.zst -C /`",
+        "alpine": "Extract tarball: `tar --zstd -xvf clara-alpine-*.tar.zst -C /`",
+        "nix": "Run directly via Flake: `nix run github:acropolis914/Clara`"
+      }
+    },
     "1.2.0": {
       "version": "1.2.0",
       "date": "2026-11-11",
