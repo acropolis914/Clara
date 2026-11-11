@@ -40,6 +40,11 @@ from qt_compat import (
 
 from patchcanvas import patchcanvas
 
+try:
+    from carla_logger import logger
+except Exception:  # standalone/resource contexts
+    logger = None
+
 
 class _ViewportEventFilter(QObject):
     def __init__(self, minimap):
@@ -703,6 +708,7 @@ class CanvasMinimapOverlay(QFrame):
     collapsedChanged = pyqtSignal(bool)
     geometryChanged = pyqtSignal()
     zoomChanged = pyqtSignal(float)
+    dockRequested = pyqtSignal(str)  # "float" | "top" | "bottom"
 
     def __init__(self, parent, graphics_view, scene, host=None):
         super().__init__(parent)
@@ -713,7 +719,6 @@ class CanvasMinimapOverlay(QFrame):
         self._drag_origin = None
         self._drag_start = None
         self._dock = "float"
-        self.dockRequested = pyqtSignal(str)  # "float" | "top" | "bottom"
 
         self.map = CanvasMinimapFrame(self, graphics_view, scene, host)
         self.map.zoomChanged.connect(self.zoomChanged.emit)
@@ -800,6 +805,10 @@ class CanvasMinimapOverlay(QFrame):
         if collapsed == self._collapsed:
             return
         self._collapsed = collapsed
+        if logger is not None:
+            logger.info("CANVAS", "minimap collapsed=%s (overlay %dx%d, map %dx%d)",
+                        collapsed, self.width(), self.height(),
+                        self.map.width(), self.map.height())
         self.map.setVisible(not collapsed)
         if getattr(self._collapseBtn, "_lucide_bound", False):
             self._collapseBtn._lucide_name = "chevron-up" if collapsed else "chevron-down"

@@ -431,22 +431,26 @@ class InlineLoadingBanner(QWidget):
         from qt_compat import QTimer, QProgressBar, QHBoxLayout, QVBoxLayout, QLabel
 
         self.setObjectName("InlineLoadingBanner")
+        # The object name selector must match the widget class (QWidget), and
+        # the chunk uses a shimmering accent gradient so it is obvious the
+        # load is progressing even when the percent barely moves.
         self.setStyleSheet("""
-            QFrame#InlineLoadingBanner {
+            QWidget#InlineLoadingBanner {
                 background-color: %s;
                 border-bottom: 2px solid %s;
             }
             QLabel { color: %s; font-size: 11px; }
             QProgressBar { background-color: %s; border: none; border-radius: 3px; }
             QProgressBar::chunk {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 %s, stop:0.5 %s, stop:1 %s);
                 border-radius: 3px;
             }
-        """ % (_themeColor("bg-surface", "#181825"), _themeColor("blue", "#89b4fa"),
-               _themeColor("text-primary", "#cdd6f4"), _themeColor("border-dim", "#313244"),
-               _themeColor("blue", "#89b4fa"), _themeColor("purple", "#cba6f7"),
-               _themeColor("magenta", "#f5c2e7")))
+        """ % (_themeColor("bg-surface", "#181825"), _themeColor("accent", "#89b4fa"),
+               _themeColor("text-primary", "#cdd6f4"), _themeColor("border-dim", "#313244")))
+        self._accent = _themeColor("accent", "#89b4fa")
+        self._shimmer_phase = 0.0
+        self._shimmer_timer = QTimer(self)
+        self._shimmer_timer.setInterval(80)
+        self._shimmer_timer.timeout.connect(self._shimmer_step)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 6, 10, 8)
@@ -477,6 +481,10 @@ class InlineLoadingBanner(QWidget):
         self.progressBar.setFixedHeight(5)
         layout.addWidget(self.progressBar)
 
+        # The shimmer needs the progress bar to exist; start it last.
+        self._apply_shimmer()
+        self._shimmer_timer.start()
+
         self.lbl_detail = QLabel("Preparing project & engine...", self)
         layout.addWidget(self.lbl_detail)
 
@@ -487,6 +495,22 @@ class InlineLoadingBanner(QWidget):
         self._timer.setInterval(40)
         self._timer.timeout.connect(self._tick)
         self._timer.start()
+
+    def _apply_shimmer(self):
+        """Rebuild the chunk gradient with a moving highlight band."""
+        phase = self._shimmer_phase
+        c0, c1 = self._accent, _themeColor("text-primary", "#cdd6f4")
+        a = max(0.0, phase - 0.35)
+        b = min(1.0, phase + 0.35)
+        self.progressBar.setStyleSheet(
+            "QProgressBar { background-color: %s; border: none; border-radius: 3px; }"
+            "QProgressBar::chunk { border-radius: 3px; background: qlineargradient("
+            "x1:0, y1:0, x2:1, y2:0, stop:0 %s, stop:%.2f %s, stop:%.2f %s, stop:1 %s); }"
+            % (_themeColor("border-dim", "#313244"), c0, a, c1, b, c0, c0))
+
+    def _shimmer_step(self):
+        self._shimmer_phase = (self._shimmer_phase + 0.08) % 1.35
+        self._apply_shimmer()
 
     def _tick(self):
         if self._current < self._target:
@@ -514,6 +538,7 @@ class InlineLoadingBanner(QWidget):
     def dismiss(self, min_dwell_ms=0):
         try:
             self._timer.stop()
+            self._shimmer_timer.stop()
         except Exception:
             pass
         self.progressBar.setValue(100)

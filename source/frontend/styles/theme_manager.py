@@ -20,8 +20,12 @@ MINIMAL_SCROLLBAR_QSS = """QScrollBar:vertical {
     border-radius: 4px;
 }
 QScrollBar::handle:vertical {
+    background-color: palette(midlight);
     min-height: 24px;
     border-radius: 4px;
+}
+QScrollBar::handle:vertical:hover {
+    background-color: palette(highlight);
 }
 QScrollBar::handle:vertical:hover {
     /* inherits theme colors */
@@ -34,8 +38,12 @@ QScrollBar:horizontal {
     border-radius: 4px;
 }
 QScrollBar::handle:horizontal {
+    background-color: palette(midlight);
     min-width: 24px;
     border-radius: 4px;
+}
+QScrollBar::handle:horizontal:hover {
+    background-color: palette(highlight);
 }
 QScrollBar::handle:horizontal:hover {
     /* inherits theme colors */

@@ -93,6 +93,7 @@ class MiniCanvasMixin:
             )
             self.ui.miniCanvasOverlay = overlay
             self.ui.miniCanvasFloatFrame = overlay
+            logger.info("CANVAS", "minimap overlay created (float parent: %s)" % type(overlay.parentWidget()).__name__)
             self.ui.modernMiniCanvas = overlay.map
             overlay.visibilityChanged.connect(self._onMiniCanvasVisibilityRequested)
             overlay.dockRequested.connect(self._onMiniCanvasDockRequested)
@@ -139,6 +140,7 @@ class MiniCanvasMixin:
             return
 
         modern = self._isModernMiniCanvasMode()
+        logger.info("CANVAS", "minimap placement: modern=%s" % modern)
 
         if modern:
             overlay = self._ensureMiniCanvasOverlay()
@@ -308,6 +310,15 @@ class MiniCanvasMixin:
             pos_x = settings.value("Minimap/X", -1, int)
             pos_y = settings.value("Minimap/Y", -1, int)
 
+            logger.info(
+                "CANVAS",
+                "minimap restore: visible=%s collapsed=%s dock=%s pos=(%s,%s) "
+                "overlay.size=%sx%s map.size=%sx%s" % (
+                    visible, collapsed, dock, pos_x, pos_y,
+                    overlay.width(), overlay.height(),
+                    overlay.map.width(), overlay.map.height(),
+                ),
+            )
             overlay.map.setZoom(zoom)
             overlay.toggleCollapsed(collapsed)
 
@@ -322,6 +333,14 @@ class MiniCanvasMixin:
             # or collapsed geometry from a previous session.
             overlay.adjustSize()
             overlay._relayoutFloatButtons()
+            logger.info(
+                "CANVAS",
+                "minimap restored: overlay=%dx%d map=%dx%d collapsed=%s dock=%s visible=%s" % (
+                    overlay.width(), overlay.height(),
+                    overlay.map.width(), overlay.map.height(),
+                    overlay.isCollapsed(), overlay.dockMode(), overlay.isVisible(),
+                ),
+            )
             if dock in ("top", "bottom"):
                 QTimer.singleShot(0, lambda: self._onMiniCanvasDockRequested(dock))
             if visible:
