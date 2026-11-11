@@ -56,6 +56,67 @@ QMenuBar::item:selected {
     color: palette(highlight);
 }
 
+/* Status bar: compact chips, muted labels, accent DSP meter */
+QWidget#tw_statusbar {
+    background-color: palette(base);
+    border-top: 1px solid palette(mid);
+}
+
+QWidget#tw_statusbar QLabel {
+    background-color: transparent;
+    color: palette(text);
+    font-size: 11px;
+}
+
+QWidget#tw_statusbar QComboBox {
+    background-color: palette(base);
+    color: palette(window-text);
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+}
+
+QWidget#tw_statusbar QComboBox:hover {
+    border-color: palette(highlight);
+}
+
+QWidget#tw_statusbar QToolButton {
+    background-color: transparent;
+    color: palette(window-text);
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
+QWidget#tw_statusbar QToolButton:hover {
+    background-color: palette(alternate-base);
+    color: palette(highlight);
+}
+
+QWidget#tw_statusbar QFrame[line_4="true"], QWidget#tw_statusbar QFrame#line_4,
+QWidget#tw_statusbar QFrame#line_2, QWidget#tw_statusbar QFrame#line_3,
+QWidget#tw_statusbar QFrame#line_5 {
+    color: palette(mid);
+    background-color: palette(mid);
+}
+
+QProgressBar#pb_dsp_load {
+    background-color: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 3px;
+    max-height: 12px;
+    font-size: 10px;
+    color: palette(window-text);
+    text-align: center;
+}
+
+QProgressBar#pb_dsp_load::chunk {
+    background-color: palette(midlight);
+    border-radius: 2px;
+}
+
 /* Main window toolbar: compact Win11-style command bar — normal-weight
    12px text beside 16px icons, flat buttons with soft rounded hovers */
 QToolBar#toolBar {
