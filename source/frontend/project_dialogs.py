@@ -339,6 +339,12 @@ class InlineLoadingBanner(QWidget):
         self.lbl_percent = QLabel("8%", self)
         row.addWidget(self.lbl_title, 1)
         row.addWidget(self.lbl_percent)
+        self.lbl_eta = QLabel("", self)
+        self.lbl_eta.setStyleSheet(
+            "color: %s; font-family: 'JetBrains Mono', monospace; font-size: 11px;"
+            % _themeColor("text-muted", "#6c7086"))
+        row.addWidget(self.lbl_eta)
+
         layout.addLayout(row)
 
         self.lbl_readonly = QLabel(
@@ -397,6 +403,9 @@ class InlineLoadingBanner(QWidget):
         value = int(self._current)
         self.progressBar.setValue(value)
         self.lbl_percent.setText(f"{value}%")
+
+    def setEta(self, text):
+        self.lbl_eta.setText(str(text) if text else "")
 
     def setDetail(self, text):
         if text:

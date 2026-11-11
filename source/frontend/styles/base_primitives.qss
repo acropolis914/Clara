@@ -69,16 +69,24 @@ QWidget#tw_statusbar QLabel {
 }
 
 QWidget#tw_statusbar QComboBox {
-    background-color: palette(base);
+    background-color: transparent;
     color: palette(window-text);
-    border: 1px solid palette(mid);
+    border: none;
     border-radius: 4px;
     padding: 1px 6px;
     font-size: 11px;
 }
 
 QWidget#tw_statusbar QComboBox:hover {
-    border-color: palette(highlight);
+    background-color: palette(alternate-base);
+}
+
+QWidget#tw_statusbar QComboBox QAbstractItemView {
+    background-color: palette(base);
+    color: palette(window-text);
+    border: 1px solid palette(mid);
+    selection-background-color: palette(highlight);
+    selection-color: palette(window);
 }
 
 QWidget#tw_statusbar QToolButton {
@@ -93,6 +101,18 @@ QWidget#tw_statusbar QToolButton {
 QWidget#tw_statusbar QToolButton:hover {
     background-color: palette(alternate-base);
     color: palette(highlight);
+}
+
+/* Flat separators: no outlines in the status bar (QLabel subclasses QFrame,
+   so this must target the separator object names, not QFrame generally) */
+QWidget#tw_statusbar QFrame#line_1,
+QWidget#tw_statusbar QFrame#line_2,
+QWidget#tw_statusbar QFrame#line_3,
+QWidget#tw_statusbar QFrame#line_4,
+QWidget#tw_statusbar QFrame#line_5 {
+    background-color: transparent;
+    color: transparent;
+    border: none;
 }
 
 QWidget#tw_statusbar QFrame[line_4="true"], QWidget#tw_statusbar QFrame#line_4,

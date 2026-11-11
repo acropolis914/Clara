@@ -246,6 +246,8 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         self.fRecentProjectActions = []
         self.fIsProjectLoading = False
         self.fLoadingPluginTotal = 0
+        self._loadingPlan = []
+        self._pluginLastStart = None
         self.fLoadGeneration = 0
         self.fLoadingBridgePlugins = None
         self.fBridgePlugins = []
@@ -1699,6 +1701,19 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             root = storage_manager.get_project_root(load_source)
             if root is not None:
                 self.fLoadingPluginTotal = len(root.findall("Plugin"))
+                # Load plan: (format, name) per project plugin, in order. The
+                # ETA matches stored per-plugin averages against this plan.
+                plan = []
+                for p in root.findall("Plugin"):
+                    info = p.find("Info")
+                    if info is None:
+                        continue
+                    fmt = (info.findtext("Type") or "?").strip()
+                    name = (info.findtext("Name") or "").strip()
+                    plan.append((fmt, name))
+                self._loadingPlan = plan
+                self._pluginLoadStart = {}
+                self._pluginLastStart = None
                 eng_settings = root.find("EngineSettings")
                 prefer_bridges = eng_settings.findtext("PreferPluginBridges") if eng_settings is not None else None
                 if bridge_plugins is None and (not prefer_bridges or prefer_bridges.lower() in ("false", "0")):
@@ -1949,6 +1964,7 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
                 self.fLoadingDialog = None
 
     def _dismissLoadingDialog(self):
+        self._finalizePluginTiming()
         if getattr(self, "fLoadingDialog", None) is not None:
             try:
                 if hasattr(self.fLoadingDialog, "dismiss"):
@@ -1960,12 +1976,67 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
                 pass
             self.fLoadingDialog = None
 
+    @staticmethod
+    def _loadStatKey(fmt, name):
+        import hashlib
+        raw = f"{fmt}|{name}".lower()
+        return "LoadStats/" + hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
+
+    def _recordPluginLoadStat(self, fmt, name, seconds):
+        """Exponentially weighted running average, persisted across sessions."""
+        try:
+            settings = QSafeSettings()
+            key = self._loadStatKey(fmt, name)
+            prev = settings.value(key, 0.0, float)
+            updated = (prev * 0.7 + seconds * 0.3) if prev > 0.0 else seconds
+            settings.setValue(key, float(updated))
+        except Exception as ex:
+            logger.warning("SESSION", f"Could not store load stat: {ex}")
+
+    def _loadStatFor(self, fmt, name):
+        try:
+            return QSafeSettings().value(self._loadStatKey(fmt, name), 0.0, float)
+        except Exception:
+            return 0.0
+
+    def _finalizePluginTiming(self):
+        """Close out the last in-flight plugin timing and store its duration."""
+        last = getattr(self, "_pluginLastStart", None)
+        if not last:
+            return
+        fmt, name, started = last
+        seconds = time.monotonic() - started
+        if seconds > 0.05:
+            self._recordPluginLoadStat(fmt, name, seconds)
+        self._pluginLastStart = None
+
+    def _updateLoadingEta(self, done, total):
+        """ETA from stored per-plugin averages over the remaining load plan."""
+        dialog = getattr(self, "fLoadingDialog", None)
+        if dialog is None or not hasattr(dialog, "setEta"):
+            return
+        try:
+            plan = getattr(self, "_loadingPlan", None) or []
+            remaining = plan[done:] if done <= len(plan) else []
+            if remaining:
+                known = [self._loadStatFor(fmt, name) for fmt, name in remaining]
+                samples = [v for v in known if v > 0.0]
+                fallback = (sum(samples) / len(samples)) if samples else 0.0
+                eta = sum(v if v > 0.0 else fallback for v in known)
+                if eta > 0.5:
+                    dialog.setEta("~%ds left" % max(1, int(round(eta))))
+                    return
+            dialog.setEta("")
+        except Exception:
+            pass
+
     def _setLoadingProgress(self, percent, detail=None):
         dialog = getattr(self, "fLoadingDialog", None)
         if dialog is not None and hasattr(dialog, "setProgress"):
             dialog.setProgress(percent, detail)
 
     def projectLoadingFinished(self, refreshCanvas, restore_positions=True):
+        self._finalizePluginTiming()
         if self.ui.listWidget is not None:
             self.ui.listWidget.setUpdatesEnabled(True)
             self.ui.listWidget.blockSignals(False)
@@ -2542,6 +2613,12 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
                 detail = f"Loading plugin: {pluginName}{suffix}..."
             if hasattr(self.fLoadingDialog, "setProgress"):
                 self.fLoadingDialog.setProgress(percent, detail)
+
+            # Per-plugin timing: close out the previous plugin's duration and
+            # start this one's, then refresh the stored-average ETA.
+            self._finalizePluginTiming()
+            self._pluginLastStart = (pluginType, pluginName, time.monotonic())
+            self._updateLoadingEta(done, total)
 
         while len(self.fPluginList) <= pluginId:
             self.fPluginList.append(None)
