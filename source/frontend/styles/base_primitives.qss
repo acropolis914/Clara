@@ -36,33 +36,35 @@ QMenuBar::item:selected {
     color: palette(highlight);
 }
 
-/* Main window toolbar: consistent icon/text scale and spacing */
+/* Main window toolbar: compact Win11-style command bar — normal-weight
+   12px text beside 16px icons, flat buttons with soft rounded hovers */
 QToolBar#toolBar {
     background-color: palette(base);
     border: none;
-    border-bottom: 1px solid palette(mid);
-    padding: var(--space-xs) var(--space-sm);
-    spacing: var(--space-xs);
+    padding: 3px var(--space-sm);
+    spacing: 2px;
 }
 
 QToolBar#toolBar::separator {
     background-color: palette(mid);
     width: 1px;
-    margin: var(--space-xs) var(--space-xs);
+    height: 16px;
+    margin: 6px 5px;
 }
 
 QToolBar#toolBar QToolButton {
     background-color: transparent;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: 4px;
     padding: 5px 10px;
-    font-size: 13px;
+    font-size: 12px;
+    font-weight: normal;
     color: palette(window-text);
 }
 
 QToolBar#toolBar QToolButton:hover {
     background-color: palette(alternate-base);
-    color: palette(highlight);
+    color: palette(window-text);
 }
 
 QToolBar#toolBar QToolButton:pressed {
