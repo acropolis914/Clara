@@ -75,7 +75,9 @@ class DspLoadBar(QProgressBar):
         self._prune()
         vals = [v for _t, v in self._samples]
         avg = sum(vals) / len(vals) if vals else 0.0
-        return self._value, avg, (max(vals) if vals else 0.0), self._window
+        lo = min(vals) if vals else 0.0
+        hi = max(vals) if vals else 0.0
+        return self._value, avg, hi, self._window, lo
 
     def _prune(self):
         cutoff = time.monotonic() - (self._window + 2.0)
@@ -96,21 +98,33 @@ class DspLoadBar(QProgressBar):
         w, h = self.width(), self.height()
         clip = QRectF(0.5, 1.5, w - 1.0, h - 3.0)
 
+        self._prune()
+        samples = [s for s in self._samples if s[0] >= time.monotonic() - self._window]
+
+        # autoscale: the y range follows the visible data (min..max with a
+        # little headroom), floored to a 5% span so flat loads stay readable
+        vals = [v for _t, v in samples] + ([self._value] if self._samples else [])
+        lo = min(vals) if vals else 0.0
+        hi = max(vals) if vals else 100.0
+        pad = max(2.0, (hi - lo) * 0.15)
+        lo = max(0.0, lo - pad)
+        hi = min(100.0, hi + pad)
+        if hi - lo < 5.0:
+            mid = (hi + lo) / 2.0
+            lo, hi = max(0.0, mid - 2.5), max(2.5, mid + 2.5)
+
         # faint baseline
         painter.setPen(QColor(muted))
         painter.drawLine(int(clip.left()), int(clip.bottom()),
                          int(clip.right()), int(clip.bottom()))
 
-        self._prune()
-        samples = [s for s in self._samples if s[0] >= time.monotonic() - self._window]
         if samples:
             t0 = samples[0][0]
             span = max(1.0, self._window)
             points = []
             for t, v in samples:
                 x = clip.left() + (t - t0) / span * (clip.width() - 2.0)
-                y = clip.bottom() - (clip.height() - 2.0) * (v / 100.0)
-                points.append((x, y))
+                points.append((x, clip.bottom() - (clip.height() - 2.0) * ((v - lo) / (hi - lo))))
             if points:
                 from qt_compat import QPainterPath
                 path = QPainterPath()
@@ -137,4 +151,23 @@ class DspLoadBar(QProgressBar):
                 for i in range(1, len(points)):
                     painter.drawLine(int(points[i - 1][0]), int(points[i - 1][1]),
                                      int(points[i][0]), int(points[i][1]))
+
+        painter.setClipping(False)
+
+        # min/max labels (tiny, muted, corners)
+        f = painter.font()
+        f.setPointSizeF(max(6.0, f.pointSizeF() - 2.0))
+        painter.setFont(f)
+        painter.setPen(QColor(muted))
+        if samples:
+            painter.drawText(QRectF(clip.left() + 2, clip.top(), 90, 12),
+                             0, "max %d%%" % int(hi))
+            painter.drawText(QRectF(clip.left() + 2, clip.bottom() - 11, 90, 12),
+                             0, "min %d%%" % int(lo))
+
         painter.end()
+
+
+def text_color(pal):
+    role = QPalette.ColorRole.WindowText if hasattr(QPalette, "ColorRole") else QPalette.WindowText
+    return pal.color(role)

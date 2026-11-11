@@ -806,9 +806,9 @@ class CanvasMinimapOverlay(QFrame):
             return
         self._collapsed = collapsed
         if logger is not None:
-            logger.info("CANVAS", "minimap collapsed=%s (overlay %dx%d, map %dx%d)",
-                        collapsed, self.width(), self.height(),
-                        self.map.width(), self.map.height())
+            logger.info("CANVAS", "minimap collapsed=%s (overlay %dx%d, map %dx%d)" % (
+                collapsed, self.width(), self.height(),
+                self.map.width(), self.map.height()))
         self.map.setVisible(not collapsed)
         if getattr(self._collapseBtn, "_lucide_bound", False):
             self._collapseBtn._lucide_name = "chevron-up" if collapsed else "chevron-down"

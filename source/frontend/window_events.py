@@ -159,15 +159,16 @@ class EventsMixin:
                 if now - getattr(self, "_lastDspPush", 0.0) >= 0.25:
                     self._lastDspPush = now
                     spark.push(load)
-                cur, avg, mx, win = spark.stats()
+                cur, avg, mx, win, mn = spark.stats()
                 self._lblDspLoad.setText(
                     "<b style='color: %s'>%d%%</b> <span style='color: %s'>"
-                    "· avg %.1f%%</span>" % (
+                    "· avg %.1f%% · %ds</span>" % (
                         token("text-primary"),
-                        int(cur), token("text-muted"), avg))
+                        int(cur), token("text-muted"), avg, win))
                 self._lblDspLoad.setToolTip(self.tr(
-                    "Current: %d%% · average (%ds window): %.1f%% · max: %d%%"
-                    % (int(cur), win, avg, int(mx))))
+                    "Current: %d%%\nAverage (%ds window): %.1f%%\n"
+                    "Window range: %d%% - %d%%"
+                    % (int(cur), win, avg, int(mn), int(mx))))
         except Exception as ex:
             logger.warning("APP", "statusbar sparkline update failed: %s" % ex)
 

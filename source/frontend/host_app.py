@@ -2393,8 +2393,9 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         if old_bar is not None:
             spark = DspLoadBar(old_bar.parentWidget())
             spark.setObjectName("pb_dsp_load")
-            spark.setMinimumWidth(90)
-            spark.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            # A couple of inches on the right; the stretch keeps room free
+            # for more status info later.
+            spark.setFixedWidth(220)
             lay = old_bar.parentWidget().layout()
             idx = lay.indexOf(old_bar) if lay else -1
             if lay is not None and idx >= 0:
@@ -2405,12 +2406,17 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             self.ui.pb_dsp_load = spark
 
         # current/average text right after the save-status chip
+        existing = getattr(self, "_lblDspLoad", None)
+        if existing is not None and existing.parentWidget() is self.ui.tw_statusbar:
+            self._lblDspLoad = existing
+            return
         self._lblDspLoad = QLabel("DSP", self.ui.tw_statusbar)
         self._lblDspLoad.setStyleSheet(
             "font-family: 'JetBrains Mono', monospace; font-size: 11px;")
         lay = self.ui.tw_statusbar.layout()
         anchor = getattr(self, "label_save_status", None)
         if anchor is not None and lay is not None:
+            lay.addStretch(1)
             lay.insertWidget(lay.indexOf(anchor), self._lblDspLoad)
         else:
             lay.addWidget(self._lblDspLoad)
