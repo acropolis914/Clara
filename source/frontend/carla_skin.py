@@ -2721,7 +2721,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.label_badge.setObjectName("label_badge")
         # The badge is secondary info and must not drive the row's minimum
         # width on narrow rack viewports.
-        self.label_badge.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.label_badge.setMinimumWidth(1)
         self.label_badge.setAutoFillBackground(False)
         self.label_badge.setToolTip(f"Plugin: {self.fFullTitle} ({type_sub})")
         self._applyBadgeStyle()
@@ -2765,7 +2765,10 @@ class PluginSlot_Minimal(PluginSlot_Default):
         self.setMinimumWidth(160)
         # The title must never drive the slot's minimum width: rack items are
         # sized to the list viewport and the label already elides to fit.
-        self.label_name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        # Preferred keeps the natural size hint; the tiny explicit minimum
+        # lets the layout shrink it (an Ignored policy collapses the whole
+        # title stack to zero width next to a stretch spacer).
+        self.label_name.setMinimumWidth(1)
         # Tight row spacing keeps the single-row minimum under narrow rack
         # viewports (~260px), so slots can always shrink to the list width.
         self.ui.layout_top.setSpacing(2)
