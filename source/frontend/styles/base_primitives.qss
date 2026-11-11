@@ -261,6 +261,14 @@ QFrame#canvas_context_toolbar_overlay QPushButton {
     max-height: 24px;
 }
 
+/* The search field must fit the 32px bar: the global QLineEdit rule
+   (min-height 22px + padding) polished it to ~30px tall and it clipped. */
+QFrame#canvas_context_toolbar_overlay QLineEdit {
+    min-height: 0px;
+    max-height: 24px;
+    padding: 2px 8px;
+}
+
 /* Context toolbar section labels: small muted caps, vertically
    centered next to the 24px icon tiles instead of a large bold font. */
 QLabel#canvasContextLabel {
