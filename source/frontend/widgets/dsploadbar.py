@@ -13,8 +13,14 @@ roles and theme tokens only.
 import time
 from collections import deque
 
+def _token(name):
+    from styles.theme_manager import theme_manager
+    return theme_manager.engine.get_token(name) or "#89b4fa"
+
+
 from qt_compat import (
     QPalette,
+    QPointF,
     QPainter,
     QColor,
     QLinearGradient,
@@ -62,6 +68,13 @@ class DspLoadBar(QProgressBar):
         self.setValue(int(value))
         self.update()
 
+    def _valueAt(self, index):
+        """Load value for the sample at `index` in the current visible set."""
+        try:
+            return self._visible[index][1]
+        except Exception:
+            return self._value
+
     def current(self):
         return self._value
 
@@ -100,6 +113,7 @@ class DspLoadBar(QProgressBar):
 
         self._prune()
         samples = [s for s in self._samples if s[0] >= time.monotonic() - self._window]
+        self._visible = samples
 
         # autoscale: the y range follows the visible data (min..max with a
         # little headroom), floored to a 5% span so flat loads stay readable
@@ -112,6 +126,37 @@ class DspLoadBar(QProgressBar):
         if hi - lo < 5.0:
             mid = (hi + lo) / 2.0
             lo, hi = max(0.0, mid - 2.5), max(2.5, mid + 2.5)
+
+        # semantic colors by standard deviation: points within 1 sigma of the
+        # window mean are calm (green), 1-2 sigma warn (yellow), beyond 2
+        # sigma are spikes (red). A flat window (std ~ 0) stays green.
+        green = QColor(_token("green"))
+        yellow = QColor(_token("yellow"))
+        red = QColor(_token("red"))
+
+        vals_for_stats = [v for _t, v in samples] + ([self._value] if self._samples else [])
+        mean_v = sum(vals_for_stats) / len(vals_for_stats) if vals_for_stats else 0.0
+        var = sum((v - mean_v) ** 2 for v in vals_for_stats) / len(vals_for_stats) if vals_for_stats else 0.0
+        std_v = var ** 0.5
+
+        def color_for(v):
+            v = max(0.0, min(100.0, v))
+            if std_v < 0.75:
+                return green
+            z = (v - mean_v) / std_v
+            if z <= 0.0:
+                return green
+            if z < 1.0:
+                t = z
+                return QColor(int(green.red() + (yellow.red() - green.red()) * t),
+                              int(green.green() + (yellow.green() - green.green()) * t),
+                              int(green.blue() + (yellow.blue() - green.blue()) * t))
+            if z < 2.0:
+                t = z - 1.0
+                return QColor(int(yellow.red() + (red.red() - yellow.red()) * t),
+                              int(yellow.green() + (red.green() - yellow.green()) * t),
+                              int(yellow.blue() + (red.blue() - yellow.blue()) * t))
+            return red
 
         # faint baseline
         painter.setPen(QColor(muted))
@@ -127,30 +172,35 @@ class DspLoadBar(QProgressBar):
                 points.append((x, clip.bottom() - (clip.height() - 2.0) * ((v - lo) / (hi - lo))))
             if points:
                 from qt_compat import QPainterPath
-                path = QPainterPath()
-                path.moveTo(points[0][0], clip.bottom())
-                for x, y in points:
-                    path.lineTo(x, y)
-                last_x = points[-1][0]
-                path.lineTo(last_x, clip.bottom())
-                path.closeSubpath()
-                grad = QLinearGradient(0, clip.top(), 0, clip.bottom())
-                top = QColor(accent)
-                top.setAlpha(95)
-                bottom = QColor(accent)
-                bottom.setAlpha(15)
-                grad.setColorAt(0.0, top)
-                grad.setColorAt(1.0, bottom)
+                # per-point fill: a soft trapezoid per segment in that
+                # segment's semantic color (low alpha)
                 painter.setPen(Qt.NoPen)
-                painter.setBrush(grad)
-                painter.drawPath(path)
-
-                painter.setBrush(Qt.NoBrush)
-                pen = QColor(accent)
-                painter.setPen(pen)
                 for i in range(1, len(points)):
-                    painter.drawLine(int(points[i - 1][0]), int(points[i - 1][1]),
-                                     int(points[i][0]), int(points[i][1]))
+                    x0, y0 = points[i - 1]
+                    x1, y1 = points[i]
+                    v = self._valueAt(i)
+                    col = QColor(color_for(v))
+                    col.setAlpha(55)
+                    painter.setBrush(col)
+                    painter.drawPolygon([QPointF(x0, clip.bottom()),
+                                         QPointF(x0, y0), QPointF(x1, y1),
+                                         QPointF(x1, clip.bottom())])
+
+                # per-point stroke: each line segment colored by its load
+                painter.setBrush(Qt.NoBrush)
+                for i in range(1, len(points)):
+                    x0, y0 = points[i - 1]
+                    x1, y1 = points[i]
+                    v = self._valueAt(i)
+                    painter.setPen(QColor(color_for(v)))
+                    painter.drawLine(int(x0), int(y0), int(x1), int(y1))
+
+                # current-value marker dot in its own color
+                lx, ly = points[-1]
+                cur_col = QColor(color_for(self._value))
+                painter.setBrush(cur_col)
+                painter.setPen(Qt.NoPen)
+                painter.drawEllipse(QPointF(lx, ly), 2.5, 2.5)
 
         painter.setClipping(False)
 
