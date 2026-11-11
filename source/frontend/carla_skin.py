@@ -848,20 +848,33 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
             if exp_policy and pref_policy:
                 self.w_knobs_left.setSizePolicy(exp_policy, pref_policy)
 
-            has_right_knobs = bool(self.w_knobs_right is not None and (
-                (self.fPluginInfo['hints'] & PLUGIN_CAN_DRYWET) or (self.fPluginInfo['hints'] & PLUGIN_CAN_VOLUME)
-            ))
-
             if self.spacer_knobs is not None:
-                if has_right_knobs:
-                    self.spacer_knobs.changeSize(6, 1, pref_policy, pref_policy)
-                else:
-                    self.spacer_knobs.changeSize(0, 0, pref_policy, pref_policy)
+                self.spacer_knobs.changeSize(0, 0, pref_policy, pref_policy)
 
             if hasattr(self.ui, 'layout_bottom') and self.ui.layout_bottom is not None:
                 self.ui.layout_bottom.setStretch(0, 1)
                 if self.ui.layout_bottom.count() > 2:
                     self.ui.layout_bottom.setStretch(2, 0)
+
+            # Masters first: Dry/Wet and Volume lead the single knob grid, so
+            # the parameter knobs flow into the next row immediately after.
+            if self.w_knobs_left is not None and (self.fPluginInfo['hints'] & PLUGIN_CAN_DRYWET) != 0:
+                widget = ScalableDial(self, PARAMETER_DRYWET)
+                widget.setLabel("Dry/Wet")
+                widget.setMinimum(0.0)
+                widget.setMaximum(1.0)
+                setScalableDialStyle(widget, PARAMETER_DRYWET, 0, whiteLabels, self.fSkinStyle)
+                self.fParameterList.append([PARAMETER_DRYWET, widget])
+                self.w_knobs_left.layout().addWidget(widget)
+
+            if self.w_knobs_left is not None and (self.fPluginInfo['hints'] & PLUGIN_CAN_VOLUME) != 0:
+                widget = ScalableDial(self, PARAMETER_VOLUME)
+                widget.setLabel("Volume")
+                widget.setMinimum(0.0)
+                widget.setMaximum(1.27)
+                setScalableDialStyle(widget, PARAMETER_VOLUME, 0, whiteLabels, self.fSkinStyle)
+                self.fParameterList.append([PARAMETER_VOLUME, widget])
+                self.w_knobs_left.layout().addWidget(widget)
 
             for i in range(parameterCount):
                 if index >= 50:
@@ -901,26 +914,6 @@ class AbstractPluginSlot(QFrame, PluginEditParentMeta):
                 index += 1
                 self.fParameterList.append([i, widget])
                 layout.addWidget(widget)
-
-        if self.w_knobs_right is not None and (self.fPluginInfo['hints'] & PLUGIN_CAN_DRYWET) != 0:
-            widget = ScalableDial(self, PARAMETER_DRYWET)
-            widget.setLabel("Dry/Wet")
-            widget.setMinimum(0.0)
-            widget.setMaximum(1.0)
-            setScalableDialStyle(widget, PARAMETER_DRYWET, 0, whiteLabels, self.fSkinStyle)
-
-            self.fParameterList.append([PARAMETER_DRYWET, widget])
-            self.w_knobs_right.layout().addWidget(widget)
-
-        if self.w_knobs_right is not None and (self.fPluginInfo['hints'] & PLUGIN_CAN_VOLUME) != 0:
-            widget = ScalableDial(self, PARAMETER_VOLUME)
-            widget.setLabel("Volume")
-            widget.setMinimum(0.0)
-            widget.setMaximum(1.27)
-            setScalableDialStyle(widget, PARAMETER_VOLUME, 0, whiteLabels, self.fSkinStyle)
-
-            self.fParameterList.append([PARAMETER_VOLUME, widget])
-            self.w_knobs_right.layout().addWidget(widget)
 
         for paramIndex, paramWidget in self.fParameterList:
             paramWidget.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -3454,14 +3447,13 @@ class PluginSlot_Minimal(PluginSlot_Default):
                     kLayout.setContentsMargins(1, 2, 1, 2)
                 self.w_knobs_left.setMinimumWidth(0)
 
+        # Single knob grid: the old right column (Dry/Wet + Volume) is retired;
+        # masters lead the left FlowLayout now. Hide any legacy container.
         if hasattr(self, 'w_knobs_right') and self.w_knobs_right is not None:
-            show_right = (w >= 320) and not is_compact and not is_sliders
-            self.w_knobs_right.setVisible(show_right)
+            self.w_knobs_right.setVisible(False)
             if hasattr(self, 'spacer_knobs') and self.spacer_knobs is not None:
                 pref_policy = getattr(QSizePolicy, "Preferred", None) or getattr(getattr(QSizePolicy, "Policy", None), "Preferred", None)
-                if show_right and pref_policy is not None:
-                    self.spacer_knobs.changeSize(6, 1, pref_policy, pref_policy)
-                elif pref_policy is not None:
+                if pref_policy is not None:
                     self.spacer_knobs.changeSize(0, 0, pref_policy, pref_policy)
 
         # Notify rack item size if fixed height changed
@@ -3723,12 +3715,9 @@ class PluginSlot_Minimal(PluginSlot_Default):
             if self.w_knobs_left is not None:
                 self.w_knobs_left.setVisible(True)
             if self.w_knobs_right is not None:
-                self.w_knobs_right.setVisible(True)
-            has_right_knobs = bool(self.w_knobs_right is not None and (
-                (self.fPluginInfo['hints'] & PLUGIN_CAN_DRYWET) or (self.fPluginInfo['hints'] & PLUGIN_CAN_VOLUME)
-            ))
+                self.w_knobs_right.setVisible(False)
             if self.spacer_knobs is not None and pref_policy is not None:
-                self.spacer_knobs.changeSize(6 if has_right_knobs else 0, 1 if has_right_knobs else 0, pref_policy, pref_policy)
+                self.spacer_knobs.changeSize(0, 0, pref_policy, pref_policy)
             self.b_slider_mode.setText("")
             bind_icon(self.b_slider_mode, "list", size=16, color=p['blue'])
             self.b_slider_mode.setToolTip("Switch to Sliders view")

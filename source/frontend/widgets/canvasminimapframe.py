@@ -712,6 +712,8 @@ class CanvasMinimapOverlay(QFrame):
         self._collapsed = False
         self._drag_origin = None
         self._drag_start = None
+        self._dock = "float"
+        self.dockRequested = pyqtSignal(str)  # "float" | "top" | "bottom"
 
         self.map = CanvasMinimapFrame(self, graphics_view, scene, host)
         self.map.zoomChanged.connect(self.zoomChanged.emit)
@@ -721,19 +723,17 @@ class CanvasMinimapOverlay(QFrame):
         root.setSpacing(2)
         self._root = root
 
-        header = QHBoxLayout()
-        header.setContentsMargins(0, 0, 0, 0)
-        header.setSpacing(2)
-
-        self._grip = QToolButton(self)
+        # No header row: the grip and collapse buttons float INSIDE the map
+        # with a small offset, out of the map's own mouse handlers' way.
+        self._grip = QToolButton(self.map)
         self._grip.setObjectName("miniCanvasGrip")
-        self._grip.setText("\u2823\u2823")
         self._grip.setToolTip("Drag to move \u2022 right-click for options")
         self._grip.setAutoRaise(True)
         self._grip.setCursor(Qt.SizeAllCursor)
+        self._grip.setFixedSize(20, 20)
         self._grip.installEventFilter(self)
 
-        self._collapseBtn = QToolButton(self)
+        self._collapseBtn = QToolButton(self.map)
         self._collapseBtn.setObjectName("miniCanvasCollapse")
         try:
             from widgets.lucide import bind_icon
@@ -742,19 +742,33 @@ class CanvasMinimapOverlay(QFrame):
             self._collapseBtn.setText("\u25be")
         self._collapseBtn.setToolTip("Collapse / expand minimap")
         self._collapseBtn.setAutoRaise(True)
+        self._collapseBtn.setFixedSize(20, 20)
         self._collapseBtn.clicked.connect(lambda *_: self.toggleCollapsed())
 
-        header.addWidget(self._grip)
-        header.addStretch()
-        header.addWidget(self._collapseBtn)
-        root.addLayout(header)
         root.addWidget(self.map)
+        self._relayoutFloatButtons()
 
         for w in (self, self.map):
             w.setContextMenuPolicy(Qt.CustomContextMenu)
             w.customContextMenuRequested.connect(
                 lambda pos, widget=w: self._showContextMenu(widget, pos)
             )
+
+    def _relayoutFloatButtons(self):
+        """Keep the floating buttons pinned to the map's top corners."""
+        if getattr(self, "map", None) is None:
+            return
+        try:
+            self._grip.move(6, 6)
+            self._collapseBtn.move(self.map.width() - self._collapseBtn.width() - 6, 6)
+            self._grip.raise_()
+            self._collapseBtn.raise_()
+        except Exception:
+            pass
+
+    def resizeEvent(self, event):
+        self._relayoutFloatButtons()
+        QFrame.resizeEvent(self, event)
 
     # ------------------------------------------------------------ state
 
@@ -815,11 +829,34 @@ class CanvasMinimapOverlay(QFrame):
 
     # ------------------------------------------------------------ menu
 
+    def dockMode(self):
+        return self._dock
+
+    def setDockMode(self, mode):
+        """Track the dock mode; the host performs the actual reparenting."""
+        if mode not in ("float", "top", "bottom"):
+            return
+        self._dock = mode
+        # Floating is the only mode where dragging the map makes sense.
+        self._grip.setEnabled(True)
+        self._grip.setCursor(Qt.SizeAllCursor if mode == "float" else Qt.ArrowCursor)
+
     def _showContextMenu(self, widget, pos):
         try:
             menu = QMenu(self)
             act_collapse = menu.addAction("Expand" if self._collapsed else "Collapse")
             act_reset = menu.addAction("Reset zoom")
+            menu.addSeparator()
+            dock_menu = menu.addMenu("Dock")
+            act_float = dock_menu.addAction("Float over canvas")
+            act_top = dock_menu.addAction("Dock at top of rack")
+            act_bottom = dock_menu.addAction("Dock at bottom of rack")
+            act_float.setCheckable(True)
+            act_top.setCheckable(True)
+            act_bottom.setCheckable(True)
+            act_float.setChecked(self._dock == "float")
+            act_top.setChecked(self._dock == "top")
+            act_bottom.setChecked(self._dock == "bottom")
             menu.addSeparator()
             act_hide = menu.addAction("Hide minimap")
             chosen = menu.exec(widget.mapToGlobal(pos))
@@ -827,6 +864,9 @@ class CanvasMinimapOverlay(QFrame):
                 self.toggleCollapsed()
             elif chosen == act_reset:
                 self.map.resetView()
+            elif chosen in (act_float, act_top, act_bottom):
+                mode = {act_float: "float", act_top: "top", act_bottom: "bottom"}[chosen]
+                self.dockRequested.emit(mode)
             elif chosen == act_hide:
                 self.visibilityChanged.emit(False)
         except Exception:

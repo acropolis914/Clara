@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 #### 2026-11-11 — Everforest themes
 
+- **feat(ui)**: canvas minimap rework — the grip/collapse header row is gone; the buttons now float inside the map's top corners with an offset (they stay translucent and raised above the map's pan/zoom handlers), and the map is dockable via its right-click menu: "Dock at top of rack" / "Dock at bottom of rack" / "Float over canvas". Docking restructures the rack frame into a vertical layout and reparents the map; the choice persists ("Minimap/Dock").
 - **feat(ui)**: patchbay toolbar tiles are borderless; when a tool is toggled on, the icon ink inverts against the highlight fill via `contrast_on_highlight()` (theme background token, with a luminance-based black/white fallback), so checked tools stay readable in dark and light themes.
 - **feat(ui)**: ten UI polish enhancements: themed tooltips, hover border on rack slots, pointer/hand cursors on knobs/LEDs/sliders, keyboard focus rings, per-pixel rack scrolling, empty states (rack and node search), Lucide icons in canvas context menus (arrange/wire/repel, container layout, group), double-click affordance tooltips on slot titles, tooltips on the LED slice tiles and meters, and a 150ms color crossfade on the LED traffic lights.
 

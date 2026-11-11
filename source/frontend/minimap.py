@@ -95,6 +95,7 @@ class MiniCanvasMixin:
             self.ui.miniCanvasFloatFrame = overlay
             self.ui.modernMiniCanvas = overlay.map
             overlay.visibilityChanged.connect(self._onMiniCanvasVisibilityRequested)
+            overlay.dockRequested.connect(self._onMiniCanvasDockRequested)
             overlay.geometryChanged.connect(self._onMiniCanvasGeometryChanged)
             overlay.collapsedChanged.connect(lambda *_: self._saveMiniCanvasState())
             overlay.zoomChanged.connect(lambda *_: self._saveMiniCanvasState())
@@ -214,6 +215,63 @@ class MiniCanvasMixin:
         else:
             self._hideMiniCanvasFloat()
 
+    def _onMiniCanvasDockRequested(self, mode):
+        """Dock the minimap at the top/bottom of the rack list, or undock."""
+        overlay = self._ensureMiniCanvasOverlay()
+        if overlay is None:
+            return
+        frame = getattr(self.ui, "frame", None)
+        if frame is None:
+            return
+        old_layout = frame.layout()
+        if old_layout is None:
+            return
+
+        from qt_compat import QVBoxLayout
+
+        # Restructure the rack frame once: a vertical outer layout with the
+        # original horizontal row (pads + list + scrollbar) inside.
+        outer = getattr(self, "_rackDockLayout", None)
+        if outer is None or outer.parent() is not frame:
+            outer = QVBoxLayout(frame)
+            outer.setContentsMargins(0, 0, 0, 0)
+            outer.setSpacing(2)
+            self._rackDockLayout = outer
+            inner = getattr(self, "_rackDockInner", None)
+            if inner is None:
+                from qt_compat import QHBoxLayout
+                inner = QHBoxLayout()
+                inner.setContentsMargins(0, 0, 0, 0)
+                inner.setSpacing(0)
+                self._rackDockInner = inner
+            items = []
+            while old_layout.count():
+                items.append(old_layout.takeAt(0))
+            for item in items:
+                w = item.widget()
+                if w is not None:
+                    inner.addWidget(w)
+                else:
+                    inner.addItem(item)
+            outer.addLayout(inner)
+
+        overlay.setParent(frame)
+        if mode == "top":
+            outer.insertWidget(0, overlay)
+        elif mode == "bottom":
+            outer.addWidget(overlay)
+        else:
+            # Undock: back to floating over the canvas.
+            self._rackDockLayout.removeWidget(overlay)
+            overlay.setParent(self.ui.graphicsView.parentWidget() or self.ui.graphicsView.viewport())
+            overlay.show()
+            overlay.raise_()
+            self._repositionMiniCanvasFloat()
+
+        overlay.setDockMode(mode)
+        overlay.setVisible(getattr(self, "_miniCanvasUserVisible", True))
+        self._saveMiniCanvasState()
+
     def _onMiniCanvasGeometryChanged(self):
         self._miniCanvasUserPositioned = True
         self._saveMiniCanvasState()
@@ -246,6 +304,7 @@ class MiniCanvasMixin:
             zoom = settings.value("Minimap/Zoom", 1.0, float)
             collapsed = settings.value("Minimap/Collapsed", False, bool)
             visible = settings.value("Minimap/Visible", True, bool)
+            dock = str(settings.value("Minimap/Dock", "float") or "float")
             pos_x = settings.value("Minimap/X", -1, int)
             pos_y = settings.value("Minimap/Y", -1, int)
 
@@ -259,6 +318,8 @@ class MiniCanvasMixin:
                 self._miniCanvasUserPositioned = False
 
             self._miniCanvasUserVisible = bool(visible)
+            if dock in ("top", "bottom"):
+                QTimer.singleShot(0, lambda: self._onMiniCanvasDockRequested(dock))
             if visible:
                 overlay.show()
             else:
@@ -283,6 +344,7 @@ class MiniCanvasMixin:
             else:
                 settings.setValue("Minimap/X", -1)
                 settings.setValue("Minimap/Y", -1)
+            settings.setValue("Minimap/Dock", str(overlay.dockMode() if hasattr(overlay, "dockMode") else "float"))
             settings.setValue("Minimap/Zoom", float(overlay.map.getZoom()))
             settings.setValue("Minimap/Collapsed", bool(overlay.isCollapsed()))
             settings.setValue(
