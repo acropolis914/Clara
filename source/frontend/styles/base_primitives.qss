@@ -300,6 +300,14 @@ QLabel#canvasContextLabel {
     font-weight: 700;
 }
 
+/* Floating minimap buttons (grip + collapse chip) */
+QToolButton#miniCanvasGrip, QToolButton#miniCanvasCollapse {
+    background-color: palette(base);
+    border: none;
+    border-radius: 4px;
+    padding: 0px;
+}
+
 /* Canvas node search results (floating under the context toolbar field) */
 QListWidget#canvasNodeSearchList {
     background-color: palette(base);

@@ -723,9 +723,10 @@ class CanvasMinimapOverlay(QFrame):
         root.setSpacing(2)
         self._root = root
 
-        # No header row: the grip and collapse buttons float INSIDE the map
-        # with a small offset, out of the map's own mouse handlers' way.
-        self._grip = QToolButton(self.map)
+        # No header row: the grip and collapse buttons float INSIDE the map's
+        # top corners with a small offset — but they belong to the OVERLAY,
+        # not the map, so they survive the collapsed state (map hidden).
+        self._grip = QToolButton(self)
         self._grip.setObjectName("miniCanvasGrip")
         self._grip.setToolTip("Drag to move \u2022 right-click for options")
         self._grip.setAutoRaise(True)
@@ -733,7 +734,7 @@ class CanvasMinimapOverlay(QFrame):
         self._grip.setFixedSize(20, 20)
         self._grip.installEventFilter(self)
 
-        self._collapseBtn = QToolButton(self.map)
+        self._collapseBtn = QToolButton(self)
         self._collapseBtn.setObjectName("miniCanvasCollapse")
         try:
             from widgets.lucide import bind_icon
@@ -745,6 +746,19 @@ class CanvasMinimapOverlay(QFrame):
         self._collapseBtn.setFixedSize(20, 20)
         self._collapseBtn.clicked.connect(lambda *_: self.toggleCollapsed())
 
+        # Visible menu button: right-click on the map is not obvious.
+        self._menuBtn = QToolButton(self)
+        self._menuBtn.setObjectName("miniCanvasCollapse")
+        try:
+            from widgets.lucide import bind_icon
+            bind_icon(self._menuBtn, "menu", size=12)
+        except Exception:
+            self._menuBtn.setText("\u2261")
+        self._menuBtn.setToolTip("Minimap options (dock, zoom, hide)")
+        self._menuBtn.setAutoRaise(True)
+        self._menuBtn.setFixedSize(20, 20)
+        self._menuBtn.clicked.connect(lambda *_: self._showContextMenu(self._menuBtn, QPoint(0, 0)))
+
         root.addWidget(self.map)
         self._relayoutFloatButtons()
 
@@ -755,14 +769,18 @@ class CanvasMinimapOverlay(QFrame):
             )
 
     def _relayoutFloatButtons(self):
-        """Keep the floating buttons pinned to the map's top corners."""
-        if getattr(self, "map", None) is None:
-            return
+        """Pin the floating buttons to the map's top corners (6px offset).
+
+        The map sits inside the 3px root margins; when collapsed the map is
+        hidden and the buttons float on the small overlay frame instead.
+        """
+        overlay = self
         try:
-            self._grip.move(6, 6)
-            self._collapseBtn.move(self.map.width() - self._collapseBtn.width() - 6, 6)
-            self._grip.raise_()
-            self._collapseBtn.raise_()
+            self._grip.move(9, 9)
+            self._menuBtn.move(self._grip.x() + self._grip.width() + 4, 9)
+            self._collapseBtn.move(overlay.width() - self._collapseBtn.width() - 9, 9)
+            for btn in (self._grip, self._menuBtn, self._collapseBtn):
+                btn.raise_()
         except Exception:
             pass
 
@@ -789,6 +807,11 @@ class CanvasMinimapOverlay(QFrame):
         else:
             self._collapseBtn.setText("\u25b8" if collapsed else "\u25be")
         self.adjustSize()
+        if collapsed:
+            # The layout hint shrinks to margins only once the map hides; keep
+            # the frame large enough for the floating buttons to remain usable.
+            self.resize(max(self.width(), 78), max(self.height(), 34))
+        self._relayoutFloatButtons()
         self.updateGeometry()
         self.collapsedChanged.emit(collapsed)
 

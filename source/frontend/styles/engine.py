@@ -186,6 +186,33 @@ def map_base_to_semantic(palette: Dict[str, str], mode: str = "dark") -> Dict[st
         "border-subtle": _hex_to_rgba(text_primary, 0.08),
     }
 
+    # Surface elevation: raw theme palettes often ship surfaces only a few
+    # lightness points from the background, which reads as one flat shade.
+    # Push the elevated surfaces apart semantically - lighter than the
+    # background in dark mode, darker in light mode.
+    def _mix(hex_color: str, target, amount: float) -> str:
+        h = hex_color.lstrip("#")
+        if len(h) == 3:
+            h = "".join(ch * 2 for ch in h)
+        if len(h) < 6:
+            return hex_color
+        try:
+            r, g, b = (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+        except ValueError:
+            return hex_color
+        tr, tg, tb = target
+        return "#{:02x}{:02x}{:02x}".format(
+            int(r + (tr - r) * amount),
+            int(g + (tg - g) * amount),
+            int(b + (tb - b) * amount),
+        )
+
+    is_dark_mode = (mode or "dark").lower() != "light"
+    toward = (255, 255, 255) if is_dark_mode else (0, 0, 0)
+    semantic["bg-surface"] = _mix(semantic["bg-surface"], toward, 0.14 if is_dark_mode else 0.10)
+    semantic["bg-hover"] = _mix(semantic["bg-hover"], toward, 0.22 if is_dark_mode else 0.16)
+    semantic["bg-selected"] = semantic["bg-hover"]
+
     return semantic
 
 def _hex_to_rgba(hex_color: str, alpha: float) -> str:

@@ -318,6 +318,10 @@ class MiniCanvasMixin:
                 self._miniCanvasUserPositioned = False
 
             self._miniCanvasUserVisible = bool(visible)
+            # Size from the layout hint so the map never opens with a stale
+            # or collapsed geometry from a previous session.
+            overlay.adjustSize()
+            overlay._relayoutFloatButtons()
             if dock in ("top", "bottom"):
                 QTimer.singleShot(0, lambda: self._onMiniCanvasDockRequested(dock))
             if visible:
