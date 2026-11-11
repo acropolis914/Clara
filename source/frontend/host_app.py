@@ -2405,6 +2405,16 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             old_bar.deleteLater()
             self.ui.pb_dsp_load = spark
 
+        # Xruns chip: clicking opens the context report (the ui wiring's
+        # clear-on-click handler is replaced; clearing lives in the report).
+        xrun_chip = getattr(self.ui, "b_xruns", None) or getattr(self, "b_xruns", None)
+        if xrun_chip is not None:
+            try:
+                xrun_chip.clicked.disconnect(self.slot_xrunClear)
+            except (TypeError, RuntimeError):
+                pass
+            xrun_chip.clicked.connect(self._showXrunReport)
+
         # current/average text right after the save-status chip
         existing = getattr(self, "_lblDspLoad", None)
         if existing is not None and existing.parentWidget() is self.ui.tw_statusbar:
