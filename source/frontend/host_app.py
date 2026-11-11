@@ -172,6 +172,23 @@ class CarlaPrint:
 # Host Window
 
 
+class _ClickableStatusLabel(QLabel):
+    """Status bar label that opens a report on click (QSS-styled like the rest).
+
+    Used for the Xruns chip so its font matches the sibling labels exactly
+    (they share the same QWidget#tw_statusbar QLabel rule)."""
+
+    def __init__(self, on_click, parent):
+        QLabel.__init__(self, parent)
+        self._on_click = on_click
+        self.setCursor(Qt.PointingHandCursor)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton and self._on_click:
+            self._on_click()
+        QLabel.mouseReleaseEvent(self, event)
+
+
 class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, CanvasMixin, SettingsMixin, ProjectMenuMixin, PluginsMenuMixin, EngineMenuMixin, CanvasInputMixin, AppMenusMixin, HostInternalMixin, QMainWindow):
     # class HostWindow(QMainWindow, PluginEditParentMeta, metaclass=PyQtMetaClass):
     # signals
@@ -1395,14 +1412,19 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             last_time = self.fSessionManager.last_autosave_time
             last_str = last_time.strftime("%H:%M:%S") if last_time else self.tr("None")
 
+            autosave_txt = None
             if secs_left is not None:
                 mins = secs_left // 60
                 secs = secs_left % 60
-                self.label_autosave_status.setText(self.tr(f"Autosave: last {last_str} | next in {mins:02d}:{secs:02d}"))
+                autosave_txt = self.tr(f"Autosave: last {last_str} | next in {mins:02d}:{secs:02d}")
             else:
-                self.label_autosave_status.setText(self.tr(f"Autosave: last {last_str}"))
+                autosave_txt = self.tr(f"Autosave: last {last_str}")
         else:
-            self.label_autosave_status.setText(self.tr("Autosave: Off"))
+            autosave_txt = self.tr("Autosave: Off")
+        # shown as the save-status chip's tooltip instead of a status bar label
+        self.label_autosave_status.setText(autosave_txt or "")
+        self.label_autosave_status.hide()
+        self.label_save_status.setToolTip(autosave_txt or "")
 
     BUFFER_SIZE_CHOICES = (16, 32, 64, 128, 256, 512, 1024, 2048, 4096)
     SAMPLE_RATE_CHOICES = (22050, 32000, 44100, 48000, 88200, 96000, 192000)
@@ -2408,16 +2430,6 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
             old_bar.deleteLater()
             self.ui.pb_dsp_load = spark
 
-        # Xruns chip: clicking opens the context report (the ui wiring's
-        # clear-on-click handler is replaced; clearing lives in the report).
-        xrun_chip = getattr(self.ui, "b_xruns", None) or getattr(self, "b_xruns", None)
-        if xrun_chip is not None:
-            try:
-                xrun_chip.clicked.disconnect(self.slot_xrunClear)
-            except (TypeError, RuntimeError):
-                pass
-            xrun_chip.clicked.connect(self._showXrunReport)
-
         # current/average text right after the save-status chip
         existing = getattr(self, "_lblDspLoad", None)
         if existing is not None and existing.parentWidget() is self.ui.tw_statusbar:
@@ -2441,18 +2453,27 @@ class HostWindow(ControlMixin, RewireFlowMixin, EventsMixin, MiniCanvasMixin, Ca
         else:
             lay.addWidget(self._lblDspLoad)
 
-        # Xruns chip: clicking opens the context report (replaces the ui
-        # wiring's clear-on-click handler; typography matches the labels).
+        # Xruns chip: a QLabel styled by the same QSS rule as the sibling
+        # labels (identical font), clicking opens the context report. The
+        # ui wiring's clear-on-click handler dies with the old button.
+        # Runs BEFORE the swap below (the label has no .clicked signal).
         xrun_chip = getattr(self.ui, "b_xruns", None)
-        if xrun_chip is not None:
+        if xrun_chip is not None and not isinstance(xrun_chip, _ClickableStatusLabel):
             try:
                 xrun_chip.clicked.disconnect(self.slot_xrunClear)
             except (TypeError, RuntimeError):
                 pass
-            ref = getattr(self.ui, "label_buffer_size", None)
-            if ref is not None:
-                xrun_chip.setFont(ref.font())
-            xrun_chip.clicked.connect(self._showXrunReport)
+            lay = xrun_chip.parentWidget().layout()
+            idx = lay.indexOf(xrun_chip) if lay else -1
+            new_chip = _ClickableStatusLabel(self._showXrunReport,
+                                             xrun_chip.parentWidget())
+            new_chip.setObjectName("b_xruns")
+            if lay is not None and idx >= 0:
+                lay.insertWidget(idx, new_chip)
+                lay.removeWidget(xrun_chip)
+            xrun_chip.hide()
+            xrun_chip.deleteLater()
+            self.ui.b_xruns = new_chip
 
         autosave = getattr(self, "label_autosave_status", None)
         if autosave is not None and not autosave.text():
