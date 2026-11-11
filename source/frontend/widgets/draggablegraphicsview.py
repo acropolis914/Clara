@@ -495,7 +495,12 @@ class DraggableGraphicsView(QGraphicsView):
             list_h = min(160, max(40, len(matches) * 26 + 6))
             edit = self._searchWidget()
             if edit is not None:
-                top_left = edit.mapTo(self.viewport(), QPoint(0, edit.height() + 2))
+                # The search field lives in the context toolbar, a SIBLING of
+                # this view, not a child — map through global coordinates so
+                # the results list lands directly under the field (and stays
+                # correct when the toolbar is dragged).
+                gp = edit.mapToGlobal(QPoint(0, edit.height() + 2))
+                top_left = self.mapFromGlobal(gp)
                 list_w = max(180, edit.width())
                 self.fSearchList.setGeometry(top_left.x(), top_left.y(), list_w, list_h)
             else:

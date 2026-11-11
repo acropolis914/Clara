@@ -477,8 +477,9 @@ class CanvasContextToolBarOverlay(QFrame):
         btnTools.clicked.disconnect()
         btnTools.clicked.connect(lambda: self._slot_show_arrange_menu(btnTools, count))
 
-        # Size the bar from the layout: every child's size is authoritative
-        # (QSS tiles, fixed search field, separators), so no manual pixel math.
+        # Box-model autolayout: children carry their own sizes (QSS tiles,
+        # fixed search field, separators); the bar follows its layout hint and
+        # never exceeds the canvas viewport.
         for w in self._items:
             w.show()
             w.ensurePolished()
@@ -486,7 +487,10 @@ class CanvasContextToolBarOverlay(QFrame):
             search.setFocus()
         self.layout.activate()
         self.setFixedHeight(32)
-        self.resize(max(60, self.sizeHint().width()), 32)
+        self.adjustSize()
+        parent = self.parentWidget()
+        if parent is not None and self.width() > parent.width() - 24:
+            self.resize(parent.width() - 24, 32)
         if not getattr(self, "_userMoved", False):
             self.reposition()
 

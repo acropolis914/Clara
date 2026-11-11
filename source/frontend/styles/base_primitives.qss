@@ -270,6 +270,26 @@ QLabel#canvasContextLabel {
     font-weight: 700;
 }
 
+/* Canvas node search results (floating under the context toolbar field) */
+QListWidget#canvasNodeSearchList {
+    background-color: palette(base);
+    color: palette(window-text);
+    border: 1px solid palette(mid);
+    border-radius: var(--radius-sm);
+    padding: 2px;
+    outline: none;
+}
+
+QListWidget#canvasNodeSearchList::item {
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+QListWidget#canvasNodeSearchList::item:selected {
+    background-color: palette(highlight);
+    color: palette(window);
+}
+
 QFrame#canvas_toolbar_overlay QPushButton:hover, QFrame#canvas_context_toolbar_overlay QPushButton:hover {
     background-color: palette(alternate-base);
     color: palette(window-text);
