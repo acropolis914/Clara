@@ -205,6 +205,54 @@ BUILTIN_THEMES: Dict[str, Dict[str, Any]] = {
             "base0F": "#d65d0e",
         },
     },
+
+    "Everforest Dark": {
+        "name": "Everforest Dark",
+        "author": "sainnhe",
+        "mode": "dark",
+        "palette": {
+            "base00": "#2d353b",  # bg0 (medium)
+            "base01": "#343f44",  # bg1 / surface
+            "base02": "#3d484d",  # bg2 / hover
+            "base03": "#475258",  # bg3 / border
+            "base04": "#859289",  # grey1 / muted
+            "base05": "#d3c6aa",  # fg / text
+            "base06": "#d3c6aa",  # fg
+            "base07": "#9da9a0",  # grey2
+            "base08": "#e67e80",  # red
+            "base09": "#e69875",  # orange
+            "base0A": "#dbbc7f",  # yellow
+            "base0B": "#a7c080",  # green
+            "base0C": "#83c092",  # aqua
+            "base0D": "#7fbbb3",  # blue (accent)
+            "base0E": "#d699b6",  # purple
+            "base0F": "#d699b6",  # purple (magenta slot)
+        },
+    },
+
+    "Everforest Light": {
+        "name": "Everforest Light",
+        "author": "sainnhe",
+        "mode": "light",
+        "palette": {
+            "base00": "#fdf6e3",  # bg0 (medium light)
+            "base01": "#f4f0d9",  # bg1 / surface
+            "base02": "#efebd4",  # bg2 / hover
+            "base03": "#e6e2cc",  # bg3 / border
+            "base04": "#939f91",  # grey1 / muted
+            "base05": "#5c6a72",  # fg / text
+            "base06": "#5c6a72",  # fg
+            "base07": "#475258",  # darkest text
+            "base08": "#f85552",  # red
+            "base09": "#f57d26",  # orange
+            "base0A": "#dfa000",  # yellow
+            "base0B": "#8da101",  # green
+            "base0C": "#35a77c",  # aqua
+            "base0D": "#3a94c5",  # blue (accent)
+            "base0E": "#df69ba",  # purple
+            "base0F": "#df69ba",  # purple (magenta slot)
+        },
+    },
 }
 
 class ThemeRegistry:

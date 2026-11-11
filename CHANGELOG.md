@@ -22,6 +22,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+#### 2026-11-11 — Everforest themes
+
+- **feat(theming)**: new builtin themes "Everforest Dark" and "Everforest Light" (by sainnhe, MIT), using the exact medium-variant palettes from the upstream source; they flow through the standard Base16 pipeline (tokens, QSS, rack skins, patchbay) with the everforest blue `#7fbbb3` / `#3a94c5` as the app accent.
+
 #### 2026-11-11 — Lucide icon set
 
 - **fix(ui)**: canvas toolbar buttons are truly square — the theme QSS box model was overriding `setFixedSize` and squashing them to 28x~22; the scoped toolbar rules now pin equal min/max width and height (26x26 vertical toolbar, 24x24 context toolbar).
