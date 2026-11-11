@@ -31,6 +31,7 @@
 ---
 
 ## 🎛️ Patchbay Canvas & Navigation
+- [x] `[Diff: 1]` fix: rack items - LED tiles resized to fit (14px in 30x30 grid), knob ghost-paint/overlap/clipping fixed
 - [x] `[Diff: 2]` feat: selected-node cable styling - routing, pattern and thickness change while a node is selected and restore on deselect, with a "skip when all nodes are selected" toggle.
 
 - [x] `[Diff: 1]` feat: Patchbay selection keyboard shortcuts (Ctrl+A to select all, Photoshop-style selection shortcuts: Ctrl+D to deselect, Ctrl+Shift+I to invert selection)

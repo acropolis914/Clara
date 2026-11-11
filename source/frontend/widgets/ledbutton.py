@@ -39,6 +39,8 @@ class LEDButton(QPushButton):
 
         self.fImage = QSvgWidget(self)
         self.fImage.load(":/scalable/led_off.svg")
+        # paintEvent() renders the image itself; the child widget must never paint on top
+        self.fImage.hide()
         self.fRect = QRectF(self.fImage.rect())
 
         self.setCheckable(True)

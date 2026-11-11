@@ -36,6 +36,8 @@ class ScalableDial(CommonDial):
 
         self.fImage = QSvgWidget(self)
         self.fImage.load(":/scalable/dial_03.svg")
+        # paintDial() renders the image itself; the child widget must never paint on top
+        self.fImage.hide()
         self.fImageNum = "01"
 
         if self.fImage.sizeHint().width() > self.fImage.sizeHint().height():
@@ -104,8 +106,12 @@ class ScalableDial(CommonDial):
             return
 
         dialWidth = max(self.fImageBaseSize, self.fLabelWidth + 8)
-        self.setMinimumSize(dialWidth, self.fImageBaseSize + self.fLabelHeight + 5)
-        self.setMaximumSize(dialWidth, self.fImageBaseSize + self.fLabelHeight + 5)
+        # paintEvent draws the label AND a value line below it; leave room for both
+        dialHeight = self.fImageBaseSize + self.fLabelHeight + 5
+        if self.fLabel:
+            dialHeight = max(dialHeight, int(self.fLabelPos.y() + metrics.lineSpacing() + 4))
+        self.setMinimumSize(dialWidth, dialHeight)
+        self.setMaximumSize(dialWidth, dialHeight)
 
     def setImage(self, imageId):
         self.fImageNum = "%02i" % imageId
@@ -120,6 +126,7 @@ class ScalableDial(CommonDial):
         else:
             if not isinstance(self.fImage, QSvgWidget):
                 self.fImage = QSvgWidget(self)
+                self.fImage.hide()
 
         self.fImage.load(img)
 

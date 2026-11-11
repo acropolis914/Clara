@@ -2846,16 +2846,12 @@ class PluginSlot_Minimal(PluginSlot_Default):
 
         colorEnabled = QColor(text_color)
         colorDisabled = QColor(text_disabled)
-        dial_col_width = 68
-        dial_col_height = 54
         for _, paramWidget in self.fParameterList:
             if hasattr(paramWidget, "setLabelColor"):
                 paramWidget.setLabelColor(colorEnabled, colorDisabled)
             if hasattr(paramWidget, "setCustomPaintColor"):
                 paramWidget.setCustomPaintColor(arcColor)
                 paramWidget.setCustomPaintMode(ScalableDial.CUSTOM_PAINT_MODE_FLAT)
-            if isinstance(paramWidget, ScalableDial):
-                paramWidget.setFixedSize(dial_col_width, dial_col_height)
 
         if self.w_knobs_left is not None:
             leftLayout = self.w_knobs_left.layout()
@@ -3404,14 +3400,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 self.sliders_layout.setContentsMargins(6, 4, 6, 4)
                 self.sliders_layout.setSpacing(3)
 
-        # Responsive knobs layout: adapt dial size, spacing, and right knob column
-        if hasattr(self, 'fParameterList'):
-            dial_w = 46 if w < 260 else (52 if w < 440 else 58)
-            dial_h = 44 if w < 260 else (48 if w < 440 else 50)
-            for _, pWidget in self.fParameterList:
-                if isinstance(pWidget, ScalableDial):
-                    pWidget.setFixedSize(dial_w, dial_h)
-
+        # Responsive knobs layout: spacing and right knob column
         is_sliders = getattr(self, 'is_slider_mode', False)
 
         if hasattr(self, 'w_knobs_left') and self.w_knobs_left is not None:
@@ -3485,7 +3474,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
             self._led_grid_layout = QGridLayout(self._led_grid_container)
             self._led_grid_layout.setContentsMargins(0, 0, 0, 0)
             self._led_grid_layout.setSpacing(2)
-            self._led_grid_container.setFixedSize(18, 18)
+            self._led_grid_container.setFixedSize(30, 30)
             self._led_grid_container.setStyleSheet("")
 
             # Meter slice container
@@ -3493,7 +3482,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
             self._meter_slice_layout = QHBoxLayout(self._meter_slice_container)
             self._meter_slice_layout.setContentsMargins(1, 0, 0, 0)
             self._meter_slice_layout.setSpacing(1)
-            self._meter_slice_container.setFixedHeight(18)
+            self._meter_slice_container.setFixedHeight(30)
             self._meter_slice_container.setStyleSheet("")
 
             slice_layout.addWidget(self._led_grid_container)
@@ -3528,7 +3517,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
                 if led is not None:
                     if hasattr(led, 'setMinimalMode'):
                         led.setMinimalMode(True)
-                    led.setFixedSize(8, 8)
+                    led.setFixedSize(14, 14)
                     led.setStyleSheet("background: transparent; border: none; padding: 0px; margin: 0px; border-radius: 1px;")
 
             # Place Peak Meters in modern vertical slice
@@ -3537,7 +3526,7 @@ class PluginSlot_Minimal(PluginSlot_Default):
             for pm in (self.peak_in, self.peak_out):
                 if pm is not None:
                     pm.setMeterOrientation(DigitalPeakMeter.VERTICAL)
-                    pm.setFixedSize(6, 18)
+                    pm.setFixedSize(6, 30)
                     pm.setStyleSheet("")
 
             self._applySliceColors()
