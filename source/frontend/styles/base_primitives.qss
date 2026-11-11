@@ -261,14 +261,13 @@ QFrame#canvas_context_toolbar_overlay QPushButton {
     max-height: 24px;
 }
 
-/* Context toolbar section labels: small caps look, muted, vertically
+/* Context toolbar section labels: small muted caps, vertically
    centered next to the 24px icon tiles instead of a large bold font. */
 QLabel#canvasContextLabel {
     background: transparent;
     color: palette(midlight);
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 1px;
 }
 
 QFrame#canvas_toolbar_overlay QPushButton:hover, QFrame#canvas_context_toolbar_overlay QPushButton:hover {

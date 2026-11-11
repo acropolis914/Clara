@@ -147,7 +147,9 @@ class CanvasContextToolBarOverlay(QFrame):
             bind_icon(btn, icon, size=14)
         except Exception:
             btn.setText(icon)
-        btn.setFixedSize(26, 26)
+        # Matches the QSS tile size for buttons inside the context toolbar
+        btn.setFixedSize(24, 24)
+        btn.ensurePolished()
         if checkable:
             btn.setCheckable(True)
             btn.setChecked(checked)
@@ -475,35 +477,16 @@ class CanvasContextToolBarOverlay(QFrame):
         btnTools.clicked.disconnect()
         btnTools.clicked.connect(lambda: self._slot_show_arrange_menu(btnTools, count))
 
-        # Calculate exact pixel width for pure icon controls
-        total_w = (
-            self.layout.contentsMargins().left() + self.layout.contentsMargins().right()
-        )
-        spacing = self.layout.spacing()
+        # Size the bar from the layout: every child's size is authoritative
+        # (QSS tiles, fixed search field, separators), so no manual pixel math.
         for w in self._items:
             w.show()
-            if w is getattr(self, "searchEdit", None):
-                w.setFixedSize(170, 24)
-                total_w += 170 + spacing
-            elif isinstance(w, QFrame) and not isinstance(w, (QLabel, QPushButton)):
-                w.setFixedSize(1, 18)
-                total_w += 1 + spacing
-            elif isinstance(w, QPushButton):
-                w.setFixedSize(26, 26)
-                total_w += 26 + spacing
-            else:
-                txt = getattr(w, "text", lambda: "")()
-                fm = w.fontMetrics()
-                w_item = fm.boundingRect(txt).width() + 14
-                w.setFixedSize(w_item, 24)
-                total_w += w_item + spacing
-
-        if self._items:
-            total_w -= spacing
-
-        self.setFixedSize(max(60, total_w), 32)
+            w.ensurePolished()
         if search is not None and search.hasFocus():
             search.setFocus()
+        self.layout.activate()
+        self.setFixedHeight(32)
+        self.resize(max(60, self.sizeHint().width()), 32)
         if not getattr(self, "_userMoved", False):
             self.reposition()
 
